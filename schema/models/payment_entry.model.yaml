@@ -1,0 +1,254 @@
+# =============================================================================
+# Domain: Payment
+# Entity: PaymentEntry (+ PaymentAllocation)
+# Description: Settlement of money against invoices. A PaymentEntry records money
+# actually moving (receive from a customer, pay a supplier); its PaymentAllocation
+# children allocate that money across one-or-many billing invoices (the
+# reconciliation). On post it emits ONE balanced settlement AccountingPost —
+# receive: Dr Bank · Cr A/R [customer]; pay: Dr A/P [supplier] · Cr Bank — into
+# backbone-accounting, and (via PaymentSettled) draws down billing's outstanding.
+# All cross-module refs are logical FKs.
+# =============================================================================
+
+models:
+  - name: PaymentEntry
+    collection: payment_entries
+    description: "A settlement document; emits a settlement AccountingPost on post"
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+        description: "Unique payment identifier"
+
+      payment_number:
+        type: string
+        attributes: ["@required", "@max(40)"]
+        description: "Human reference (the post's source_reference)"
+
+      company_id:
+        type: uuid
+        attributes: ["@required", "@exclude_from_foreign_key_check"]
+        description: "Books owner # logical FK to organization.Company.id"
+
+      branch_id:
+        type: uuid?
+        attributes: ["@exclude_from_foreign_key_check"]
+        description: "Branch # logical FK to organization.Branch.id"
+
+      payment_type:
+        type: PaymentType
+        attributes: ["@required"]
+        description: "receive (from customer) | pay (to supplier) | internal_transfer"
+
+      party_type:
+        type: PaymentPartyType?
+        description: "customer | supplier | employee (null for internal_transfer)"
+
+      party_id:
+        type: uuid?
+        attributes: ["@exclude_from_foreign_key_check"]
+        description: "The settled party # logical FK to party.Party.id (A/R or A/P subledger)"
+
+      posting_date:
+        type: date
+        attributes: ["@required"]
+        description: "Settlement / posting date"
+
+      currency:
+        type: string
+        attributes: ["@default(\"IDR\")", "@max(3)"]
+        description: "ISO currency code"
+
+      mode_of_payment_id:
+        type: uuid?
+        attributes: ["@exclude_from_foreign_key_check"]
+        description: "How money moved # logical FK to payment.ModeOfPayment.id"
+
+      paid_amount:
+        type: decimal
+        attributes: ["@required", "@precision(18,2)", "@non_negative"]
+        description: "Total money moving (the Bank debit on receive / credit on pay)"
+
+      allocated_amount:
+        type: decimal
+        attributes: ["@default(0)", "@precision(18,2)", "@non_negative"]
+        description: "Σ of the allocation lines knocked off invoices"
+
+      unallocated_amount:
+        type: decimal
+        attributes: ["@default(0)", "@precision(18,2)", "@non_negative"]
+        description: "paid_amount − allocated_amount (kept on account)"
+
+      bank_account_id:
+        type: uuid
+        attributes: ["@required", "@exclude_from_foreign_key_check"]
+        description: "Bank/Cash GL account # logical FK to accounting.Account.id"
+
+      party_account_id:
+        type: uuid
+        attributes: ["@required", "@exclude_from_foreign_key_check"]
+        description: "A/R (receive) or A/P (pay) control account # logical FK to accounting.Account.id"
+
+      status:
+        type: PaymentStatus
+        attributes: ["@default(draft)"]
+        description: "Document lifecycle"
+
+      posting_state:
+        type: GlPostingState
+        attributes: ["@default(pending)"]
+        description: "GL reconciliation state"
+
+      journal_id:
+        type: uuid?
+        attributes: ["@exclude_from_foreign_key_check"]
+        description: "Resulting journal # logical FK to accounting.Journal.id"
+
+      accounting_post_id:
+        type: uuid?
+        attributes: ["@exclude_from_foreign_key_check"]
+        description: "The AccountingPost record # logical FK to accounting.AccountingPost.id"
+
+      posted_at:
+        type: datetime?
+        description: "When the GL post was confirmed"
+
+      reference_no:
+        type: string?
+        attributes: ["@max(140)"]
+        description: "External bank / gateway reference"
+
+      notes:
+        type: string?
+        attributes: ["@max(1000)"]
+        description: "Free-text notes"
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata"
+
+    relations:
+      allocations:
+        type: PaymentAllocation[]
+        attributes: ["@one_to_many"]
+        description: "Invoice allocations (the reconciliation)"
+        inverse: payment
+
+    indexes:
+      - type: unique
+        fields: [payment_number]
+        where: "deleted_at IS NULL"
+      - type: index
+        fields: [company_id, party_type, party_id, status]
+      - type: index
+        fields: [posting_state]
+
+  - name: PaymentAllocation
+    collection: payment_allocations
+    description: "One knock-off of a payment against an invoice (the reconciliation line)"
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+        description: "Unique allocation id"
+
+      payment_id:
+        type: uuid
+        attributes: ["@required", "@foreign_key(PaymentEntry.id)"]
+        description: "Owning payment"
+
+      invoice_ref:
+        type: uuid
+        attributes: ["@required", "@exclude_from_foreign_key_check"]
+        description: "The settled invoice id (logical — billing sales/purchase invoice)"
+
+      invoice_kind:
+        type: SettlementKind
+        attributes: ["@required"]
+        description: "Which billing invoice table `invoice_ref` points at"
+
+      allocated_amount:
+        type: decimal
+        attributes: ["@required", "@precision(18,2)", "@non_negative"]
+        description: "Amount of this payment knocked off that invoice"
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata"
+
+    relations:
+      payment:
+        type: PaymentEntry
+        attributes: ["@one", "@foreign_key(payment_id)"]
+        description: "Owning payment"
+        inverse: allocations
+
+    indexes:
+      - type: index
+        fields: [payment_id]
+      - type: index
+        fields: [invoice_ref, invoice_kind]
+
+# =============================================================================
+# Enums (shared across payment)
+# =============================================================================
+
+enums:
+  - name: PaymentType
+    description: "Direction of a payment"
+    variants:
+      - name: receive
+        description: "Money received from a customer (settles A/R)"
+        default: true
+      - name: pay
+        description: "Money paid to a supplier (settles A/P)"
+      - name: internal_transfer
+        description: "Between own accounts (no party)"
+
+  - name: PaymentPartyType
+    description: "Subledger party a payment settles"
+    variants:
+      - name: customer
+        description: "A/R party"
+        default: true
+      - name: supplier
+        description: "A/P party"
+      - name: employee
+        description: "Employee (advances/reimbursements)"
+
+  - name: PaymentStatus
+    description: "Payment document lifecycle"
+    variants:
+      - name: draft
+        description: "Being prepared; not posted"
+        default: true
+      - name: submitted
+        description: "Submitted; posting in progress"
+      - name: posted
+        description: "Posted to the GL + allocations knocked off"
+      - name: cancelled
+        description: "Voided (reversed in the GL)"
+
+  - name: GlPostingState
+    description: "GL-posting reconciliation state"
+    variants:
+      - name: pending
+        description: "Not yet posted"
+        default: true
+      - name: posted
+        description: "Confirmed posted"
+      - name: failed
+        description: "Rejected by accounting"
+
+  - name: SettlementKind
+    description: "Which billing invoice an allocation settles"
+    variants:
+      - name: sales
+        description: "Sales invoice (A/R)"
+        default: true
+      - name: purchase
+        description: "Purchase invoice (A/P)"

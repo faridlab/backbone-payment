@@ -1,0 +1,74 @@
+# =============================================================================
+# Domain: Payment
+# Entity: ModeOfPayment
+# Description: How money moves (cash, bank transfer, card, e-wallet, virtual
+# account, QRIS). A lean reference master; Indonesia defaults are seeded via the
+# `id` overlay data-seed layer (localization-standard §2), NOT hard-coded into the
+# base enum. `default_account_id` is the Bank/Cash GL account a payment defaults to.
+# =============================================================================
+
+models:
+  - name: ModeOfPayment
+    collection: mode_of_payments
+    description: "A payment method with a default Bank/Cash GL account"
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+        description: "Unique mode id"
+
+      code:
+        type: string
+        attributes: ["@required", "@max(40)"]
+        description: "Short code (unique)"
+
+      name:
+        type: string
+        attributes: ["@required", "@max(120)"]
+        description: "Display name"
+
+      mode_type:
+        type: ModeType
+        attributes: ["@required"]
+        description: "Settlement channel"
+
+      default_account_id:
+        type: uuid?
+        attributes: ["@exclude_from_foreign_key_check"]
+        description: "Default Bank/Cash account # logical FK to accounting.Account.id"
+
+      is_active:
+        type: bool
+        attributes: ["@default(true)"]
+        description: "Available for selection"
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata"
+
+    indexes:
+      - type: unique
+        fields: [code]
+        where: "deleted_at IS NULL"
+      - type: index
+        fields: [mode_type, is_active]
+
+enums:
+  - name: ModeType
+    description: "Settlement channel of a payment mode"
+    variants:
+      - name: cash
+        description: "Physical cash"
+        default: true
+      - name: bank_transfer
+        description: "Bank transfer / giro"
+      - name: card
+        description: "Debit / credit card"
+      - name: e_wallet
+        description: "E-wallet (GoPay, OVO, DANA, …)"
+      - name: virtual_account
+        description: "Bank virtual account"
+      - name: qris
+        description: "QRIS"
