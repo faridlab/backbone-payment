@@ -127,14 +127,24 @@ fn is_dup(e: &sqlx::Error) -> bool {
 pub struct PaymentWriteService {
     db_pool: PgPool,
     sink: Arc<dyn PaymentEventSink>,
+    /// When set, `post_payment` stages `PaymentSettled` into `<schema>.outbox_events` **inside the
+    /// posted-transition transaction** (crash-safe emission — go-live durable bus). When `None`, only the
+    /// legacy in-proc sink fires (existing behaviour). The relay drains the outbox to the real bus.
+    outbox_schema: Option<String>,
 }
 
 impl PaymentWriteService {
     pub fn new(db_pool: PgPool) -> Self {
-        Self { db_pool, sink: Arc::new(LoggingSink) }
+        Self { db_pool, sink: Arc::new(LoggingSink), outbox_schema: None }
     }
     pub fn with_sink(db_pool: PgPool, sink: Arc<dyn PaymentEventSink>) -> Self {
-        Self { db_pool, sink }
+        Self { db_pool, sink, outbox_schema: None }
+    }
+    /// Enable crash-safe `PaymentSettled` emission via the durable outbox in `schema` (e.g. `"payment"`).
+    /// Requires `backbone_outbox::outbox::migrate` to have created `<schema>.outbox_events`.
+    pub fn with_outbox_schema(mut self, schema: impl Into<String>) -> Self {
+        self.outbox_schema = Some(schema.into());
+        self
     }
 
     // ---- create -------------------------------------------------------------
@@ -272,15 +282,23 @@ impl PaymentWriteService {
                 // Gate the reconcile + seam event on THIS invocation performing the pending→posted
                 // transition — the seam routes `PaymentSettled` into billing::apply_settlement, so a
                 // double-emit would draw an invoice's outstanding down twice. Only the winner publishes.
+                // The transition AND the durable outbox stage commit in ONE tx, so a crash after the
+                // transition can never lose the `PaymentSettled` event (go-live durable bus).
+                let mut tx = self.db_pool.begin().await?;
                 let res = sqlx::query(
                     r#"UPDATE payment.payment_entries SET posting_state='posted'::gl_posting_state,
                         status='posted'::payment_status, journal_id=$2, accounting_post_id=$3, posted_at=now()
                        WHERE id=$1 AND posting_state <> 'posted'::gl_posting_state"#,
-                ).bind(payment_id).bind(ack.journal_id).bind(ack.post_id).execute(&self.db_pool).await?;
+                ).bind(payment_id).bind(ack.journal_id).bind(ack.post_id).execute(&mut *tx).await?;
                 if res.rows_affected() == 0 {
+                    tx.rollback().await?;
                     return self.short_circuit_posted(payment_id).await?
                         .ok_or(PaymentError::PaymentNotFound(payment_id));
                 }
+                if let Some(schema) = self.outbox_schema.clone() {
+                    self.stage_settled(&mut tx, &schema, payment_id, &env, &ack).await?;
+                }
+                tx.commit().await?;
                 self.emit_settled(payment_id, &env, &ack).await?;
                 Ok(SettleOutcome { payment_id, post_id: ack.post_id, journal_id: ack.journal_id, idempotent_reuse: ack.idempotent_reuse })
             }
@@ -289,6 +307,45 @@ impl PaymentWriteService {
                 Err(PaymentError::GlRejected { code: rej.code, message: rej.message })
             }
         }
+    }
+
+    /// Stage `PaymentSettled` (with all its allocations) into the durable outbox, reading the payment +
+    /// allocations on the SAME transaction as the posted-transition so the event is atomic with the
+    /// state change. The relay later delivers it; billing's `apply_settlements_once` dedups it.
+    async fn stage_settled(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        schema: &str,
+        payment_id: Uuid,
+        env: &AccountingPostEnvelope,
+        ack: &super::payment_gl::GlPostAck,
+    ) -> Result<(), PaymentError> {
+        let hdr = sqlx::query("SELECT payment_type::text AS pt, paid_amount FROM payment.payment_entries WHERE id=$1")
+            .bind(payment_id).fetch_one(&mut **tx).await?;
+        let payment_type: String = hdr.get("pt");
+        let paid_amount: Decimal = hdr.get("paid_amount");
+        let alloc_rows = sqlx::query("SELECT invoice_ref, invoice_kind::text AS kind, allocated_amount FROM payment.payment_allocations WHERE payment_id=$1 AND (metadata->>'deleted_at') IS NULL")
+            .bind(payment_id).fetch_all(&mut **tx).await?;
+        let allocations: Vec<serde_json::Value> = alloc_rows.iter().map(|r| serde_json::json!({
+            "invoice_ref": r.get::<Uuid, _>("invoice_ref").to_string(),
+            "invoice_kind": r.get::<String, _>("kind"),
+            "amount": r.get::<Decimal, _>("allocated_amount").to_string(),
+        })).collect();
+        let payload = serde_json::json!({
+            "payment_id": payment_id.to_string(),
+            "company_id": env.company_id.to_string(),
+            "payment_type": payment_type,
+            "paid_amount": paid_amount.to_string(),
+            "journal_id": ack.journal_id.to_string(),
+            "post_id": ack.post_id.to_string(),
+            "allocations": allocations,
+        });
+        let rec = backbone_outbox::OutboxRecord::new(
+            "PaymentSettled", "Payment", payment_id.to_string(), payload, chrono::Utc::now());
+        backbone_outbox::outbox::stage(&mut **tx, schema, &rec)
+            .await
+            .map_err(|e| PaymentError::Db(sqlx::Error::Protocol(e.to_string())))?;
+        Ok(())
     }
 
     async fn emit_settled(&self, payment_id: Uuid, env: &AccountingPostEnvelope, ack: &super::payment_gl::GlPostAck) -> Result<(), PaymentError> {

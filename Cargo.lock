@@ -275,6 +275,7 @@ dependencies = [
  "backbone-core",
  "backbone-messaging",
  "backbone-orm",
+ "backbone-outbox",
  "chrono",
  "config",
  "prost",

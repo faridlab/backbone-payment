@@ -128,7 +128,9 @@ async fn settlement_through_outbox_is_exactly_once() {
 
     let billing = BillingWriteService::new(pool.clone());
     let recorder = RecordingPaySink::default();
-    let payment = PaymentWriteService::with_sink(pool.clone(), Arc::new(recorder.clone()));
+    // Producer wired to the durable outbox: post_payment stages `PaymentSettled` in the posted tx.
+    let payment = PaymentWriteService::with_sink(pool.clone(), Arc::new(recorder.clone()))
+        .with_outbox_schema("payment");
     let gl = GlAdapter { svc: PostingService::new(pool.clone()) };
 
     // Invoice 1,000,000, posted → outstanding 1,000,000.
@@ -149,49 +151,29 @@ async fn settlement_through_outbox_is_exactly_once() {
         reference_no: None, allocations: vec![NewAllocation { invoice_ref: inv, invoice_kind: "sales".into(), amount: d("600000") }],
     }).await.unwrap();
     payment.post_payment(pay, &gl).await.unwrap();
+    let _ = &recorder; // the legacy in-proc sink still fires; the durable path is the outbox below.
 
-    // PRODUCER: stage the PaymentSettled into payment's outbox (in production this rides the settlement
-    // tx; here it stands in for that transactional emission — the in-tx atomicity is proven by the
-    // backbone-outbox mechanics suite). The event id is the single end-to-end dedup key.
-    let settled = {
-        let evts = recorder.events.lock().unwrap().clone();
-        evts.iter().find_map(|e| match e {
-            PaymentEvent::PaymentSettled(s) if s.payment_id == pay => Some(s.clone()), _ => None,
-        }).expect("PaymentSettled")
-    };
-    let payload = serde_json::json!({
-        "payment_id": settled.payment_id.to_string(),
-        "allocations": settled.allocations.iter().map(|a| serde_json::json!({
-            "invoice_ref": a.invoice_ref.to_string(), "invoice_kind": a.invoice_kind, "amount": a.amount.to_string(),
-        })).collect::<Vec<_>>(),
-    });
-    let event = OutboxRecord::new("PaymentSettled", "Payment", pay.to_string(), payload,
-        chrono::Utc::now());
-    let event_id = event.id;
-    let mut tx = pool.begin().await.unwrap();
-    outbox::stage(&mut *tx, "payment", &event).await.unwrap();
-    tx.commit().await.unwrap();
-    // <-- a crash HERE loses nothing: the event is durably in payment.outbox_events.
+    // PRODUCER (shipped path): post_payment already staged `PaymentSettled` into payment.outbox_events,
+    // atomically with the posted transition. A crash HERE loses nothing — the event is durable.
+    let event_id: Uuid = sqlx::query_scalar(
+        "SELECT id FROM payment.outbox_events WHERE aggregate_id=$1 AND event_type='PaymentSettled'")
+        .bind(pay.to_string()).fetch_one(&pool).await.unwrap();
 
-    // CONSUMER handler: dedup at billing's inbox, then drive REAL billing.apply_settlement.
+    // CONSUMER handler (shipped path): drive REAL billing.apply_settlements_once — one inbox dedup on the
+    // bus event id around ALL allocations, atomic with the drawdown.
     let hpool = pool.clone();
     let consume = move |rec: OutboxRecord| {
         let pool = hpool.clone();
         async move {
             let billing = BillingWriteService::new(pool.clone());
-            // Claim the event once for the "billing settlement" consumer.
-            let mut ctx = pool.begin().await.map_err(OutboxError::from)?;
-            let first = inbox::once(&mut *ctx, "billing", "settlement-consumer", rec.id).await?;
-            ctx.commit().await.map_err(OutboxError::from)?;
-            if first {
-                for a in rec.payload["allocations"].as_array().unwrap() {
-                    let iref: Uuid = a["invoice_ref"].as_str().unwrap().parse().unwrap();
-                    let kind = a["invoice_kind"].as_str().unwrap();
-                    let amt = Decimal::from_str_exact(a["amount"].as_str().unwrap()).unwrap();
-                    billing.apply_settlement(iref, kind, amt).await
-                        .map_err(|e| OutboxError::Publish(format!("{e:?}")))?;
-                }
-            }
+            let allocs: Vec<(Uuid, String, Decimal)> = rec.payload["allocations"].as_array().unwrap()
+                .iter().map(|a| (
+                    a["invoice_ref"].as_str().unwrap().parse().unwrap(),
+                    a["invoice_kind"].as_str().unwrap().to_string(),
+                    Decimal::from_str_exact(a["amount"].as_str().unwrap()).unwrap(),
+                )).collect();
+            billing.apply_settlements_once(rec.id, "settlement-consumer", &allocs).await
+                .map_err(|e| OutboxError::Publish(format!("{e:?}")))?;
             Ok(())
         }
     };
