@@ -90,3 +90,6 @@ rand = "0.8"
 # edges (verify: `cargo tree -e normal -i backbone-billing` / `-i backbone-accounting` are empty).
 backbone-accounting = { path = "../backbone-accounting" }
 backbone-billing = { path = "../backbone-billing" }
+# The go-live durable bus (transactional outbox + relay + inbox) — proving the settlement seam survives
+# a crash + at-least-once redelivery. Framework plumbing (sqlx/serde only); test-only here.
+backbone-outbox = { path = "../backbone-framework/backbone-outbox" }
