@@ -12,8 +12,11 @@ use std::sync::Arc;
 // Import handlers
 use crate::presentation::http::{
     create_mode_of_payment_routes,
+    create_mode_of_payment_read_routes,
     create_payment_entry_routes,
-    create_payment_allocation_routes
+    create_payment_entry_read_routes,
+    create_payment_allocation_routes,
+    create_payment_allocation_read_routes
 };
 
 // Import AppState for stateful routes
@@ -40,6 +43,18 @@ pub fn create_stateless_routes(module: &crate::PaymentModule) -> Router<()> {
         .merge(create_mode_of_payment_routes(module.mode_of_payment_service.clone()))
         .merge(create_payment_entry_routes(module.payment_entry_service.clone()))
         .merge(create_payment_allocation_routes(module.payment_allocation_service.clone()))
+}
+
+/// Read-only routes for the Payment module — every entity mounted READ-ONLY (the guarded base).
+///
+/// The generic `create_stateless_routes` exposes full mutable CRUD with no domain
+/// validation; this exposes only reads, so generic mutation can't bypass a write
+/// service's invariants. Extend it: `create_readonly_payment_routes(m).merge(my_validated_writes)`.
+pub fn create_readonly_payment_routes(module: &crate::PaymentModule) -> Router<()> {
+    Router::new()
+        .merge(create_mode_of_payment_read_routes(module.mode_of_payment_service.clone()))
+        .merge(create_payment_entry_read_routes(module.payment_entry_service.clone()))
+        .merge(create_payment_allocation_read_routes(module.payment_allocation_service.clone()))
 }
 
 /// Get all routes (stateless) for the Payment module.
