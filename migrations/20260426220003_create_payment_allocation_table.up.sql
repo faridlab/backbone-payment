@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS payment.payment_allocations (
     payment_id UUID NOT NULL,
     invoice_ref UUID NOT NULL,
     invoice_kind settlement_kind NOT NULL,
-    allocated_amount NUMERIC NOT NULL,
+    allocated_amount NUMERIC(18, 2) NOT NULL CHECK (allocated_amount >= 0),
     metadata JSONB NOT NULL DEFAULT '{"created_at":null,"updated_at":null,"deleted_at":null,"created_by":null,"updated_by":null,"deleted_by":null}'::jsonb,
     PRIMARY KEY (id)
 );
