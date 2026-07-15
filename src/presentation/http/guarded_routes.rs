@@ -8,7 +8,11 @@
 
 use std::sync::Arc;
 
-use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::post, Json, Router};
+use axum::{
+    extract::State, http::StatusCode, middleware::from_fn_with_state, response::IntoResponse,
+    routing::post, Json, Router,
+};
+use backbone_auth::tenant::{tenant_auth, TenantContext, TenantVerifier};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -47,8 +51,9 @@ impl From<AllocationBody> for NewAllocation {
 #[serde(rename_all = "camelCase")]
 struct CreatePaymentBody {
     payment_number: String,
-    company_id: Uuid,
-    #[serde(default)] branch_id: Option<Uuid>,
+    // No `company_id` / `branch_id`: the tenant is derived from the signed token via `TenantContext`,
+    // never from the request body — a client must not be able to name the company whose bank/party
+    // accounts it moves money against.
     payment_type: String,
     #[serde(default)] party_type: Option<String>,
     #[serde(default)] party_id: Option<Uuid>,
@@ -61,9 +66,13 @@ struct CreatePaymentBody {
     #[serde(default)] reference_no: Option<String>,
     #[serde(default)] allocations: Vec<AllocationBody>,
 }
-async fn create_payment(State(svc): State<Arc<PaymentWriteService>>, Json(b): Json<CreatePaymentBody>) -> axum::response::Response {
+async fn create_payment(
+    State(svc): State<Arc<PaymentWriteService>>,
+    tenant: TenantContext,
+    Json(b): Json<CreatePaymentBody>,
+) -> axum::response::Response {
     let p = NewPayment {
-        payment_number: b.payment_number, company_id: b.company_id, branch_id: b.branch_id,
+        payment_number: b.payment_number, company_id: tenant.company_id, branch_id: tenant.branch_id,
         payment_type: b.payment_type, party_type: b.party_type, party_id: b.party_id,
         posting_date: b.posting_date, currency: b.currency, mode_of_payment_id: b.mode_of_payment_id,
         bank_account_id: b.bank_account_id, party_account_id: b.party_account_id, paid_amount: b.paid_amount,
@@ -76,18 +85,33 @@ async fn create_payment(State(svc): State<Arc<PaymentWriteService>>, Json(b): Js
     }
 }
 
-fn write_routes(svc: Arc<PaymentWriteService>) -> Router {
+fn write_routes(svc: Arc<PaymentWriteService>, verifier: TenantVerifier) -> Router {
     Router::new()
         .route("/payment-entries", post(create_payment))
+        // Every write above is tenant-scoped: `tenant_auth` rejects a request whose token is absent,
+        // invalid, or carries no `company_id`, so a handler only ever runs with a proven tenant.
+        //
+        // `route_layer`, not `layer`: `layer` would also wrap this router's fallback, so once merged
+        // every *unmatched* path (e.g. the generic CRUD paths this surface deliberately does not
+        // mount) would answer 401 instead of 404 — leaking "auth required" for routes that do not
+        // exist, and masking the CRUD-bypass probes.
+        .route_layer(from_fn_with_state(verifier, tenant_auth))
         .with_state(svc)
 }
 
-/// Mount the payment module: read documents + validated creates. Generic mutation is not mounted.
-/// **Prefer this over `PaymentModule::all_crud_routes()` for any real deployment.**
-pub fn create_guarded_payment_routes(m: &PaymentModule, pool: PgPool) -> Router {
+/// Mount the payment module: read documents + validated, tenant-scoped creates. Generic mutation is
+/// not mounted. **Prefer this over `PaymentModule::all_crud_routes()` for any real deployment.**
+///
+/// The composing service builds one [`TenantVerifier`] from its JWT secret and passes it here; the
+/// write surface derives `company_id` from the token, so no tenant crosses the wire in a body.
+pub fn create_guarded_payment_routes(
+    m: &PaymentModule,
+    pool: PgPool,
+    verifier: TenantVerifier,
+) -> Router {
     let write = Arc::new(PaymentWriteService::new(pool));
     Router::new()
         .merge(create_mode_of_payment_read_routes(m.mode_of_payment_service.clone()))
         .merge(create_payment_entry_read_routes(m.payment_entry_service.clone()))
-        .merge(write_routes(write))
+        .merge(write_routes(write, verifier))
 }

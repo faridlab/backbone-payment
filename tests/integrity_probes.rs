@@ -1,11 +1,24 @@
 //! Integrity probes for payment — invariants that must hold against a REAL Postgres beyond the
 //! golden math. Requires DATABASE_URL (:5433/backbone_payment).
+//!
+//! IP-1..IP-3   the posting/settlement invariants (service level).
+//! IGT-1..IGT-3 the tenancy invariants on the guarded HTTP surface: a payment's tenant is derived
+//!              from a signed token, never from the request body.
 
 use std::sync::{Arc, Mutex};
 
+use axum::body::Body;
+use axum::http::{header, Request, StatusCode};
+use backbone_auth::tenant::TenantVerifier;
+use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use rust_decimal::Decimal;
+use serde::Serialize;
 use sqlx::PgPool;
+use tower::ServiceExt;
 use uuid::Uuid;
+
+use backbone_payment::presentation::http::create_guarded_payment_routes;
+use backbone_payment::PaymentModule;
 
 use backbone_payment::application::service::payment_events::{PaymentEvent, PaymentEventSink};
 use backbone_payment::application::service::payment_gl::{
@@ -117,4 +130,118 @@ async fn concurrent_post_emits_settled_once() {
     r2.unwrap().unwrap();
     let emitted = rec.events.lock().unwrap().iter().filter(|e| matches!(e, PaymentEvent::PaymentSettled(s) if s.payment_id == id)).count();
     assert_eq!(emitted, 1, "the settlement event must fire exactly once, even under a concurrent double-post");
+}
+
+// ── guarded HTTP surface: tenancy ────────────────────────────────────────────
+
+const SECRET: &[u8] = b"payment-integrity-probe-secret";
+
+#[derive(Serialize)]
+struct TestClaims {
+    sub: String,
+    exp: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    company_id: Option<Uuid>,
+}
+
+/// Mint an HS256 access token. `company_id = None` models a token that authenticates a user but
+/// carries no tenant — it must not be allowed to move money.
+fn token(company_id: Option<Uuid>) -> String {
+    let claims = TestClaims { sub: "probe-user".into(), exp: 9_999_999_999, company_id };
+    encode(&Header::new(Algorithm::HS256), &claims, &EncodingKey::from_secret(SECRET)).unwrap()
+}
+
+async fn module(pool: &PgPool) -> PaymentModule {
+    PaymentModule::builder().with_database(pool.clone()).build().unwrap()
+}
+fn app(pool: &PgPool, m: &PaymentModule) -> axum::Router {
+    create_guarded_payment_routes(m, pool.clone(), TenantVerifier::hs256(SECRET))
+}
+
+/// Send a request with an optional bearer token.
+async fn req_with(
+    app: axum::Router,
+    method: &str,
+    uri: &str,
+    body: Option<String>,
+    bearer: Option<String>,
+) -> (StatusCode, String) {
+    let b = body.map(Body::from).unwrap_or(Body::empty());
+    let mut builder = Request::builder()
+        .method(method)
+        .uri(uri)
+        .header("content-type", "application/json");
+    if let Some(t) = bearer {
+        builder = builder.header(header::AUTHORIZATION, format!("Bearer {t}"));
+    }
+    let resp = app.oneshot(builder.body(b).unwrap()).await.unwrap();
+    let status = resp.status();
+    let bytes = axum::body::to_bytes(resp.into_body(), 64 * 1024).await.unwrap();
+    (status, String::from_utf8_lossy(&bytes).to_string())
+}
+
+/// A well-formed receive-payment body. `company_id` is deliberately absent — the tenant rides on the
+/// token. `smuggled_company` injects a `companyId` an attacker would hope the handler trusts.
+fn payment_body(number: &str, smuggled_company: Option<Uuid>) -> String {
+    let smuggled = smuggled_company
+        .map(|c| format!(r#""companyId":"{c}","branchId":"{}","#, Uuid::new_v4()))
+        .unwrap_or_default();
+    format!(
+        r#"{{"paymentNumber":"{}",{}"paymentType":"receive","partyType":"customer","partyId":"{}",
+             "postingDate":"2026-07-05","bankAccountId":"{}","partyAccountId":"{}","paidAmount":"100000",
+             "allocations":[{{"invoiceRef":"{}","invoiceKind":"sales","amount":"100000"}}]}}"#,
+        number, smuggled, Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4(),
+    )
+}
+
+// IGT-1: an unauthenticated write is rejected. Before the tenant guard this create succeeded and
+// stamped whatever `companyId` the caller put in the body.
+#[tokio::test]
+async fn guarded_write_rejects_unauthenticated() {
+    let pool = pool().await;
+    let m = module(&pool).await;
+    let (status, _) =
+        req_with(app(&pool, &m), "POST", "/payment-entries", Some(payment_body(&uq("PE"), None)), None).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED, "an unauthenticated write must not reach the service");
+}
+
+// IGT-2: a token that authenticates a user but carries no `company_id` claim is rejected — a writer
+// that cannot name its tenant must never run.
+#[tokio::test]
+async fn guarded_write_rejects_token_without_company_id() {
+    let pool = pool().await;
+    let m = module(&pool).await;
+    let (status, _) = req_with(
+        app(&pool, &m), "POST", "/payment-entries", Some(payment_body(&uq("PE"), None)), Some(token(None)),
+    ).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED, "a token with no tenant must not write");
+}
+
+// IGT-3: a `companyId` smuggled in the body is ignored — the persisted tenant is the token's. This is
+// the regression that motivated the change: the body must not be able to name the company whose money
+// moves.
+#[tokio::test]
+async fn body_company_id_cannot_override_the_token_tenant() {
+    let pool = pool().await;
+    let m = module(&pool).await;
+    let token_company = Uuid::new_v4();
+    let attacker_company = Uuid::new_v4();
+    let number = uq("PE");
+    let (status, body) = req_with(
+        app(&pool, &m),
+        "POST",
+        "/payment-entries",
+        Some(payment_body(&number, Some(attacker_company))),
+        Some(token(Some(token_company))),
+    ).await;
+    assert_eq!(status, StatusCode::CREATED, "got: {body}");
+
+    let persisted: Uuid =
+        sqlx::query_scalar("SELECT company_id FROM payment.payment_entries WHERE payment_number = $1")
+            .bind(&number)
+            .fetch_one(&pool)
+            .await
+            .expect("payment row");
+    assert_eq!(persisted, token_company, "tenant must come from the token, not the body");
+    assert_ne!(persisted, attacker_company, "the body's companyId must be ignored");
 }

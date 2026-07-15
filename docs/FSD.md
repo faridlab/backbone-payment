@@ -24,9 +24,11 @@ control), `payment_type`, `party_type`/`party_id`, `posting_state`, and `journal
   `PaymentCancelled`} + `PaymentEventSink` + `LoggingSink`.
 
 ## HTTP surface (presentation/http/guarded_routes.rs)
-`create_guarded_payment_routes(&PaymentModule, pool)` — read documents + validated `POST
-/payment-entries` (with allocations). No generic mutation. Posting needs a `GlPostSink` composition
-layer, so it is service/job-driven, not an HTTP route.
+`create_guarded_payment_routes(&PaymentModule, pool, TenantVerifier)` — read documents + validated
+`POST /payment-entries` (with allocations). No generic mutation. The write surface is tenant-guarded:
+`company_id`/`branch_id` are derived from the signed Bearer token (`backbone_auth::tenant`), never
+from the request body. Posting needs a `GlPostSink` composition layer, so it is service/job-driven,
+not an HTTP route.
 
 ## State machines
 - Payment (`PaymentStatus`): `draft → posted` on a successful post; `cancelled` (reversal deferred).
