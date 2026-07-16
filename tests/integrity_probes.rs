@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 
 use axum::body::Body;
 use axum::http::{header, Request, StatusCode};
-use backbone_auth::tenant::TenantVerifier;
+use backbone_auth::company::CompanyVerifier;
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use rust_decimal::Decimal;
 use serde::Serialize;
@@ -155,7 +155,7 @@ async fn module(pool: &PgPool) -> PaymentModule {
     PaymentModule::builder().with_database(pool.clone()).build().unwrap()
 }
 fn app(pool: &PgPool, m: &PaymentModule) -> axum::Router {
-    create_guarded_payment_routes(m, pool.clone(), TenantVerifier::hs256(SECRET))
+    create_guarded_payment_routes(m, pool.clone(), CompanyVerifier::hs256(SECRET))
 }
 
 /// Send a request with an optional bearer token.

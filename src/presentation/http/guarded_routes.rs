@@ -12,7 +12,7 @@ use axum::{
     extract::State, http::StatusCode, middleware::from_fn_with_state, response::IntoResponse,
     routing::post, Json, Router,
 };
-use backbone_auth::tenant::{tenant_auth, TenantContext, TenantVerifier};
+use backbone_auth::company::{company_auth, CompanyContext, CompanyVerifier};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -51,7 +51,7 @@ impl From<AllocationBody> for NewAllocation {
 #[serde(rename_all = "camelCase")]
 struct CreatePaymentBody {
     payment_number: String,
-    // No `company_id` / `branch_id`: the tenant is derived from the signed token via `TenantContext`,
+    // No `company_id` / `branch_id`: the tenant is derived from the signed token via `CompanyContext`,
     // never from the request body — a client must not be able to name the company whose bank/party
     // accounts it moves money against.
     payment_type: String,
@@ -68,7 +68,7 @@ struct CreatePaymentBody {
 }
 async fn create_payment(
     State(svc): State<Arc<PaymentWriteService>>,
-    tenant: TenantContext,
+    tenant: CompanyContext,
     Json(b): Json<CreatePaymentBody>,
 ) -> axum::response::Response {
     let p = NewPayment {
@@ -85,29 +85,29 @@ async fn create_payment(
     }
 }
 
-fn write_routes(svc: Arc<PaymentWriteService>, verifier: TenantVerifier) -> Router {
+fn write_routes(svc: Arc<PaymentWriteService>, verifier: CompanyVerifier) -> Router {
     Router::new()
         .route("/payment-entries", post(create_payment))
-        // Every write above is tenant-scoped: `tenant_auth` rejects a request whose token is absent,
+        // Every write above is tenant-scoped: `company_auth` rejects a request whose token is absent,
         // invalid, or carries no `company_id`, so a handler only ever runs with a proven tenant.
         //
         // `route_layer`, not `layer`: `layer` would also wrap this router's fallback, so once merged
         // every *unmatched* path (e.g. the generic CRUD paths this surface deliberately does not
         // mount) would answer 401 instead of 404 — leaking "auth required" for routes that do not
         // exist, and masking the CRUD-bypass probes.
-        .route_layer(from_fn_with_state(verifier, tenant_auth))
+        .route_layer(from_fn_with_state(verifier, company_auth))
         .with_state(svc)
 }
 
 /// Mount the payment module: read documents + validated, tenant-scoped creates. Generic mutation is
 /// not mounted. **Prefer this over `PaymentModule::all_crud_routes()` for any real deployment.**
 ///
-/// The composing service builds one [`TenantVerifier`] from its JWT secret and passes it here; the
+/// The composing service builds one [`CompanyVerifier`] from its JWT secret and passes it here; the
 /// write surface derives `company_id` from the token, so no tenant crosses the wire in a body.
 pub fn create_guarded_payment_routes(
     m: &PaymentModule,
     pool: PgPool,
-    verifier: TenantVerifier,
+    verifier: CompanyVerifier,
 ) -> Router {
     let write = Arc::new(PaymentWriteService::new(pool));
     Router::new()
