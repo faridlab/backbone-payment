@@ -110,8 +110,15 @@ pub fn create_guarded_payment_routes(
     verifier: CompanyVerifier,
 ) -> Router {
     let write = Arc::new(PaymentWriteService::new(pool));
+    // payment_entry is company-fenced → its read route is tenant-scoped by the same `company_auth`
+    // layer as the writes (establishes the request scope; the generic list/get path runs through
+    // `company_scope::fetch_*_scoped`, which rides it, so RLS returns only the caller's rows). mode_of_
+    // payment is GLOBAL reference data (no company_id, no RLS) — it stays public, unwrapped.
+    let entity_reads = Router::new()
+        .merge(create_payment_entry_read_routes(m.payment_entry_service.clone()))
+        .route_layer(from_fn_with_state(verifier.clone(), company_auth));
     Router::new()
         .merge(create_mode_of_payment_read_routes(m.mode_of_payment_service.clone()))
-        .merge(create_payment_entry_read_routes(m.payment_entry_service.clone()))
+        .merge(entity_reads)
         .merge(write_routes(write, verifier))
 }
