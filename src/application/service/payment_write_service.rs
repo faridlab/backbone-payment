@@ -11,12 +11,24 @@
 //! (`amount ≤ outstanding`, enforced in `apply_settlement`). Posting is idempotent (source_id =
 //! payment id); the seam event is gated on the pending→posted transition, never re-emitted on a
 //! concurrent double-post (the lesson from billing's council).
+//!
+//! **Layering (the module's 4-layer rule):** this service ORCHESTRATES — it validates, computes the
+//! money, owns the unit of work (`begin`/`commit`), builds the GL envelope, drives the sink, and
+//! publishes events. It holds no SQL: every statement lives on `PaymentEntryRepository` /
+//! `PaymentAllocationRepository`, whose custom methods take the caller's transaction so a cross-entity
+//! write (the entry + its allocations; the posted-transition + the outbox stage) commits as one unit.
+//! The RLS scope wrappers (ADR-0008) stay HERE, in the service, because the service is what knows the
+//! company; tx-taking repo methods ride the bind this service already made.
 
 use backbone_orm::company_scope;
 use rust_decimal::{Decimal, RoundingStrategy};
-use sqlx::{PgPool, Row};
+use sqlx::PgPool;
 use std::sync::Arc;
 use uuid::Uuid;
+
+use crate::infrastructure::persistence::{
+    NewAllocationRow, NewPaymentEntryRow, PaymentAllocationRepository, PaymentEntryRepository,
+};
 
 use super::payment_events::{
     PaymentCancelled, PaymentEvent, PaymentEventSink, PaymentReceivedOnAccount, PaymentSettled,
@@ -120,14 +132,23 @@ impl std::error::Error for PaymentError {}
 impl From<sqlx::Error> for PaymentError {
     fn from(e: sqlx::Error) -> Self { PaymentError::Db(e) }
 }
+/// Discriminate a unique violation out of a raw `sqlx::Error`.
+///
+/// This is why the repositories' write methods leak `sqlx::Error` rather than a typed repo error: the
+/// service turns a re-used payment number into `DuplicateNumber`, and a typed error would have thrown
+/// that information away.
 fn is_dup(e: &sqlx::Error) -> bool {
     e.as_database_error().map(|d| d.is_unique_violation()).unwrap_or(false)
 }
 
+/// The repositories are held behind `Arc` only so this service stays `Clone` —
+/// `GenericCrudRepository` is not itself `Clone`. They are stateless handles over the same pool.
 #[derive(Clone)]
 pub struct PaymentWriteService {
     db_pool: PgPool,
     sink: Arc<dyn PaymentEventSink>,
+    entries: Arc<PaymentEntryRepository>,
+    allocations: Arc<PaymentAllocationRepository>,
     /// When set, `post_payment` stages `PaymentSettled` into `<schema>.outbox_events` **inside the
     /// posted-transition transaction** (crash-safe emission — go-live durable bus). When `None`, only the
     /// legacy in-proc sink fires (existing behaviour). The relay drains the outbox to the real bus.
@@ -136,10 +157,16 @@ pub struct PaymentWriteService {
 
 impl PaymentWriteService {
     pub fn new(db_pool: PgPool) -> Self {
-        Self { db_pool, sink: Arc::new(LoggingSink), outbox_schema: None }
+        Self::with_sink(db_pool, Arc::new(LoggingSink))
     }
     pub fn with_sink(db_pool: PgPool, sink: Arc<dyn PaymentEventSink>) -> Self {
-        Self { db_pool, sink, outbox_schema: None }
+        Self {
+            entries: Arc::new(PaymentEntryRepository::new(db_pool.clone())),
+            allocations: Arc::new(PaymentAllocationRepository::new(db_pool.clone())),
+            db_pool,
+            sink,
+            outbox_schema: None,
+        }
     }
     /// Enable crash-safe `PaymentSettled` emission via the durable outbox in `schema` (e.g. `"payment"`).
     /// Requires `backbone_outbox::outbox::migrate` to have created `<schema>.outbox_events`.
@@ -175,30 +202,35 @@ impl PaymentWriteService {
         // allocations insert fenced (WITH CHECK sees the caller's company).
         let mut tx = self.db_pool.begin().await?;
         company_scope::bind_company_on(&mut tx, p.company_id).await?;
-        let r = sqlx::query(
-            r#"INSERT INTO payment.payment_entries
-                (id, payment_number, company_id, branch_id, payment_type, party_type, party_id,
-                 posting_date, currency, mode_of_payment_id, paid_amount, allocated_amount,
-                 unallocated_amount, bank_account_id, party_account_id, status, posting_state, reference_no)
-               VALUES ($1,$2,$3,$4,$5::payment_type,$6::payment_party_type,$7,$8,$9,$10,$11,$12,$13,$14,$15,
-                       'draft'::payment_status,'pending'::gl_posting_state,$16)"#,
-        )
-        .bind(id).bind(&p.payment_number).bind(p.company_id).bind(p.branch_id).bind(&p.payment_type)
-        .bind(&p.party_type).bind(p.party_id).bind(p.posting_date).bind(&currency).bind(p.mode_of_payment_id)
-        .bind(paid).bind(allocated).bind(unallocated).bind(p.bank_account_id).bind(p.party_account_id)
-        .bind(&p.reference_no)
-        .execute(&mut *tx).await;
+        let r = self.entries.insert_entry(&mut tx, &NewPaymentEntryRow {
+            id,
+            payment_number: &p.payment_number,
+            company_id: p.company_id,
+            branch_id: p.branch_id,
+            payment_type: &p.payment_type,
+            party_type: p.party_type.as_deref(),
+            party_id: p.party_id,
+            posting_date: p.posting_date,
+            currency: &currency,
+            mode_of_payment_id: p.mode_of_payment_id,
+            paid_amount: paid,
+            allocated_amount: allocated,
+            unallocated_amount: unallocated,
+            bank_account_id: p.bank_account_id,
+            party_account_id: p.party_account_id,
+            reference_no: p.reference_no.as_deref(),
+        }).await;
         if let Err(e) = r {
             return Err(if is_dup(&e) { PaymentError::DuplicateNumber(p.payment_number) } else { e.into() });
         }
         for a in &p.allocations {
-            sqlx::query(
-                r#"INSERT INTO payment.payment_allocations
-                    (id, payment_id, invoice_ref, invoice_kind, allocated_amount)
-                   VALUES ($1,$2,$3,$4::settlement_kind,$5)"#,
-            )
-            .bind(Uuid::new_v4()).bind(id).bind(a.invoice_ref).bind(&a.invoice_kind).bind(money(a.amount))
-            .execute(&mut *tx).await?;
+            self.allocations.insert_allocation(&mut tx, &NewAllocationRow {
+                id: Uuid::new_v4(),
+                payment_id: id,
+                invoice_ref: a.invoice_ref,
+                invoice_kind: &a.invoice_kind,
+                allocated_amount: money(a.amount),
+            }).await?;
         }
         tx.commit().await?;
         Ok(id)
@@ -211,23 +243,17 @@ impl PaymentWriteService {
     /// payment; any unallocated remainder sits as an on-account balance on that party (standard).
     pub async fn build_settlement_post(&self, payment_id: Uuid) -> Result<AccountingPostEnvelope, PaymentError> {
         // RLS scope (ADR-0008), ID-only: fenced by the request/inherited scope.
-        let p = sqlx::query(
-            r#"SELECT payment_number, company_id, branch_id, payment_type::text AS pt, party_type::text AS party_t,
-                      party_id, posting_date, currency, paid_amount, bank_account_id, party_account_id
-               FROM payment.payment_entries WHERE id=$1 AND (metadata->>'deleted_at') IS NULL"#,
-        )
-        .bind(payment_id);
-        let p = company_scope::fetch_optional_row_scoped(&self.db_pool, p).await?
+        let p = self.entries.fetch_post_source(&self.db_pool, payment_id).await?
             .ok_or(PaymentError::PaymentNotFound(payment_id))?;
-        let currency: String = p.get("currency");
+        let currency = p.currency.clone();
         if currency != "IDR" { return Err(PaymentError::UnsupportedCurrency(currency)); }
-        let payment_type: String = p.get("pt");
-        let paid: Decimal = p.get("paid_amount");
-        let number: String = p.get("payment_number");
-        let bank: Uuid = p.get("bank_account_id");
-        let control: Uuid = p.get("party_account_id");
-        let party_id: Option<Uuid> = p.get("party_id");
-        let party_type: Option<String> = p.get("party_t");
+        let payment_type = p.payment_type.clone();
+        let paid: Decimal = p.paid_amount;
+        let number: String = p.payment_number.clone();
+        let bank: Uuid = p.bank_account_id;
+        let control: Uuid = p.party_account_id;
+        let party_id: Option<Uuid> = p.party_id;
+        let party_type: Option<String> = p.party_type.clone();
 
         let lines = match payment_type.as_str() {
             "receive" => {
@@ -246,9 +272,9 @@ impl PaymentWriteService {
         };
 
         let env = AccountingPostEnvelope {
-            idempotency_key: payment_id.to_string(), company_id: p.get("company_id"), branch_id: p.get("branch_id"),
+            idempotency_key: payment_id.to_string(), company_id: p.company_id, branch_id: p.branch_id,
             source_type: "payment".into(), source_id: payment_id, source_reference: Some(number),
-            posting_date: p.get("posting_date"), currency, posting_type: "original".into(), reverses_post_id: None,
+            posting_date: p.posting_date, currency, posting_type: "original".into(), reverses_post_id: None,
             description: Some(format!("Payment ({payment_type})")), lines,
         };
         if !env.is_balanced() { return Err(PaymentError::UnbalancedPost); }
@@ -261,10 +287,7 @@ impl PaymentWriteService {
     /// `posting_type`) is a separate post from the original AND a re-reversal dedups to one.
     pub async fn build_reversal_post(&self, payment_id: Uuid) -> Result<AccountingPostEnvelope, PaymentError> {
         let orig = self.build_settlement_post(payment_id).await?;
-        let reverses_q = sqlx::query_scalar(
-            "SELECT accounting_post_id FROM payment.payment_entries WHERE id=$1",
-        ).bind(payment_id);
-        let reverses_post_id: Option<Uuid> = company_scope::fetch_one_scalar_scoped(&self.db_pool, reverses_q).await?;
+        let reverses_post_id: Option<Uuid> = self.entries.fetch_accounting_post_id(&self.db_pool, payment_id).await?;
         let lines = orig.lines.iter().map(|l| GlPostLine {
             account_id: l.account_id, debit: l.credit, credit: l.debit,
             party_type: l.party_type.clone(), party_id: l.party_id,
@@ -294,12 +317,9 @@ impl PaymentWriteService {
                 // transition can never lose the `PaymentSettled` event (go-live durable bus).
                 let mut tx = self.db_pool.begin().await?;
                 company_scope::bind_company_on(&mut tx, env.company_id).await?;
-                let res = sqlx::query(
-                    r#"UPDATE payment.payment_entries SET posting_state='posted'::gl_posting_state,
-                        status='posted'::payment_status, journal_id=$2, accounting_post_id=$3, posted_at=now()
-                       WHERE id=$1 AND posting_state <> 'posted'::gl_posting_state"#,
-                ).bind(payment_id).bind(ack.journal_id).bind(ack.post_id).execute(&mut *tx).await?;
-                if res.rows_affected() == 0 {
+                let rows_affected = self.entries
+                    .mark_posted(&mut tx, payment_id, ack.journal_id, ack.post_id).await?;
+                if rows_affected == 0 {
                     tx.rollback().await?;
                     return self.short_circuit_posted(payment_id).await?
                         .ok_or(PaymentError::PaymentNotFound(payment_id));
@@ -312,8 +332,9 @@ impl PaymentWriteService {
                 Ok(SettleOutcome { payment_id, post_id: ack.post_id, journal_id: ack.journal_id, idempotent_reuse: ack.idempotent_reuse })
             }
             Err(rej) => {
-                let _ = company_scope::execute_scoped(&self.db_pool,
-                    sqlx::query("UPDATE payment.payment_entries SET posting_state='failed'::gl_posting_state WHERE id=$1").bind(payment_id)).await;
+                // Deliberately ignored: the GL rejection below is the error being reported, and a
+                // failure to mark the state must not mask it.
+                let _ = self.entries.mark_failed(&self.db_pool, payment_id).await;
                 Err(PaymentError::GlRejected { code: rej.code, message: rej.message })
             }
         }
@@ -330,16 +351,14 @@ impl PaymentWriteService {
         env: &AccountingPostEnvelope,
         ack: &super::payment_gl::GlPostAck,
     ) -> Result<(), PaymentError> {
-        let hdr = sqlx::query("SELECT payment_type::text AS pt, paid_amount FROM payment.payment_entries WHERE id=$1")
-            .bind(payment_id).fetch_one(&mut **tx).await?;
-        let payment_type: String = hdr.get("pt");
-        let paid_amount: Decimal = hdr.get("paid_amount");
-        let alloc_rows = sqlx::query("SELECT invoice_ref, invoice_kind::text AS kind, allocated_amount FROM payment.payment_allocations WHERE payment_id=$1 AND (metadata->>'deleted_at') IS NULL")
-            .bind(payment_id).fetch_all(&mut **tx).await?;
+        let hdr = self.entries.fetch_type_and_amount_on(&mut **tx, payment_id).await?;
+        let payment_type: String = hdr.payment_type;
+        let paid_amount: Decimal = hdr.paid_amount;
+        let alloc_rows = self.allocations.fetch_for_payment_on(&mut **tx, payment_id).await?;
         let allocations: Vec<serde_json::Value> = alloc_rows.iter().map(|r| serde_json::json!({
-            "invoice_ref": r.get::<Uuid, _>("invoice_ref").to_string(),
-            "invoice_kind": r.get::<String, _>("kind"),
-            "amount": r.get::<Decimal, _>("allocated_amount").to_string(),
+            "invoice_ref": r.invoice_ref.to_string(),
+            "invoice_kind": r.invoice_kind,
+            "amount": r.allocated_amount.to_string(),
         })).collect();
         let payload = serde_json::json!({
             "payment_id": payment_id.to_string(),
@@ -359,23 +378,21 @@ impl PaymentWriteService {
     }
 
     async fn emit_settled(&self, payment_id: Uuid, env: &AccountingPostEnvelope, ack: &super::payment_gl::GlPostAck) -> Result<(), PaymentError> {
-        let hdr = company_scope::with_company_scope(Some(env.company_id), company_scope::fetch_one_row_scoped(
-            &self.db_pool,
-            sqlx::query("SELECT payment_type::text AS pt, party_id, paid_amount, unallocated_amount FROM payment.payment_entries WHERE id=$1")
-                .bind(payment_id),
-        )).await?;
-        let payment_type: String = hdr.get("pt");
-        let paid_amount: Decimal = hdr.get("paid_amount");
-        let unallocated: Decimal = hdr.get("unallocated_amount");
-        let party_id: Option<Uuid> = hdr.get("party_id");
+        let hdr = company_scope::with_company_scope(
+            Some(env.company_id),
+            self.entries.fetch_settled_header(&self.db_pool, payment_id),
+        ).await?;
+        let payment_type: String = hdr.payment_type;
+        let paid_amount: Decimal = hdr.paid_amount;
+        let unallocated: Decimal = hdr.unallocated_amount;
+        let party_id: Option<Uuid> = hdr.party_id;
 
-        let alloc_rows = company_scope::with_company_scope(Some(env.company_id), company_scope::fetch_all_rows_scoped(
-            &self.db_pool,
-            sqlx::query("SELECT invoice_ref, invoice_kind::text AS kind, allocated_amount FROM payment.payment_allocations WHERE payment_id=$1 AND (metadata->>'deleted_at') IS NULL")
-                .bind(payment_id),
-        )).await?;
-        let allocations: Vec<SettledInvoice> = alloc_rows.iter().map(|r| SettledInvoice {
-            invoice_ref: r.get("invoice_ref"), invoice_kind: r.get("kind"), amount: r.get("allocated_amount"),
+        let alloc_rows = company_scope::with_company_scope(
+            Some(env.company_id),
+            self.allocations.fetch_for_payment(&self.db_pool, payment_id),
+        ).await?;
+        let allocations: Vec<SettledInvoice> = alloc_rows.into_iter().map(|r| SettledInvoice {
+            invoice_ref: r.invoice_ref, invoice_kind: r.invoice_kind, amount: r.allocated_amount,
         }).collect();
 
         self.sink.publish(PaymentEvent::PaymentSettled(PaymentSettled {
@@ -402,30 +419,26 @@ impl PaymentWriteService {
     /// the operator never hand-edits posted GL.
     pub async fn reverse_payment(&self, payment_id: Uuid, sink: &dyn GlPostSink) -> Result<SettleOutcome, PaymentError> {
         // RLS scope (ADR-0008), ID-only: fenced by the request/inherited scope.
-        let status: String = company_scope::fetch_optional_scalar_scoped(
-            &self.db_pool,
-            sqlx::query_scalar("SELECT status::text FROM payment.payment_entries WHERE id=$1 AND (metadata->>'deleted_at') IS NULL")
-                .bind(payment_id),
-        ).await?.ok_or(PaymentError::PaymentNotFound(payment_id))?;
+        let status: String = self.entries.fetch_status(&self.db_pool, payment_id).await?
+            .ok_or(PaymentError::PaymentNotFound(payment_id))?;
         if status != "posted" && status != "cancelled" {
             return Err(PaymentError::NotReversible(status));
         }
         let env = self.build_reversal_post(payment_id).await?;
         match sink.post(&env).await {
             Ok(ack) => {
-                let res = company_scope::with_company_scope(Some(env.company_id), company_scope::execute_scoped(
-                    &self.db_pool,
-                    sqlx::query("UPDATE payment.payment_entries SET status='cancelled'::payment_status WHERE id=$1 AND status='posted'::payment_status")
-                        .bind(payment_id),
-                )).await?;
+                let rows_affected = company_scope::with_company_scope(
+                    Some(env.company_id),
+                    self.entries.mark_cancelled(&self.db_pool, payment_id),
+                ).await?;
                 // Only the invocation that flipped posted→cancelled emits — so the reverse-seam restores
                 // each invoice exactly once even under a repeat/concurrent reverse.
-                if res.rows_affected() == 1 {
+                if rows_affected == 1 {
                     self.emit_cancelled(payment_id, &env, &ack).await?;
                 }
                 Ok(SettleOutcome {
                     payment_id, post_id: ack.post_id, journal_id: ack.journal_id,
-                    idempotent_reuse: ack.idempotent_reuse || res.rows_affected() == 0,
+                    idempotent_reuse: ack.idempotent_reuse || rows_affected == 0,
                 })
             }
             Err(rej) => Err(PaymentError::GlRejected { code: rej.code, message: rej.message }),
@@ -433,20 +446,18 @@ impl PaymentWriteService {
     }
 
     async fn emit_cancelled(&self, payment_id: Uuid, env: &AccountingPostEnvelope, ack: &super::payment_gl::GlPostAck) -> Result<(), PaymentError> {
-        let hdr = company_scope::with_company_scope(Some(env.company_id), company_scope::fetch_one_row_scoped(
-            &self.db_pool,
-            sqlx::query("SELECT payment_type::text AS pt, paid_amount FROM payment.payment_entries WHERE id=$1")
-                .bind(payment_id),
-        )).await?;
-        let payment_type: String = hdr.get("pt");
-        let paid_amount: Decimal = hdr.get("paid_amount");
-        let alloc_rows = company_scope::with_company_scope(Some(env.company_id), company_scope::fetch_all_rows_scoped(
-            &self.db_pool,
-            sqlx::query("SELECT invoice_ref, invoice_kind::text AS kind, allocated_amount FROM payment.payment_allocations WHERE payment_id=$1 AND (metadata->>'deleted_at') IS NULL")
-                .bind(payment_id),
-        )).await?;
-        let allocations: Vec<SettledInvoice> = alloc_rows.iter().map(|r| SettledInvoice {
-            invoice_ref: r.get("invoice_ref"), invoice_kind: r.get("kind"), amount: r.get("allocated_amount"),
+        let hdr = company_scope::with_company_scope(
+            Some(env.company_id),
+            self.entries.fetch_type_and_amount(&self.db_pool, payment_id),
+        ).await?;
+        let payment_type: String = hdr.payment_type;
+        let paid_amount: Decimal = hdr.paid_amount;
+        let alloc_rows = company_scope::with_company_scope(
+            Some(env.company_id),
+            self.allocations.fetch_for_payment(&self.db_pool, payment_id),
+        ).await?;
+        let allocations: Vec<SettledInvoice> = alloc_rows.into_iter().map(|r| SettledInvoice {
+            invoice_ref: r.invoice_ref, invoice_kind: r.invoice_kind, amount: r.allocated_amount,
         }).collect();
         self.sink.publish(PaymentEvent::PaymentCancelled(PaymentCancelled {
             payment_id, company_id: env.company_id, journal_id: ack.journal_id, post_id: ack.post_id,
@@ -458,13 +469,10 @@ impl PaymentWriteService {
     // ---- shared -------------------------------------------------------------
 
     async fn short_circuit_posted(&self, payment_id: Uuid) -> Result<Option<SettleOutcome>, PaymentError> {
-        let row = company_scope::fetch_optional_row_scoped(
-            &self.db_pool,
-            sqlx::query("SELECT posting_state::text AS ps, journal_id, accounting_post_id FROM payment.payment_entries WHERE id=$1 AND (metadata->>'deleted_at') IS NULL")
-                .bind(payment_id),
-        ).await?.ok_or(PaymentError::PaymentNotFound(payment_id))?;
-        if row.get::<String, _>("ps") == "posted" {
-            if let (Some(j), Some(p)) = (row.get::<Option<Uuid>, _>("journal_id"), row.get::<Option<Uuid>, _>("accounting_post_id")) {
+        let row = self.entries.fetch_posted_state(&self.db_pool, payment_id).await?
+            .ok_or(PaymentError::PaymentNotFound(payment_id))?;
+        if row.posting_state == "posted" {
+            if let (Some(j), Some(p)) = (row.journal_id, row.accounting_post_id) {
                 return Ok(Some(SettleOutcome { payment_id, post_id: p, journal_id: j, idempotent_reuse: true }));
             }
         }

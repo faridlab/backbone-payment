@@ -14,6 +14,12 @@ user_owned:
   - "src/application/service/payment_events.rs"
   - "src/application/service/payment_gl.rs"
   - "src/application/service/payment_write_service.rs"
+  # Own the hand-written payment SQL (the entry + allocations insert, the settlement/reversal post
+  # reads, the pending->posted and posted->cancelled transitions, the seam events' reads) that the
+  # write service orchestrates. Declared here — not renamed with a `_custom` suffix — so the generator
+  # skips them wholesale; this declaration is what makes editing them legitimate.
+  - "src/infrastructure/persistence/payment_entry_repository.rs"
+  - "src/infrastructure/persistence/payment_allocation_repository.rs"
   - "src/presentation/http/guarded_routes.rs"
   - "tests/payment_golden_cases.rs"
   - "tests/integrity_probes.rs"

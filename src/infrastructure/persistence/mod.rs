@@ -26,4 +26,11 @@ pub use backbone_orm::repository::{
 
 // Re-export custom persistence types
 // <<< CUSTOM
+// The hand-written payment SQL's parameter/projection types (see `payment_entry_repository` and
+// `payment_allocation_repository`, both declared `user_owned` in metaphor.codegen.yaml). The param
+// structs mirror COLUMNS, not entities.
+pub use payment_allocation_repository::{AllocationRow, NewAllocationRow};
+pub use payment_entry_repository::{
+    NewPaymentEntryRow, PaymentTypeAmountRow, PostSourceRow, PostedStateRow, SettledHeaderRow,
+};
 // END CUSTOM
