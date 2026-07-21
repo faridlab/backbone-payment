@@ -1,6 +1,6 @@
 [package]
 name = "backbone-payment"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 description = "Settlement & reconciliation — payment entries, allocation, modes of payment; 4th GL producer (Dr Bank·Cr A/R / Dr A/P·Cr Bank)"
 
