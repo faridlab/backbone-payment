@@ -17,10 +17,10 @@ path = "src/lib.rs"
 # or `rev = "<commit-sha>"`. Cargo dedupes the git fetch — the repo is only
 # cloned once even though four crates reference it.
 # -----------------------------------------------------------------------------
-backbone-core = { git = "https://github.com/faridlab/backbone-framework", branch = "main", features = ["postgres"] }
-backbone-orm = { git = "https://github.com/faridlab/backbone-framework", branch = "main" }
-backbone-auth = { git = "https://github.com/faridlab/backbone-framework", branch = "main", features = ["axum"] }
-backbone-messaging = { git = "https://github.com/faridlab/backbone-framework", branch = "main" }
+backbone-core = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.1", features = ["postgres"] }
+backbone-orm = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.1" }
+backbone-auth = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.1", features = ["axum"] }
+backbone-messaging = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.1" }
 # Go-live durable bus: the producer stages `PaymentSettled` into its outbox in the posted-transition tx
 # (crash-safe emission). Path for hermetic local builds; production swaps to the git framework dep at
 # release. Only sqlx/serde transitively, so it never conflicts with the git-pinned framework crates.
