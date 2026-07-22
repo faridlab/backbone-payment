@@ -371,7 +371,7 @@ impl PaymentWriteService {
             "allocations": allocations,
         });
         let rec = backbone_outbox::OutboxRecord::new(
-            "PaymentSettled", "Payment", payment_id.to_string(), payload, chrono::Utc::now());
+            "PaymentSettled", "Payment", payment_id.to_string(), env.company_id, payload, chrono::Utc::now());
         backbone_outbox::outbox::stage(&mut **tx, schema, &rec)
             .await
             .map_err(|e| PaymentError::Db(sqlx::Error::Protocol(e.to_string())))?;
