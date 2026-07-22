@@ -371,6 +371,9 @@ impl backbone_orm::EntityRepoMeta for PaymentEntry {
     fn search_fields() -> &'static [&'static str] {
         &["payment_number", "currency"]
     }
+    fn company_field() -> Option<&'static str> {
+        Some("company_id")
+    }
 }
 
 /// Builder for PaymentEntry entity

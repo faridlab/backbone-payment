@@ -1601,6 +1601,7 @@ components:
       type: object
       required:
         - id
+        - company_id
         - payment_id
         - invoice_ref
         - invoice_kind
@@ -1608,6 +1609,9 @@ components:
         - metadata
       properties:
         id:
+          type: string
+          format: uuid
+        company_id:
           type: string
           format: uuid
         payment_id:
@@ -1639,12 +1643,16 @@ components:
     CreatePaymentAllocationRequest:
       type: object
       required:
+        - company_id
         - payment_id
         - invoice_ref
         - invoice_kind
         - allocated_amount
         - metadata
       properties:
+        company_id:
+          type: string
+          format: uuid
         payment_id:
           type: string
           format: uuid
@@ -1661,12 +1669,16 @@ components:
     UpdatePaymentAllocationRequest:
       type: object
       required:
+        - company_id
         - payment_id
         - invoice_ref
         - invoice_kind
         - allocated_amount
         - metadata
       properties:
+        company_id:
+          type: string
+          format: uuid
         payment_id:
           type: string
           format: uuid
@@ -1683,6 +1695,9 @@ components:
     PatchPaymentAllocationRequest:
       type: object
       properties:
+        company_id:
+          type: string
+          format: uuid
         payment_id:
           type: string
           format: uuid

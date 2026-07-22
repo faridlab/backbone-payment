@@ -44,6 +44,7 @@ impl PaymentAllocationRepository {
 /// kind fails as a DB error rather than a deserialize panic.
 pub struct NewAllocationRow<'a> {
     pub id: Uuid,
+    pub company_id: Uuid,
     pub payment_id: Uuid,
     pub invoice_ref: Uuid,
     pub invoice_kind: &'a str,
@@ -64,7 +65,10 @@ impl PaymentAllocationRepository {
     /// Insert one allocation line.
     ///
     /// Takes the CALLER'S connection so the allocations and their payment entry commit as one unit. The
-    /// caller has already bound the company on it (`bind_company_on`) — don't re-bind here.
+    /// caller has already bound the company on it (`bind_company_on`) — don't re-bind here. The row
+    /// carries its own `company_id` (ADR-0010 Decision A) so the FORCE RLS WITH CHECK policy on
+    /// `payment_allocations` sees a value that matches `app.company_id`; the bind on the tx is what
+    /// makes that match hold.
     pub async fn insert_allocation(
         &self,
         conn: &mut sqlx::PgConnection,
@@ -72,10 +76,10 @@ impl PaymentAllocationRepository {
     ) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"INSERT INTO payment.payment_allocations
-                (id, payment_id, invoice_ref, invoice_kind, allocated_amount)
-               VALUES ($1,$2,$3,$4::settlement_kind,$5)"#,
+                (id, company_id, payment_id, invoice_ref, invoice_kind, allocated_amount)
+               VALUES ($1,$2,$3,$4,$5::settlement_kind,$6)"#,
         )
-        .bind(a.id).bind(a.payment_id).bind(a.invoice_ref).bind(a.invoice_kind).bind(a.allocated_amount)
+        .bind(a.id).bind(a.company_id).bind(a.payment_id).bind(a.invoice_ref).bind(a.invoice_kind).bind(a.allocated_amount)
         .execute(conn)
         .await?;
         Ok(())
@@ -101,7 +105,9 @@ impl PaymentAllocationRepository {
     }
 
     /// Read the same allocations on the CALLER'S transaction, so the outbox stage reads them on the SAME
-    /// tx as the posted-transition the staged event is atomic with.
+    /// tx as the posted-transition the staged event is atomic with. ADR-0010 turned on FORCE RLS on
+    /// `payment_allocations`, so this read is now genuinely fenced by the caller's `app.company_id`
+    /// bind (previously the table had no policy and this read trusted the payment_id predicate alone).
     pub async fn fetch_for_payment_on(
         &self,
         conn: &mut sqlx::PgConnection,

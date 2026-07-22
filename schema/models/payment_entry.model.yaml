@@ -155,6 +155,11 @@ models:
         attributes: ["@id", "@default(uuid)"]
         description: "Unique allocation id"
 
+      company_id:
+        type: uuid
+        attributes: ["@required", "@exclude_from_foreign_key_check"]
+        description: "Books owner # logical FK to organization.Company.id — denormalized from PaymentEntry so the table can carry its own FORCE RLS fence (ADR-0010 Decision A)"
+
       payment_id:
         type: uuid
         attributes: ["@required", "@foreign_key(PaymentEntry.id)"]
@@ -190,6 +195,8 @@ models:
     indexes:
       - type: index
         fields: [payment_id]
+      - type: index
+        fields: [company_id]
       - type: index
         fields: [invoice_ref, invoice_kind]
 

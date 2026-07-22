@@ -183,6 +183,7 @@ impl From<PaymentAllocationId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaymentAllocationDto {
     pub id: PaymentAllocationId,
+    pub company_id: Uuid,
     pub payment_id: Uuid,
     pub invoice_ref: Uuid,
     pub invoice_kind: SettlementKind,

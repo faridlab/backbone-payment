@@ -226,6 +226,7 @@ impl PaymentWriteService {
         for a in &p.allocations {
             self.allocations.insert_allocation(&mut tx, &NewAllocationRow {
                 id: Uuid::new_v4(),
+                company_id: p.company_id,
                 payment_id: id,
                 invoice_ref: a.invoice_ref,
                 invoice_kind: &a.invoice_kind,

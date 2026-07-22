@@ -44,6 +44,7 @@ pub struct PaymentAllocationPaginatedResult {
 /// Filter parameters for list queries
 #[derive(Debug, Clone, Default)]
 pub struct PaymentAllocationFilter {
+    pub company_id: Option<Uuid>,
     pub payment_id: Option<Uuid>,
     pub invoice_ref: Option<Uuid>,
     pub invoice_kind: Option<SettlementKind>,
@@ -52,7 +53,7 @@ pub struct PaymentAllocationFilter {
 impl PaymentAllocationFilter {
     /// Check if any filter is set
     pub fn has_filters(&self) -> bool {
-        self.payment_id.is_some() || self.invoice_ref.is_some() || self.invoice_kind.is_some()
+        self.company_id.is_some() || self.payment_id.is_some() || self.invoice_ref.is_some() || self.invoice_kind.is_some()
     }
 }
 
