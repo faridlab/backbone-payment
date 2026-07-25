@@ -52,20 +52,6 @@ impl GlAdapter {
     }
 }
 #[async_trait::async_trait]
-impl BillSink for GlAdapter {
-    async fn post(&self, e: &BillEnv) -> Result<BillAck, BillRej> {
-        let lines = e.lines.iter().map(|l| PostingLine {
-            account_id: l.account_id, debit: l.debit, credit: l.credit,
-            party_type: l.party_type.clone(), party_id: l.party_id,
-            cost_center_id: None, project_id: None, department_id: None, description: l.description.clone(),
-        }).collect();
-        match self.post_common(e.company_id, &e.source_type, e.source_id, e.source_reference.clone(), e.posting_date, &e.posting_type, None, lines).await {
-            Ok((post_id, journal_id, idempotent_reuse)) => Ok(BillAck { post_id, journal_id, idempotent_reuse }),
-            Err((code, message)) => Err(BillRej { code, message }),
-        }
-    }
-}
-#[async_trait::async_trait]
 impl PaySink for GlAdapter {
     async fn post(&self, e: &PayEnv) -> Result<PayAck, PayRej> {
         let lines = e.lines.iter().map(|l| PostingLine {
@@ -134,7 +120,7 @@ async fn settlement_across_three_modules() {
     let billing = BillingWriteService::new(pool.clone());
     let recorder = RecordingPaySink::default();
     let payment = PaymentWriteService::with_sink(pool.clone(), Arc::new(recorder.clone()));
-    let gl = GlAdapter { svc: PostingService::new(pool.clone()) };
+    let gl = GlAdapter { svc: PostingService::new(Arc::new(backbone_accounting::infrastructure::persistence::posting_repository::SqlxPostingRepository::new(pool.clone()))) };
 
     // 1) billing: Sales Invoice 1 × 1,000,000 (no tax), two installments 600k + 400k, then post.
     let inv = billing.create_sales_invoice(NewSalesInvoice {
@@ -228,7 +214,7 @@ async fn reverse_payment_restores_invoice_and_is_idempotent() {
     let billing = BillingWriteService::new(pool.clone());
     let recorder = RecordingPaySink::default();
     let payment = PaymentWriteService::with_sink(pool.clone(), Arc::new(recorder.clone()));
-    let gl = GlAdapter { svc: PostingService::new(pool.clone()) };
+    let gl = GlAdapter { svc: PostingService::new(Arc::new(backbone_accounting::infrastructure::persistence::posting_repository::SqlxPostingRepository::new(pool.clone()))) };
 
     // Invoice 1,000,000, posted; a receive settles it fully to `paid`.
     let inv = billing.create_sales_invoice(NewSalesInvoice {
@@ -283,7 +269,7 @@ async fn racing_payments_reconcile_via_clamp_and_on_account() {
 
     let billing = BillingWriteService::new(pool.clone());
     let payment = PaymentWriteService::with_sink(pool.clone(), Arc::new(RecordingPaySink::default()));
-    let gl = GlAdapter { svc: PostingService::new(pool.clone()) };
+    let gl = GlAdapter { svc: PostingService::new(Arc::new(backbone_accounting::infrastructure::persistence::posting_repository::SqlxPostingRepository::new(pool.clone()))) };
 
     // Invoice 1,000,000, posted → A/R debited 1,000,000 [customer].
     let inv = billing.create_sales_invoice(NewSalesInvoice {

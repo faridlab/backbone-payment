@@ -29,6 +29,12 @@ pub struct PaymentSettled {
     pub payment_type: String,
     pub allocations: Vec<SettledInvoice>,
     pub paid_amount: Decimal,
+    /// Correlation id for tracing the settlement flow across modules (gateway → payment → billing → accounting).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub correlation_id: Option<String>,
+    /// Causation id — the parent event that caused this one (e.g. the GatewayTransactionSettled id).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub causation_id: Option<String>,
 }
 
 /// A payment received on account (no invoice allocation) — an unlinked credit awaiting reconciliation.
@@ -54,6 +60,12 @@ pub struct PaymentCancelled {
     pub payment_type: String,
     pub allocations: Vec<SettledInvoice>,
     pub paid_amount: Decimal,
+    /// Correlation id for tracing the reversal flow (mirror of PaymentSettled).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub correlation_id: Option<String>,
+    /// Causation id — the parent event that caused this reversal (e.g. GatewayTransactionRefunded).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub causation_id: Option<String>,
 }
 
 /// The payment domain-event union.

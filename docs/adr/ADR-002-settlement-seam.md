@@ -67,3 +67,11 @@ outstanding down in billing, flipping it to `partially_paid`/`paid` — the clos
   parked at-least-once delivery on the same precedent). **Gate:** when a bus/outbox lands,
   `apply_settlement` needs a settlement-record dedup key (`payment_id + allocation_id`) **before**
   go-live, plus an outbox to survive a crash between the posted-transition and `emit_settled`.
+- **⚠️ GO-LIVE REQUIREMENT (council 2026-07-25):** The outbox (`backbone-outbox` `multi_tenant`,
+  framework v2.7.4) IS shipped + the wiring exists (`PaymentWriteService::with_outbox_schema`), but the
+  module defaults to **NO outbox** — the settlement seam is fire-and-forget in-process. A crash between
+  the `posted` transition commit and `emit_settled` LOSES the event: the invoice's outstanding is never
+  drawn down, and the GL diverges from the subledger silently. **Every production deployment MUST
+  enable the outbox** (`with_outbox_schema("payment")` + the relay draining) — this is a hard
+  requirement, not an opt-in convention. The app skeleton (`backbone-application`) enables it in its
+  relay bootstrap; verify it before go-live.

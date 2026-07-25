@@ -399,6 +399,7 @@ impl PaymentWriteService {
         self.sink.publish(PaymentEvent::PaymentSettled(PaymentSettled {
             payment_id, company_id: env.company_id, journal_id: ack.journal_id, post_id: ack.post_id,
             payment_type, allocations, paid_amount,
+            correlation_id: None, causation_id: None,
         }));
         if unallocated > Decimal::ZERO {
             self.sink.publish(PaymentEvent::PaymentReceivedOnAccount(PaymentReceivedOnAccount {
@@ -463,6 +464,7 @@ impl PaymentWriteService {
         self.sink.publish(PaymentEvent::PaymentCancelled(PaymentCancelled {
             payment_id, company_id: env.company_id, journal_id: ack.journal_id, post_id: ack.post_id,
             payment_type, allocations, paid_amount,
+            correlation_id: None, causation_id: None,
         }));
         Ok(())
     }
