@@ -97,5 +97,16 @@ rand = "0.8"
 # through in-test ACL adapters (PaymentSettled → billing::apply_settlement; the settlement post →
 # accounting::PostingService). Dev-dependencies ONLY — the shipped payment library has ZERO normal
 # edges (verify: `cargo tree -e normal -i backbone-billing` / `-i backbone-accounting` are empty).
+#
+# Declared as git deps (the production form — works when cloned alone) + patched to local paths
+# below for workspace dev. Same pattern backbone-application uses for the framework crates.
+backbone-accounting = { git = "https://github.com/faridlab/backbone-accounting", tag = "v0.4.0" }
+backbone-billing = { git = "https://github.com/faridlab/backbone-billing", tag = "v0.3.0" }
+
+# Dev override — when the sibling dirs exist (in the workspace), use the local source. When they
+# don't (cloned alone), the patch is a no-op and Cargo falls back to the git tags above.
+[patch."https://github.com/faridlab/backbone-accounting"]
 backbone-accounting = { path = "../backbone-accounting" }
+
+[patch."https://github.com/faridlab/backbone-billing"]
 backbone-billing = { path = "../backbone-billing" }
