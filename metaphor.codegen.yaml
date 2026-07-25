@@ -25,6 +25,14 @@ user_owned:
   - "tests/integrity_probes.rs"
   - "tests/settlement_seam.rs"
   - "scripts/**"
+
+  # No hand-authored migrations remain in payment. Both company-RLS fences that
+  # used to live here are now owned elsewhere:
+  #  - ADR-0010 (payment_allocations): GENERATED inline — company_id is in the
+  #    schema, so create_payment_allocation_table + enable_company_rls fence it.
+  #  - ADR-0011 (outbox_events): owned by the TABLE OWNER, backbone_outbox — its
+  #    `migrate()` applies the RLS fence behind the `multi_tenant` feature, which
+  #    payment enables in Cargo.toml. No module-level backfill needed.
   # Hand-authored behavior (services + their HTTP surface). Examples:
   # - "src/application/service/onboarding_service.rs"
   # - "src/presentation/http/guarded_routes.rs"

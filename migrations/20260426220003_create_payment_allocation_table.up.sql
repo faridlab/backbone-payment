@@ -14,6 +14,7 @@ CREATE SCHEMA IF NOT EXISTS payment;
 
 CREATE TABLE IF NOT EXISTS payment.payment_allocations (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
+    company_id UUID NOT NULL,
     payment_id UUID NOT NULL,
     invoice_ref UUID NOT NULL,
     invoice_kind settlement_kind NOT NULL,
@@ -23,6 +24,8 @@ CREATE TABLE IF NOT EXISTS payment.payment_allocations (
 );
 
 CREATE INDEX IF NOT EXISTS idx_payment_allocations_payment_id ON payment.payment_allocations (payment_id);
+
+CREATE INDEX IF NOT EXISTS idx_payment_allocations_company_id ON payment.payment_allocations (company_id);
 
 CREATE INDEX IF NOT EXISTS idx_payment_allocations_invoice_ref_invoice_kind ON payment.payment_allocations (invoice_ref, invoice_kind);
 
