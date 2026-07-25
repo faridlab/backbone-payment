@@ -52,7 +52,8 @@ backbone-banking's clearing seam); it owns the intent and allocation of payment 
   concurrent-post probe).
 - Payment is independently composable: it needs only a Postgres pool, a `GlPostSink`, and a
   `PaymentEventSink`.
-- Deferred (per the brief): bank clearing (backbone-banking), gateways/requests/orders (basic gateway
-  hookup — an operator keys `reference_no` manually until a gateway with a fee-posting line or callback
-  dedup is onboarded), POS tender, advance-adjustment automation, multi-currency/FX,
-  withholding-at-payment, and **partial** reversal / re-settlement-after-partial-reverse.
+- Deferred (per the brief): bank clearing (backbone-banking), POS tender, advance-adjustment automation,
+  multi-currency/FX, withholding-at-payment, and **partial** reversal / re-settlement-after-partial-reverse.
+  - **Resolved:** the gateway hookup (basic + fee-posting line + callback dedup) is now its own module —
+    `backbone-payment-gateway` (see that module's ADR-001). The remaining gateway asks (real provider SDKs,
+    refund/reversal multi-post) live in its parking lot.
