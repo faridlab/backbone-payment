@@ -1,0 +1,10 @@
+# Copy to .cargo/config.toml (gitignored) to build payment against the LOCAL backbone-billing and
+# backbone-accounting checkouts at ../backbone-*. Without it, Cargo builds them from their pinned
+# git tags (the prod/CI path). The override must NOT be committed in Cargo.toml — a committed
+# [patch] to a missing path hard-errors in a standalone clone. See the [dev-dependencies] block.
+
+[patch."https://github.com/faridlab/backbone-accounting"]
+backbone-accounting = { path = "../backbone-accounting" }
+
+[patch."https://github.com/faridlab/backbone-billing"]
+backbone-billing = { path = "../backbone-billing" }
