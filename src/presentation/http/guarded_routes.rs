@@ -78,6 +78,9 @@ async fn create_payment(
         bank_account_id: b.bank_account_id, party_account_id: b.party_account_id, paid_amount: b.paid_amount,
         reference_no: b.reference_no,
         allocations: b.allocations.into_iter().map(Into::into).collect(),
+        withholding_amount: rust_decimal::Decimal::ZERO,
+        withholding_account_id: None,
+        withholding_tax_type: "none".into(),
     };
     match svc.create_payment(p).await {
         Ok(id) => (StatusCode::CREATED, Json(IdResponse { id })).into_response(),

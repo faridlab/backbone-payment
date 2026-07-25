@@ -90,6 +90,21 @@ models:
         attributes: ["@required", "@exclude_from_foreign_key_check"]
         description: "A/R (receive) or A/P (pay) control account # logical FK to accounting.Account.id"
 
+      withholding_amount:
+        type: decimal
+        attributes: ["@default(0)", "@precision(18,2)", "@non_negative"]
+        description: "PPh withheld (0 = no withholding; the settlement post stays 2-line). ADR-003."
+
+      withholding_account_id:
+        type: uuid?
+        attributes: ["@exclude_from_foreign_key_check"]
+        description: "PPh Payable (pay) or PPh Receivable (receive) GL account # logical FK to accounting.Account.id. Required when withholding_amount > 0."
+
+      withholding_tax_type:
+        type: WithholdingTaxType
+        attributes: ["@default(none)"]
+        description: "Which PPh type was withheld. ADR-003."
+
       status:
         type: PaymentStatus
         attributes: ["@default(draft)"]
@@ -259,3 +274,16 @@ enums:
         default: true
       - name: purchase
         description: "Purchase invoice (A/P)"
+
+  - name: WithholdingTaxType
+    description: "Indonesian PPh (Pajak Penghasilan) withholding type — ADR-003"
+    variants:
+      - name: none
+        description: "No withholding (default; settlement post stays 2-line)"
+        default: true
+      - name: pph_22
+        description: "PPh 22 — imports / government purchases (1.5–7.5%)"
+      - name: pph_23
+        description: "PPh 23 — services / rent / royalties (2/10/15%)"
+      - name: pph_26
+        description: "PPh 26 — non-resident payments (20%)"

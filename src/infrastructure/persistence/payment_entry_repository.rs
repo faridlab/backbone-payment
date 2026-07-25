@@ -62,6 +62,9 @@ pub struct NewPaymentEntryRow<'a> {
     pub bank_account_id: Uuid,
     pub party_account_id: Uuid,
     pub reference_no: Option<&'a str>,
+    pub withholding_amount: Decimal,
+    pub withholding_account_id: Option<Uuid>,
+    pub withholding_tax_type: &'a str,
 }
 
 /// Everything the settlement-post builder needs about a payment entry.
@@ -77,6 +80,8 @@ pub struct PostSourceRow {
     pub paid_amount: Decimal,
     pub bank_account_id: Uuid,
     pub party_account_id: Uuid,
+    pub withholding_amount: Decimal,
+    pub withholding_account_id: Option<Uuid>,
 }
 
 /// A payment's posted state, as the post short-circuit reads it.
@@ -121,14 +126,16 @@ impl PaymentEntryRepository {
             r#"INSERT INTO payment.payment_entries
                 (id, payment_number, company_id, branch_id, payment_type, party_type, party_id,
                  posting_date, currency, mode_of_payment_id, paid_amount, allocated_amount,
-                 unallocated_amount, bank_account_id, party_account_id, status, posting_state, reference_no)
+                 unallocated_amount, bank_account_id, party_account_id, status, posting_state, reference_no,
+                 withholding_amount, withholding_account_id, withholding_tax_type)
                VALUES ($1,$2,$3,$4,$5::payment_type,$6::payment_party_type,$7,$8,$9,$10,$11,$12,$13,$14,$15,
-                       'draft'::payment_status,'pending'::gl_posting_state,$16)"#,
+                       'draft'::payment_status,'pending'::gl_posting_state,$16,$17,$18,$19::withholding_tax_type)"#,
         )
         .bind(p.id).bind(p.payment_number).bind(p.company_id).bind(p.branch_id).bind(p.payment_type)
         .bind(p.party_type).bind(p.party_id).bind(p.posting_date).bind(p.currency).bind(p.mode_of_payment_id)
         .bind(p.paid_amount).bind(p.allocated_amount).bind(p.unallocated_amount).bind(p.bank_account_id)
         .bind(p.party_account_id).bind(p.reference_no)
+        .bind(p.withholding_amount).bind(p.withholding_account_id).bind(p.withholding_tax_type)
         .execute(conn)
         .await?;
         Ok(())
@@ -149,7 +156,8 @@ impl PaymentEntryRepository {
             pool,
             sqlx::query(
                 r#"SELECT payment_number, company_id, branch_id, payment_type::text AS pt, party_type::text AS party_t,
-                          party_id, posting_date, currency, paid_amount, bank_account_id, party_account_id
+                          party_id, posting_date, currency, paid_amount, bank_account_id, party_account_id,
+                          withholding_amount, withholding_account_id
                    FROM payment.payment_entries WHERE id=$1 AND (metadata->>'deleted_at') IS NULL"#,
             )
             .bind(payment_id),
@@ -161,6 +169,7 @@ impl PaymentEntryRepository {
             party_id: p.get("party_id"), posting_date: p.get("posting_date"), currency: p.get("currency"),
             paid_amount: p.get("paid_amount"), bank_account_id: p.get("bank_account_id"),
             party_account_id: p.get("party_account_id"),
+            withholding_amount: p.get("withholding_amount"), withholding_account_id: p.get("withholding_account_id"),
         }))
     }
 

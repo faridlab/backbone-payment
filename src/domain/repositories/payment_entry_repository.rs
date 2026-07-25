@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use anyhow::Result;
 use uuid::Uuid;
 
-use crate::domain::entity::{PaymentEntry, GlPostingState, PaymentPartyType, PaymentStatus, PaymentType};
+use crate::domain::entity::{PaymentEntry, GlPostingState, PaymentPartyType, PaymentStatus, PaymentType, WithholdingTaxType};
 
 /// Pagination parameters for list queries
 #[derive(Debug, Clone, Default)]
@@ -54,6 +54,8 @@ pub struct PaymentEntryFilter {
     pub mode_of_payment_id: Option<Uuid>,
     pub bank_account_id: Option<Uuid>,
     pub party_account_id: Option<Uuid>,
+    pub withholding_account_id: Option<Uuid>,
+    pub withholding_tax_type: Option<WithholdingTaxType>,
     pub status: Option<PaymentStatus>,
     pub posting_state: Option<GlPostingState>,
     pub journal_id: Option<Uuid>,
@@ -65,7 +67,7 @@ pub struct PaymentEntryFilter {
 impl PaymentEntryFilter {
     /// Check if any filter is set
     pub fn has_filters(&self) -> bool {
-        self.payment_number.is_some() || self.company_id.is_some() || self.branch_id.is_some() || self.payment_type.is_some() || self.party_type.is_some() || self.party_id.is_some() || self.currency.is_some() || self.mode_of_payment_id.is_some() || self.bank_account_id.is_some() || self.party_account_id.is_some() || self.status.is_some() || self.posting_state.is_some() || self.journal_id.is_some() || self.accounting_post_id.is_some() || self.reference_no.is_some() || self.notes.is_some()
+        self.payment_number.is_some() || self.company_id.is_some() || self.branch_id.is_some() || self.payment_type.is_some() || self.party_type.is_some() || self.party_id.is_some() || self.currency.is_some() || self.mode_of_payment_id.is_some() || self.bank_account_id.is_some() || self.party_account_id.is_some() || self.withholding_account_id.is_some() || self.withholding_tax_type.is_some() || self.status.is_some() || self.posting_state.is_some() || self.journal_id.is_some() || self.accounting_post_id.is_some() || self.reference_no.is_some() || self.notes.is_some()
     }
 }
 

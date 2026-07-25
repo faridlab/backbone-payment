@@ -1258,6 +1258,8 @@ components:
         - unallocated_amount
         - bank_account_id
         - party_account_id
+        - withholding_amount
+        - withholding_tax_type
         - status
         - posting_state
         - metadata
@@ -1306,6 +1308,14 @@ components:
         party_account_id:
           type: string
           format: uuid
+        withholding_amount:
+          type: string
+        withholding_account_id:
+          nullable: true
+          type: string
+          format: uuid
+        withholding_tax_type:
+          type: string
         status:
           type: string
         posting_state:
@@ -1359,6 +1369,8 @@ components:
         - unallocated_amount
         - bank_account_id
         - party_account_id
+        - withholding_amount
+        - withholding_tax_type
         - status
         - posting_state
         - metadata
@@ -1404,6 +1416,14 @@ components:
         party_account_id:
           type: string
           format: uuid
+        withholding_amount:
+          type: string
+        withholding_account_id:
+          nullable: true
+          type: string
+          format: uuid
+        withholding_tax_type:
+          type: string
         status:
           type: string
         posting_state:
@@ -1444,6 +1464,8 @@ components:
         - unallocated_amount
         - bank_account_id
         - party_account_id
+        - withholding_amount
+        - withholding_tax_type
         - status
         - posting_state
         - metadata
@@ -1489,6 +1511,14 @@ components:
         party_account_id:
           type: string
           format: uuid
+        withholding_amount:
+          type: string
+        withholding_account_id:
+          nullable: true
+          type: string
+          format: uuid
+        withholding_tax_type:
+          type: string
         status:
           type: string
         posting_state:
@@ -1560,6 +1590,14 @@ components:
         party_account_id:
           type: string
           format: uuid
+        withholding_amount:
+          type: string
+        withholding_account_id:
+          nullable: true
+          type: string
+          format: uuid
+        withholding_tax_type:
+          type: string
         status:
           type: string
         posting_state:

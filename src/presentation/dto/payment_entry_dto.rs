@@ -23,6 +23,7 @@ use crate::domain::entity::GlPostingState;
 use crate::domain::entity::PaymentPartyType;
 use crate::domain::entity::PaymentStatus;
 use crate::domain::entity::PaymentType;
+use crate::domain::entity::WithholdingTaxType;
 
 // =============================================================================
 // Create DTO
@@ -72,6 +73,12 @@ pub struct CreatePaymentEntryDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "party_account_id")]
     pub party_account_id: Uuid,
+    #[serde(alias = "withholding_amount")]
+    pub withholding_amount: Decimal,
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "withholding_account_id")]
+    pub withholding_account_id: Option<Uuid>,
+    #[serde(alias = "withholding_tax_type")]
+    pub withholding_tax_type: WithholdingTaxType,
     pub status: PaymentStatus,
     #[serde(alias = "posting_state")]
     pub posting_state: GlPostingState,
@@ -137,6 +144,12 @@ pub struct UpdatePaymentEntryDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "party_account_id")]
     pub party_account_id: Uuid,
+    #[serde(alias = "withholding_amount")]
+    pub withholding_amount: Decimal,
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "withholding_account_id")]
+    pub withholding_account_id: Option<Uuid>,
+    #[serde(alias = "withholding_tax_type")]
+    pub withholding_tax_type: WithholdingTaxType,
     pub status: PaymentStatus,
     #[serde(alias = "posting_state")]
     pub posting_state: GlPostingState,
@@ -203,6 +216,12 @@ pub struct PatchPaymentEntryDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "party_account_id")]
     pub party_account_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none", alias = "withholding_amount")]
+    pub withholding_amount: Option<Decimal>,
+    #[serde(skip_serializing_if = "Option::is_none", alias = "withholding_account_id")]
+    pub withholding_account_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none", alias = "withholding_tax_type")]
+    pub withholding_tax_type: Option<WithholdingTaxType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<PaymentStatus>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "posting_state")]
@@ -224,7 +243,7 @@ pub struct PatchPaymentEntryDto {
 impl PatchPaymentEntryDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.payment_number.is_some() || self.company_id.is_some() || self.branch_id.is_some() || self.payment_type.is_some() || self.party_type.is_some() || self.party_id.is_some() || self.posting_date.is_some() || self.currency.is_some() || self.mode_of_payment_id.is_some() || self.paid_amount.is_some() || self.allocated_amount.is_some() || self.unallocated_amount.is_some() || self.bank_account_id.is_some() || self.party_account_id.is_some() || self.status.is_some() || self.posting_state.is_some() || self.journal_id.is_some() || self.accounting_post_id.is_some() || self.posted_at.is_some() || self.reference_no.is_some() || self.notes.is_some()
+        self.payment_number.is_some() || self.company_id.is_some() || self.branch_id.is_some() || self.payment_type.is_some() || self.party_type.is_some() || self.party_id.is_some() || self.posting_date.is_some() || self.currency.is_some() || self.mode_of_payment_id.is_some() || self.paid_amount.is_some() || self.allocated_amount.is_some() || self.unallocated_amount.is_some() || self.bank_account_id.is_some() || self.party_account_id.is_some() || self.withholding_amount.is_some() || self.withholding_account_id.is_some() || self.withholding_tax_type.is_some() || self.status.is_some() || self.posting_state.is_some() || self.journal_id.is_some() || self.accounting_post_id.is_some() || self.posted_at.is_some() || self.reference_no.is_some() || self.notes.is_some()
     }
 }
 
@@ -262,6 +281,9 @@ pub struct PaymentEntryResponseDto {
     pub bank_account_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub party_account_id: Uuid,
+    pub withholding_amount: Decimal,
+    pub withholding_account_id: Option<Uuid>,
+    pub withholding_tax_type: WithholdingTaxType,
     pub status: PaymentStatus,
     pub posting_state: GlPostingState,
     pub journal_id: Option<Uuid>,
@@ -354,6 +376,9 @@ impl From<PaymentEntry> for PaymentEntryResponseDto {
             unallocated_amount: entity.unallocated_amount,
             bank_account_id: entity.bank_account_id,
             party_account_id: entity.party_account_id,
+            withholding_amount: entity.withholding_amount,
+            withholding_account_id: entity.withholding_account_id,
+            withholding_tax_type: entity.withholding_tax_type,
             status: entity.status,
             posting_state: entity.posting_state,
             journal_id: entity.journal_id,
@@ -397,6 +422,9 @@ impl From<CreatePaymentEntryDto> for PaymentEntry {
             unallocated_amount: dto.unallocated_amount,
             bank_account_id: dto.bank_account_id,
             party_account_id: dto.party_account_id,
+            withholding_amount: dto.withholding_amount,
+            withholding_account_id: dto.withholding_account_id,
+            withholding_tax_type: dto.withholding_tax_type,
             status: dto.status,
             posting_state: dto.posting_state,
             journal_id: dto.journal_id,
@@ -427,6 +455,9 @@ impl From<&PaymentEntry> for PaymentEntryResponseDto {
             unallocated_amount: entity.unallocated_amount.clone(),
             bank_account_id: entity.bank_account_id.clone(),
             party_account_id: entity.party_account_id.clone(),
+            withholding_amount: entity.withholding_amount.clone(),
+            withholding_account_id: entity.withholding_account_id.clone(),
+            withholding_tax_type: entity.withholding_tax_type.clone(),
             status: entity.status.clone(),
             posting_state: entity.posting_state.clone(),
             journal_id: entity.journal_id.clone(),
@@ -461,6 +492,9 @@ impl backbone_core::ApplyUpdateDto<UpdatePaymentEntryDto> for PaymentEntry {
         self.unallocated_amount = dto.unallocated_amount;
         self.bank_account_id = dto.bank_account_id;
         self.party_account_id = dto.party_account_id;
+        self.withholding_amount = dto.withholding_amount;
+        self.withholding_account_id = dto.withholding_account_id;
+        self.withholding_tax_type = dto.withholding_tax_type;
         self.status = dto.status;
         self.posting_state = dto.posting_state;
         self.journal_id = dto.journal_id;

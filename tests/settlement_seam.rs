@@ -140,6 +140,9 @@ async fn settlement_across_three_modules() {
         party_type: Some("customer".into()), party_id: Some(customer), posting_date: day(), currency: None,
         mode_of_payment_id: None, bank_account_id: coa["1110"], party_account_id: coa["1200"], paid_amount: d("600000"),
         reference_no: None, allocations: vec![NewAllocation { invoice_ref: inv, invoice_kind: "sales".into(), amount: d("600000") }],
+        withholding_amount: rust_decimal::Decimal::ZERO,
+        withholding_account_id: None,
+        withholding_tax_type: "none".into(),
     }).await.unwrap();
     let pa = payment.post_payment(pay_a, &gl).await.unwrap();
     assert_eq!(journal_totals(&pool, pa.journal_id).await, (d("600000"), d("600000")));
@@ -157,6 +160,9 @@ async fn settlement_across_three_modules() {
         party_type: Some("customer".into()), party_id: Some(customer), posting_date: day(), currency: None,
         mode_of_payment_id: None, bank_account_id: coa["1110"], party_account_id: coa["1200"], paid_amount: d("400000"),
         reference_no: None, allocations: vec![NewAllocation { invoice_ref: inv, invoice_kind: "sales".into(), amount: d("400000") }],
+        withholding_amount: rust_decimal::Decimal::ZERO,
+        withholding_account_id: None,
+        withholding_tax_type: "none".into(),
     }).await.unwrap();
     payment.post_payment(pay_b, &gl).await.unwrap();
     apply_settlements(&billing, &recorder, pay_b).await;
@@ -229,6 +235,9 @@ async fn reverse_payment_restores_invoice_and_is_idempotent() {
         party_type: Some("customer".into()), party_id: Some(customer), posting_date: day(), currency: None,
         mode_of_payment_id: None, bank_account_id: coa["1110"], party_account_id: coa["1200"], paid_amount: d("1000000"),
         reference_no: None, allocations: vec![NewAllocation { invoice_ref: inv, invoice_kind: "sales".into(), amount: d("1000000") }],
+        withholding_amount: rust_decimal::Decimal::ZERO,
+        withholding_account_id: None,
+        withholding_tax_type: "none".into(),
     }).await.unwrap();
     payment.post_payment(pay, &gl).await.unwrap();
     apply_settlements(&billing, &recorder, pay).await;
@@ -288,6 +297,9 @@ async fn racing_payments_reconcile_via_clamp_and_on_account() {
             party_type: Some("customer".into()), party_id: Some(customer), posting_date: day(), currency: None,
             mode_of_payment_id: None, bank_account_id: coa["1110"], party_account_id: coa["1200"], paid_amount: d("600000"),
             reference_no: None, allocations: vec![NewAllocation { invoice_ref: inv, invoice_kind: "sales".into(), amount: d("600000") }],
+        withholding_amount: rust_decimal::Decimal::ZERO,
+        withholding_account_id: None,
+        withholding_tax_type: "none".into(),
         }).await.unwrap();
         payment.post_payment(pay, &gl).await.unwrap();
         // apply directly (each payment settled 600k) — capture the second's clamped return.

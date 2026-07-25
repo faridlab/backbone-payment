@@ -136,6 +136,9 @@ async fn settlement_through_outbox_is_exactly_once() {
         party_type: Some("customer".into()), party_id: Some(customer), posting_date: day(), currency: None,
         mode_of_payment_id: None, bank_account_id: coa["1110"], party_account_id: coa["1200"], paid_amount: d("600000"),
         reference_no: None, allocations: vec![NewAllocation { invoice_ref: inv, invoice_kind: "sales".into(), amount: d("600000") }],
+        withholding_amount: rust_decimal::Decimal::ZERO,
+        withholding_account_id: None,
+        withholding_tax_type: "none".into(),
     }).await.unwrap();
     payment.post_payment(pay, &gl).await.unwrap();
     let _ = &recorder; // the legacy in-proc sink still fires; the durable path is the outbox below.

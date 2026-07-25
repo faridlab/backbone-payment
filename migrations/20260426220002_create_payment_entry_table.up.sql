@@ -19,6 +19,15 @@ BEGIN
 END
 $$;
 
+-- Create withholding_tax_type enum type
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'withholding_tax_type') THEN
+        CREATE TYPE withholding_tax_type AS ENUM ('none', 'pph_22', 'pph_23', 'pph_26');
+    END IF;
+END
+$$;
+
 -- Create payment_status enum type
 DO $$
 BEGIN
@@ -55,6 +64,9 @@ CREATE TABLE IF NOT EXISTS payment.payment_entries (
     unallocated_amount NUMERIC(18, 2) NOT NULL DEFAULT 0 CHECK (unallocated_amount >= 0),
     bank_account_id UUID NOT NULL,
     party_account_id UUID NOT NULL,
+    withholding_amount NUMERIC(18, 2) NOT NULL DEFAULT 0 CHECK (withholding_amount >= 0),
+    withholding_account_id UUID,
+    withholding_tax_type withholding_tax_type NOT NULL DEFAULT 'none',
     status payment_status NOT NULL DEFAULT 'draft',
     posting_state gl_posting_state NOT NULL DEFAULT 'pending',
     journal_id UUID,

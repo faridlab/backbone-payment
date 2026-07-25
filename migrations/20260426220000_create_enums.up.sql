@@ -55,3 +55,12 @@ BEGIN
 END
 $$;
 
+-- Create withholding_tax_type enum type
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'withholding_tax_type') THEN
+        CREATE TYPE withholding_tax_type AS ENUM ('none', 'pph_22', 'pph_23', 'pph_26');
+    END IF;
+END
+$$;
+

@@ -75,6 +75,9 @@ fn receive(company: Uuid, currency: Option<String>) -> NewPayment {
         mode_of_payment_id: None, bank_account_id: Uuid::new_v4(), party_account_id: Uuid::new_v4(),
         paid_amount: d("100000"), reference_no: None,
         allocations: vec![NewAllocation { invoice_ref: Uuid::new_v4(), invoice_kind: "sales".into(), amount: d("100000") }],
+        withholding_amount: rust_decimal::Decimal::ZERO,
+        withholding_account_id: None,
+        withholding_tax_type: "none".into(),
     }
 }
 

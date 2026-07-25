@@ -11,6 +11,7 @@ pub mod payment_party_type;
 pub mod payment_status;
 pub mod gl_posting_state;
 pub mod settlement_kind;
+pub mod withholding_tax_type;
 
 // Re-exports
 pub use mode_of_payment::ModeOfPayment;
@@ -28,6 +29,7 @@ pub use payment_party_type::PaymentPartyType;
 pub use payment_status::PaymentStatus;
 pub use gl_posting_state::GlPostingState;
 pub use settlement_kind::SettlementKind;
+pub use withholding_tax_type::WithholdingTaxType;
 
 // ==========================================================================
 // Entity Trait

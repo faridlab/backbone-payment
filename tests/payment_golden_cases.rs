@@ -56,6 +56,7 @@ fn receive(company: Uuid, bank: Uuid, ar: Uuid, customer: Uuid, paid: &str, allo
         party_type: Some("customer".into()), party_id: Some(customer), posting_date: day(), currency: None,
         mode_of_payment_id: None, bank_account_id: bank, party_account_id: ar, paid_amount: d(paid),
         reference_no: None, allocations: allocs,
+        withholding_amount: Decimal::ZERO, withholding_account_id: None, withholding_tax_type: "none".into(),
     }
 }
 
@@ -106,6 +107,9 @@ async fn pay_supplier_post() {
         party_type: Some("supplier".into()), party_id: Some(supplier), posting_date: day(), currency: None,
         mode_of_payment_id: None, bank_account_id: bank, party_account_id: ap, paid_amount: d("500000"),
         reference_no: None, allocations: vec![alloc(inv, "purchase", "500000")],
+        withholding_amount: rust_decimal::Decimal::ZERO,
+        withholding_account_id: None,
+        withholding_tax_type: "none".into(),
     };
     let id = w.create_payment(p).await.unwrap();
     let gl = FakeGl::new();

@@ -68,6 +68,11 @@ pub struct NewPayment {
     pub paid_amount: Decimal,
     pub reference_no: Option<String>,
     pub allocations: Vec<NewAllocation>,
+    /// PPh (withholding tax) — ADR-003. 0 = no withholding (2-line post). > 0 adds a third line.
+    pub withholding_amount: Decimal,
+    pub withholding_account_id: Option<Uuid>,
+    /// "none" | "pph_22" | "pph_23" | "pph_26".
+    pub withholding_tax_type: String,
 }
 
 #[derive(Debug, Clone)]
@@ -219,6 +224,9 @@ impl PaymentWriteService {
             bank_account_id: p.bank_account_id,
             party_account_id: p.party_account_id,
             reference_no: p.reference_no.as_deref(),
+            withholding_amount: p.withholding_amount,
+            withholding_account_id: p.withholding_account_id,
+            withholding_tax_type: &p.withholding_tax_type,
         }).await;
         if let Err(e) = r {
             return Err(if is_dup(&e) { PaymentError::DuplicateNumber(p.payment_number) } else { e.into() });
@@ -239,9 +247,10 @@ impl PaymentWriteService {
 
     // ---- build the settlement post -----------------------------------------
 
-    /// Build the balanced settlement post. receive: `Dr Bank (paid) · Cr A/R (paid) [customer]`;
-    /// pay: `Dr A/P (paid) [supplier] · Cr Bank (paid)`. The A/R/A/P control is settled by the whole
-    /// payment; any unallocated remainder sits as an on-account balance on that party (standard).
+    /// Build the balanced settlement post. receive: `Dr Bank (net) · [Dr PPh Receivable] · Cr A/R (gross)`;
+    /// pay: `Dr A/P (gross) · Cr Bank (net) · [Cr PPh Payable]`. The A/R/A/P control is settled at the
+    /// GROSS paid_amount; the bank moves the NET (gross − withholding). When withholding = 0 the post
+    /// is the original 2-line shape (backward-compatible). ADR-003.
     pub async fn build_settlement_post(&self, payment_id: Uuid) -> Result<AccountingPostEnvelope, PaymentError> {
         // RLS scope (ADR-0008), ID-only: fenced by the request/inherited scope.
         let p = self.entries.fetch_post_source(&self.db_pool, payment_id).await?
@@ -258,16 +267,28 @@ impl PaymentWriteService {
 
         let lines = match payment_type.as_str() {
             "receive" => {
-                // Dr Bank · Cr A/R [customer]
+                // Dr Bank (net) · [Dr PPh Receivable (withheld)] · Cr A/R (gross)
                 let mut ar = GlPostLine::credit(control, paid).with_description(format!("A/R settled {number}"));
                 if let (Some(pt), Some(pid)) = (party_type.as_deref(), party_id) { ar = ar.with_party(pt, pid); }
-                vec![GlPostLine::debit(bank, paid).with_description(format!("Receipt {number}")), ar]
+                let mut lines = vec![GlPostLine::debit(bank, paid - p.withholding_amount).with_description(format!("Receipt {number}"))];
+                if p.withholding_amount > Decimal::ZERO {
+                    let wht = p.withholding_account_id.ok_or(PaymentError::OverAllocated { paid: Decimal::ZERO, allocated: Decimal::ZERO })?;
+                    lines.push(GlPostLine::debit(wht, p.withholding_amount).with_description(format!("PPh withheld {number}")));
+                }
+                lines.push(ar);
+                lines
             }
             "pay" => {
-                // Dr A/P [supplier] · Cr Bank
+                // Dr A/P (gross) · Cr Bank (net) · [Cr PPh Payable (withheld)]
                 let mut ap = GlPostLine::debit(control, paid).with_description(format!("A/P settled {number}"));
                 if let (Some(pt), Some(pid)) = (party_type.as_deref(), party_id) { ap = ap.with_party(pt, pid); }
-                vec![ap, GlPostLine::credit(bank, paid).with_description(format!("Payment {number}"))]
+                let mut lines = vec![ap];
+                lines.push(GlPostLine::credit(bank, paid - p.withholding_amount).with_description(format!("Payment {number}")));
+                if p.withholding_amount > Decimal::ZERO {
+                    let wht = p.withholding_account_id.ok_or(PaymentError::OverAllocated { paid: Decimal::ZERO, allocated: Decimal::ZERO })?;
+                    lines.push(GlPostLine::credit(wht, p.withholding_amount).with_description(format!("PPh withheld {number}")));
+                }
+                lines
             }
             other => return Err(PaymentError::UnknownPaymentType(other.to_string())),
         };

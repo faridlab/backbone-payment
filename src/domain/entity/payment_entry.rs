@@ -6,6 +6,7 @@ use rust_decimal::Decimal;
 
 use super::PaymentType;
 use super::PaymentPartyType;
+use super::WithholdingTaxType;
 use super::PaymentStatus;
 use super::GlPostingState;
 use super::AuditMetadata;
@@ -68,6 +69,9 @@ pub struct PaymentEntry {
     pub unallocated_amount: Decimal,
     pub bank_account_id: Uuid,
     pub party_account_id: Uuid,
+    pub withholding_amount: Decimal,
+    pub withholding_account_id: Option<Uuid>,
+    pub withholding_tax_type: WithholdingTaxType,
     pub status: PaymentStatus,
     pub posting_state: GlPostingState,
     pub journal_id: Option<Uuid>,
@@ -87,7 +91,7 @@ impl PaymentEntry {
     }
 
     /// Create a new PaymentEntry with required fields
-    pub fn new(payment_number: String, company_id: Uuid, payment_type: PaymentType, posting_date: NaiveDate, currency: String, paid_amount: Decimal, allocated_amount: Decimal, unallocated_amount: Decimal, bank_account_id: Uuid, party_account_id: Uuid, status: PaymentStatus, posting_state: GlPostingState) -> Self {
+    pub fn new(payment_number: String, company_id: Uuid, payment_type: PaymentType, posting_date: NaiveDate, currency: String, paid_amount: Decimal, allocated_amount: Decimal, unallocated_amount: Decimal, bank_account_id: Uuid, party_account_id: Uuid, withholding_amount: Decimal, withholding_tax_type: WithholdingTaxType, status: PaymentStatus, posting_state: GlPostingState) -> Self {
         Self {
             id: Uuid::new_v4(),
             payment_number,
@@ -104,6 +108,9 @@ impl PaymentEntry {
             unallocated_amount,
             bank_account_id,
             party_account_id,
+            withholding_amount,
+            withholding_account_id: None,
+            withholding_tax_type,
             status,
             posting_state,
             journal_id: None,
@@ -199,6 +206,12 @@ impl PaymentEntry {
         self
     }
 
+    /// Set the withholding_account_id field (chainable)
+    pub fn with_withholding_account_id(mut self, value: Uuid) -> Self {
+        self.withholding_account_id = Some(value);
+        self
+    }
+
     /// Set the journal_id field (chainable)
     pub fn with_journal_id(mut self, value: Uuid) -> Self {
         self.journal_id = Some(value);
@@ -278,6 +291,15 @@ impl PaymentEntry {
                 }
                 "party_account_id" => {
                     if let Ok(v) = serde_json::from_value(value) { self.party_account_id = v; }
+                }
+                "withholding_amount" => {
+                    if let Ok(v) = serde_json::from_value(value) { self.withholding_amount = v; }
+                }
+                "withholding_account_id" => {
+                    if let Ok(v) = serde_json::from_value(value) { self.withholding_account_id = v; }
+                }
+                "withholding_tax_type" => {
+                    if let Ok(v) = serde_json::from_value(value) { self.withholding_tax_type = v; }
                 }
                 "status" => {
                     if let Ok(v) = serde_json::from_value(value) { self.status = v; }
@@ -360,10 +382,12 @@ impl backbone_orm::EntityRepoMeta for PaymentEntry {
         m.insert("mode_of_payment_id".to_string(), "uuid".to_string());
         m.insert("bank_account_id".to_string(), "uuid".to_string());
         m.insert("party_account_id".to_string(), "uuid".to_string());
+        m.insert("withholding_account_id".to_string(), "uuid".to_string());
         m.insert("journal_id".to_string(), "uuid".to_string());
         m.insert("accounting_post_id".to_string(), "uuid".to_string());
         m.insert("payment_type".to_string(), "payment_type".to_string());
         m.insert("party_type".to_string(), "payment_party_type".to_string());
+        m.insert("withholding_tax_type".to_string(), "withholding_tax_type".to_string());
         m.insert("status".to_string(), "payment_status".to_string());
         m.insert("posting_state".to_string(), "gl_posting_state".to_string());
         m
@@ -396,6 +420,9 @@ pub struct PaymentEntryBuilder {
     unallocated_amount: Option<Decimal>,
     bank_account_id: Option<Uuid>,
     party_account_id: Option<Uuid>,
+    withholding_amount: Option<Decimal>,
+    withholding_account_id: Option<Uuid>,
+    withholding_tax_type: Option<WithholdingTaxType>,
     status: Option<PaymentStatus>,
     posting_state: Option<GlPostingState>,
     journal_id: Option<Uuid>,
@@ -490,6 +517,24 @@ impl PaymentEntryBuilder {
         self
     }
 
+    /// Set the withholding_amount field (default: `Decimal::from(0)`)
+    pub fn withholding_amount(mut self, value: Decimal) -> Self {
+        self.withholding_amount = Some(value);
+        self
+    }
+
+    /// Set the withholding_account_id field (optional)
+    pub fn withholding_account_id(mut self, value: Uuid) -> Self {
+        self.withholding_account_id = Some(value);
+        self
+    }
+
+    /// Set the withholding_tax_type field (default: `WithholdingTaxType::default()`)
+    pub fn withholding_tax_type(mut self, value: WithholdingTaxType) -> Self {
+        self.withholding_tax_type = Some(value);
+        self
+    }
+
     /// Set the status field (default: `PaymentStatus::default()`)
     pub fn status(mut self, value: PaymentStatus) -> Self {
         self.status = Some(value);
@@ -560,6 +605,9 @@ impl PaymentEntryBuilder {
             unallocated_amount: self.unallocated_amount.unwrap_or(Decimal::from(0)),
             bank_account_id,
             party_account_id,
+            withholding_amount: self.withholding_amount.unwrap_or(Decimal::from(0)),
+            withholding_account_id: self.withholding_account_id,
+            withholding_tax_type: self.withholding_tax_type.unwrap_or(WithholdingTaxType::default()),
             status: self.status.unwrap_or(PaymentStatus::default()),
             posting_state: self.posting_state.unwrap_or(GlPostingState::default()),
             journal_id: self.journal_id,
