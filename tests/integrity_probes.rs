@@ -132,6 +132,39 @@ async fn concurrent_post_emits_settled_once() {
     assert_eq!(emitted, 1, "the settlement event must fire exactly once, even under a concurrent double-post");
 }
 
+// IP-4: a posted payment can be reversed — reverse_payment posts the sign-flipped mirror journal,
+// transitions posted→cancelled, and emits PaymentCancelled. A second reverse is a no-op.
+#[tokio::test]
+async fn posted_payment_is_reversible_and_idempotent() {
+    let pool = pool().await;
+    let rec = Recorder::default();
+    let w = PaymentWriteService::with_sink(pool.clone(), Arc::new(rec.clone()));
+    let company = Uuid::new_v4();
+    let id = w.create_payment(receive(company, None)).await.unwrap();
+    w.post_payment(id, &OkGl { journal: Uuid::new_v4(), post: Uuid::new_v4() }).await.unwrap();
+
+    // Reverse it.
+    let outcome = w.reverse_payment(id, &OkGl { journal: Uuid::new_v4(), post: Uuid::new_v4() }).await.unwrap();
+    assert!(!outcome.idempotent_reuse, "first reverse must succeed (not an idempotent reuse)");
+
+    // DB state: status=cancelled, posting_state still posted (the reversal post succeeded).
+    let (status, posting_state): (String, String) = sqlx::query_as(
+        "SELECT status::text, posting_state::text FROM payment.payment_entries WHERE id=$1",
+    ).bind(id).fetch_one(&pool).await.unwrap();
+    assert_eq!(status, "cancelled");
+    assert_eq!(posting_state, "posted");
+
+    // PaymentCancelled emitted.
+    let cancelled = rec.events.lock().unwrap().iter()
+        .filter(|e| matches!(e, PaymentEvent::PaymentCancelled(c) if c.payment_id == id))
+        .count();
+    assert_eq!(cancelled, 1, "PaymentCancelled must fire exactly once");
+
+    // A second reverse is a no-op (already cancelled).
+    let outcome2 = w.reverse_payment(id, &OkGl { journal: Uuid::new_v4(), post: Uuid::new_v4() }).await.unwrap();
+    assert!(outcome2.idempotent_reuse, "second reverse must be an idempotent no-op");
+}
+
 // ── guarded HTTP surface: tenancy ────────────────────────────────────────────
 
 const SECRET: &[u8] = b"payment-integrity-probe-secret";
