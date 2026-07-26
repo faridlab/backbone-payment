@@ -1,6 +1,6 @@
 [package]
 name = "backbone-payment"
-version = "0.7.1"
+version = "0.7.2"
 edition = "2021"
 description = "Settlement & reconciliation — payment entries, allocation, modes of payment; 4th GL producer (Dr Bank·Cr A/R / Dr A/P·Cr Bank)"
 
@@ -103,4 +103,4 @@ rand = "0.8"
 # override must NOT live in this committed Cargo.toml — a committed [patch] to a missing path
 # hard-errors in a standalone clone; it is not a no-op. Hence the gitignored override file.)
 backbone-accounting = { git = "https://github.com/faridlab/backbone-accounting", tag = "v0.4.0" }
-backbone-billing = { git = "https://github.com/faridlab/backbone-billing", tag = "v0.3.2" }
+backbone-billing = { git = "https://github.com/faridlab/backbone-billing", tag = "v0.4.0" }
