@@ -23,6 +23,15 @@ user_owned:
   # skips them wholesale; this declaration is what makes editing them legitimate.
   - "src/infrastructure/persistence/payment_entry_repository.rs"
   - "src/infrastructure/persistence/payment_allocation_repository.rs"
+  # Own the hand-written dunning SQL (the aging snapshot upsert + per-invoice bucket insert +
+  # bucket-totals update; the dunning run insert + actions_emitted update; the action upsert with
+  # its DO-NOTHING fence) that the dunning service orchestrates. Declared here — not renamed with a
+  # `_custom` suffix — so the generator skips them wholesale; this declaration is what makes editing
+  # them legitimate.
+  - "src/infrastructure/persistence/aging_snapshot_repository.rs"
+  - "src/infrastructure/persistence/aging_bucket_repository.rs"
+  - "src/infrastructure/persistence/dunning_run_repository.rs"
+  - "src/infrastructure/persistence/dunning_action_repository.rs"
   - "src/presentation/http/guarded_routes.rs"
   - "tests/payment_golden_cases.rs"
   - "tests/integrity_probes.rs"

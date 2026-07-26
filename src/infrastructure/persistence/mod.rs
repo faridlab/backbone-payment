@@ -41,4 +41,10 @@ pub use payment_allocation_repository::{AllocationRow, NewAllocationRow};
 pub use payment_entry_repository::{
     NewPaymentEntryRow, PaymentTypeAmountRow, PostSourceRow, PostedStateRow, SettledHeaderRow,
 };
+// The hand-written dunning SQL's parameter/projection types (see `aging_snapshot_repository`,
+// `aging_bucket_repository`, `dunning_run_repository`, `dunning_action_repository`, all declared
+// `user_owned` in metaphor.codegen.yaml). The param structs mirror COLUMNS, not entities.
+pub use aging_snapshot_repository::AgingTotals;
+pub use aging_bucket_repository::NewAgingBucketRow;
+pub use dunning_action_repository::NewDunningActionRow;
 // END CUSTOM

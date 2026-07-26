@@ -3,6 +3,15 @@
 //! buckets by days-past-due, and emits dunning actions per invoice.
 //!
 //! Real-world rule: an invoice ages from its `due_date`; a payment allocation de-ages it.
+//!
+//! **Layering (the module's 4-layer rule):** this service ORCHESTRATES — it reads the receivables
+//! port, computes the days-past-due bucketing + escalation level, owns the unit of work
+//! (`begin`/`commit`), and decides what to emit. It holds no SQL: every statement lives on
+//! `AgingSnapshotRepository` / `AgingBucketRepository` / `DunningRunRepository` /
+//! `DunningActionRepository`, whose custom methods take the caller's transaction so a snapshot +
+//! its buckets (and a run + its actions) commit as one unit. The RLS scope wrappers (ADR-0008)
+//! stay HERE, in the service, because the service is what knows the company; tx-taking repo
+//! methods ride the bind this service already made.
 
 use backbone_orm::company_scope;
 use chrono::NaiveDate;
@@ -10,6 +19,11 @@ use rust_decimal::Decimal;
 use sqlx::PgPool;
 use std::sync::Arc;
 use uuid::Uuid;
+
+use crate::infrastructure::persistence::{
+    AgingBucketRepository, AgingSnapshotRepository, AgingTotals, DunningActionRepository,
+    DunningRunRepository, NewAgingBucketRow, NewDunningActionRow,
+};
 
 use super::billing_receivables_port::{BillingReceivablesPort, ReceivableRow};
 
@@ -56,16 +70,13 @@ impl PaymentDunningService {
         let mut tx = self.db_pool.begin().await?;
         company_scope::bind_company_on(&mut tx, company_id).await?;
 
+        let snapshots = AgingSnapshotRepository::new(self.db_pool.clone());
+        let buckets = AgingBucketRepository::new(self.db_pool.clone());
+
         // Idempotent snapshot insert (unique company + as_of + direction).
-        let snapshot_id: Uuid = sqlx::query_scalar(
-            r#"INSERT INTO payment.aging_snapshots (id, company_id, as_of_date, direction, status)
-               VALUES ($1, $2, $3, $4, 'final'::snapshot_status)
-               ON CONFLICT (company_id, as_of_date, direction) WHERE (metadata->>'deleted_at') IS NULL
-               DO UPDATE SET status = 'final'::snapshot_status
-               RETURNING id"#,
-        )
-        .bind(Uuid::new_v4()).bind(company_id).bind(as_of).bind(direction)
-        .fetch_one(&mut *tx).await?;
+        let snapshot_id = snapshots
+            .upsert_snapshot(&mut *tx, Uuid::new_v4(), company_id, as_of, direction)
+            .await?;
 
         let mut totals = [Decimal::ZERO; 5]; // current, 1_30, 31_60, 61_90, 90p
 
@@ -75,28 +86,28 @@ impl PaymentDunningService {
             let idx = bucket_index(dpd);
             totals[idx] += r.outstanding_amount;
 
-            sqlx::query(
-                r#"INSERT INTO payment.aging_buckets
-                     (id, snapshot_id, company_id, invoice_ref, invoice_kind, party_id,
-                      due_date, days_past_due, outstanding_amount, bucket)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::aging_bucket_name)"#,
-            )
-            .bind(Uuid::new_v4()).bind(snapshot_id).bind(company_id)
-            .bind(r.invoice_ref).bind(&r.invoice_kind).bind(r.party_id)
-            .bind(due).bind(dpd as i32).bind(r.outstanding_amount)
-            .bind(bucket_name(dpd))
-            .execute(&mut *tx).await?;
+            buckets.insert_bucket(&mut *tx, &NewAgingBucketRow {
+                id: Uuid::new_v4(),
+                snapshot_id,
+                company_id,
+                invoice_ref: r.invoice_ref,
+                invoice_kind: &r.invoice_kind,
+                party_id: r.party_id,
+                due_date: due,
+                days_past_due: dpd as i32,
+                outstanding_amount: r.outstanding_amount,
+                bucket: bucket_name(dpd),
+            }).await?;
         }
 
-        sqlx::query(
-            r#"UPDATE payment.aging_snapshots
-                 SET total_outstanding = $2, bucket_current = $3, bucket_1_30 = $4,
-                     bucket_31_60 = $5, bucket_61_90 = $6, bucket_90p = $7
-               WHERE id = $1"#,
-        )
-        .bind(snapshot_id).bind(totals.iter().copied().sum::<Decimal>())
-        .bind(totals[0]).bind(totals[1]).bind(totals[2]).bind(totals[3]).bind(totals[4])
-        .execute(&mut *tx).await?;
+        snapshots.update_totals(&mut *tx, snapshot_id, &AgingTotals {
+            total_outstanding: totals.iter().copied().sum::<Decimal>(),
+            bucket_current: totals[0],
+            bucket_1_30: totals[1],
+            bucket_31_60: totals[2],
+            bucket_61_90: totals[3],
+            bucket_90p: totals[4],
+        }).await?;
 
         tx.commit().await?;
         Ok(snapshot_id)
@@ -115,12 +126,12 @@ impl PaymentDunningService {
         let mut tx = self.db_pool.begin().await?;
         company_scope::bind_company_on(&mut tx, company_id).await?;
 
-        let run_id: Uuid = sqlx::query_scalar(
-            r#"INSERT INTO payment.dunning_runs (id, company_id, as_of_date, direction, status)
-               VALUES ($1, $2, $3, $4, 'completed'::dunning_run_status) RETURNING id"#,
-        )
-        .bind(Uuid::new_v4()).bind(company_id).bind(as_of).bind(direction)
-        .fetch_one(&mut *tx).await?;
+        let runs = DunningRunRepository::new(self.db_pool.clone());
+        let actions = DunningActionRepository::new(self.db_pool.clone());
+
+        let run_id = runs
+            .insert_run(&mut *tx, Uuid::new_v4(), company_id, as_of, direction)
+            .await?;
 
         let mut emitted = 0i32;
         for r in &recs {
@@ -129,23 +140,22 @@ impl PaymentDunningService {
             if dpd <= 0 { continue; } // not overdue — no action
             let (level, action_type) = dunning_level(dpd);
 
-            let inserted = sqlx::query(
-                r#"INSERT INTO payment.dunning_actions
-                     (id, company_id, run_id, invoice_ref, invoice_kind, party_id,
-                      level, action_type, days_past_due, outstanding_amount)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7::dunning_level, $8::dunning_action_type, $9, $10)
-                   ON CONFLICT (invoice_ref, invoice_kind, level) WHERE (metadata->>'deleted_at') IS NULL
-                   DO NOTHING"#,
-            )
-            .bind(Uuid::new_v4()).bind(company_id).bind(run_id)
-            .bind(r.invoice_ref).bind(&r.invoice_kind).bind(r.party_id)
-            .bind(level).bind(action_type).bind(dpd as i32).bind(r.outstanding_amount)
-            .execute(&mut *tx).await?.rows_affected();
+            let inserted = actions.upsert_action(&mut *tx, &NewDunningActionRow {
+                id: Uuid::new_v4(),
+                company_id,
+                run_id,
+                invoice_ref: r.invoice_ref,
+                invoice_kind: &r.invoice_kind,
+                party_id: r.party_id,
+                level,
+                action_type,
+                days_past_due: dpd as i32,
+                outstanding_amount: r.outstanding_amount,
+            }).await?;
             if inserted > 0 { emitted += 1; }
         }
 
-        sqlx::query("UPDATE payment.dunning_runs SET actions_emitted = $2 WHERE id = $1")
-            .bind(run_id).bind(emitted).execute(&mut *tx).await?;
+        runs.set_actions_emitted(&mut *tx, run_id, emitted).await?;
 
         tx.commit().await?;
         Ok((run_id, emitted))
