@@ -162,7 +162,7 @@ async fn settlement_through_outbox_is_exactly_once() {
                     a["invoice_kind"].as_str().unwrap().to_string(),
                     Decimal::from_str_exact(a["amount"].as_str().unwrap()).unwrap(),
                 )).collect();
-            billing.apply_settlements_once(rec.id, "settlement-consumer", &allocs).await
+            billing.apply_settlements_once(rec.id, "settlement-consumer", rec.company_id, &allocs).await
                 .map_err(|e| OutboxError::Publish(format!("{e:?}")))?;
             Ok(())
         }

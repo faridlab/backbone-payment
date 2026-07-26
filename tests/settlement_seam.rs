@@ -180,7 +180,7 @@ async fn apply_settlements(billing: &BillingWriteService, rec: &RecordingPaySink
     }).expect("PaymentSettled for our payment");
     let mut on_account = Decimal::ZERO;
     for a in &settled.allocations {
-        let applied = billing.apply_settlement(a.invoice_ref, &a.invoice_kind, a.amount).await.unwrap();
+        let applied = billing.apply_settlement(settled.company_id, a.invoice_ref, &a.invoice_kind, a.amount).await.unwrap().applied;
         on_account += a.amount - applied;
     }
     on_account
@@ -196,7 +196,7 @@ async fn reverse_settlements(billing: &BillingWriteService, rec: &RecordingPaySi
         PaymentEvent::PaymentCancelled(c) if c.payment_id == payment_id => Some(c.clone()), _ => None,
     }).expect("PaymentCancelled for our payment");
     for a in &cancelled.allocations {
-        billing.reverse_settlement(a.invoice_ref, &a.invoice_kind, a.amount).await.unwrap();
+        billing.reverse_settlement(cancelled.company_id, a.invoice_ref, &a.invoice_kind, a.amount).await.unwrap();
     }
 }
 async fn reversal_post_count(pool: &PgPool, source_id: Uuid) -> i64 {
@@ -303,7 +303,7 @@ async fn racing_payments_reconcile_via_clamp_and_on_account() {
         }).await.unwrap();
         payment.post_payment(pay, &gl).await.unwrap();
         // apply directly (each payment settled 600k) — capture the second's clamped return.
-        let a = billing.apply_settlement(inv, "sales", d("600000")).await.unwrap();
+        let a = billing.apply_settlement(company, inv, "sales", d("600000")).await.unwrap().applied;
         if i == 1 { applied_second = a; }
     }
 
