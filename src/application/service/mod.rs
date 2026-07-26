@@ -7,6 +7,10 @@
 pub mod error;
 pub use error::{ServiceError, ServiceResult};
 
+pub mod aging_snapshot_service;
+pub mod aging_bucket_service;
+pub mod dunning_run_service;
+pub mod dunning_action_service;
 pub mod mode_of_payment_service;
 pub mod payment_entry_service;
 pub mod payment_allocation_service;
@@ -15,8 +19,16 @@ pub mod payment_allocation_service;
 pub mod payment_events;
 pub mod payment_gl;
 pub mod payment_write_service;
+pub mod billing_receivables_port;
+pub mod payment_dunning_service;
+pub use billing_receivables_port::{BillingReceivablesPort, ReceivableRow};
+pub use payment_dunning_service::{PaymentDunningService, PaymentDunningError};
 // END CUSTOM
 
+pub use aging_snapshot_service::AgingSnapshotService;
+pub use aging_bucket_service::AgingBucketService;
+pub use dunning_run_service::DunningRunService;
+pub use dunning_action_service::DunningActionService;
 pub use mode_of_payment_service::ModeOfPaymentService;
 pub use payment_entry_service::PaymentEntryService;
 pub use payment_allocation_service::PaymentAllocationService;

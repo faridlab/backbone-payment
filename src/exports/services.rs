@@ -23,6 +23,42 @@ use super::types::*;
 /// Implementations should NOT expose internal domain logic.
 #[async_trait]
 pub trait PaymentQueryService: Send + Sync {
+    /// Get AgingSnapshot by ID
+    async fn get_aging_snapshot(&self, id: AgingSnapshotId) -> Result<Option<AgingSnapshotDto>>;
+
+    /// Get AgingSnapshot summary by ID
+    async fn get_aging_snapshot_summary(&self, id: AgingSnapshotId) -> Result<Option<AgingSnapshotSummary>>;
+
+    /// Check if AgingSnapshot exists
+    async fn aging_snapshot_exists(&self, id: AgingSnapshotId) -> Result<bool>;
+
+    /// Get AgingBucket by ID
+    async fn get_aging_bucket(&self, id: AgingBucketId) -> Result<Option<AgingBucketDto>>;
+
+    /// Get AgingBucket summary by ID
+    async fn get_aging_bucket_summary(&self, id: AgingBucketId) -> Result<Option<AgingBucketSummary>>;
+
+    /// Check if AgingBucket exists
+    async fn aging_bucket_exists(&self, id: AgingBucketId) -> Result<bool>;
+
+    /// Get DunningRun by ID
+    async fn get_dunning_run(&self, id: DunningRunId) -> Result<Option<DunningRunDto>>;
+
+    /// Get DunningRun summary by ID
+    async fn get_dunning_run_summary(&self, id: DunningRunId) -> Result<Option<DunningRunSummary>>;
+
+    /// Check if DunningRun exists
+    async fn dunning_run_exists(&self, id: DunningRunId) -> Result<bool>;
+
+    /// Get DunningAction by ID
+    async fn get_dunning_action(&self, id: DunningActionId) -> Result<Option<DunningActionDto>>;
+
+    /// Get DunningAction summary by ID
+    async fn get_dunning_action_summary(&self, id: DunningActionId) -> Result<Option<DunningActionSummary>>;
+
+    /// Check if DunningAction exists
+    async fn dunning_action_exists(&self, id: DunningActionId) -> Result<bool>;
+
     /// Get ModeOfPayment by ID
     async fn get_mode_of_payment(&self, id: ModeOfPaymentId) -> Result<Option<ModeOfPaymentDto>>;
 

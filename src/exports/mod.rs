@@ -8,7 +8,7 @@
 //! ## Usage from other modules
 //!
 //! ```text
-//! use payment::exports::{ModeOfPaymentDto, PaymentQueryService};
+//! use payment::exports::{AgingSnapshotDto, PaymentQueryService};
 //! ```
 
 mod types;
@@ -27,6 +27,18 @@ pub use events::*;
 /// Summary of what this module exports
 ///
 /// ## Public Types
+/// - `AgingSnapshotDto` - Data transfer object for AgingSnapshot
+/// - `AgingSnapshotSummary` - Summary view of AgingSnapshot
+/// - `AgingSnapshotId` - Type-safe ID wrapper
+/// - `AgingBucketDto` - Data transfer object for AgingBucket
+/// - `AgingBucketSummary` - Summary view of AgingBucket
+/// - `AgingBucketId` - Type-safe ID wrapper
+/// - `DunningRunDto` - Data transfer object for DunningRun
+/// - `DunningRunSummary` - Summary view of DunningRun
+/// - `DunningRunId` - Type-safe ID wrapper
+/// - `DunningActionDto` - Data transfer object for DunningAction
+/// - `DunningActionSummary` - Summary view of DunningAction
+/// - `DunningActionId` - Type-safe ID wrapper
 /// - `ModeOfPaymentDto` - Data transfer object for ModeOfPayment
 /// - `ModeOfPaymentSummary` - Summary view of ModeOfPayment
 /// - `ModeOfPaymentId` - Type-safe ID wrapper
@@ -41,6 +53,18 @@ pub use events::*;
 /// - `PaymentQueryService` - Read-only queries
 ///
 /// ## Public Events
+/// - `AgingSnapshotCreatedEvent` - Published when AgingSnapshot is created
+/// - `AgingSnapshotUpdatedEvent` - Published when AgingSnapshot is updated
+/// - `AgingSnapshotDeletedEvent` - Published when AgingSnapshot is deleted
+/// - `AgingBucketCreatedEvent` - Published when AgingBucket is created
+/// - `AgingBucketUpdatedEvent` - Published when AgingBucket is updated
+/// - `AgingBucketDeletedEvent` - Published when AgingBucket is deleted
+/// - `DunningRunCreatedEvent` - Published when DunningRun is created
+/// - `DunningRunUpdatedEvent` - Published when DunningRun is updated
+/// - `DunningRunDeletedEvent` - Published when DunningRun is deleted
+/// - `DunningActionCreatedEvent` - Published when DunningAction is created
+/// - `DunningActionUpdatedEvent` - Published when DunningAction is updated
+/// - `DunningActionDeletedEvent` - Published when DunningAction is deleted
 /// - `ModeOfPaymentCreatedEvent` - Published when ModeOfPayment is created
 /// - `ModeOfPaymentUpdatedEvent` - Published when ModeOfPayment is updated
 /// - `ModeOfPaymentDeletedEvent` - Published when ModeOfPayment is deleted

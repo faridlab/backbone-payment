@@ -5,11 +5,47 @@
 //! This module provides DTOs for the presentation layer,
 //! with validation and OpenAPI schema support.
 
+pub mod aging_snapshot_dto;
+pub mod aging_bucket_dto;
+pub mod dunning_run_dto;
+pub mod dunning_action_dto;
 pub mod mode_of_payment_dto;
 pub mod payment_entry_dto;
 pub mod payment_allocation_dto;
 
 // Re-exports
+pub use aging_snapshot_dto::{
+    CreateAgingSnapshotDto,
+    UpdateAgingSnapshotDto,
+    PatchAgingSnapshotDto,
+    AgingSnapshotResponseDto,
+    AgingSnapshotListResponseDto,
+    AgingSnapshotSummaryDto,
+};
+pub use aging_bucket_dto::{
+    CreateAgingBucketDto,
+    UpdateAgingBucketDto,
+    PatchAgingBucketDto,
+    AgingBucketResponseDto,
+    AgingBucketListResponseDto,
+    AgingBucketSummaryDto,
+};
+pub use dunning_run_dto::{
+    CreateDunningRunDto,
+    UpdateDunningRunDto,
+    PatchDunningRunDto,
+    DunningRunResponseDto,
+    DunningRunListResponseDto,
+    DunningRunSummaryDto,
+};
+pub use dunning_action_dto::{
+    CreateDunningActionDto,
+    UpdateDunningActionDto,
+    PatchDunningActionDto,
+    DunningActionResponseDto,
+    DunningActionListResponseDto,
+    DunningActionSummaryDto,
+};
 pub use mode_of_payment_dto::{
     CreateModeOfPaymentDto,
     UpdateModeOfPaymentDto,

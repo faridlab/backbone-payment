@@ -10,3 +10,9 @@
 - mode_of_payment_seed
 - payment_entry_seed
 - payment_allocation_seed
+
+# Newly added seeds (preserve manual order above):
+- aging_snapshot_seed
+- dunning_action_seed
+- aging_bucket_seed
+- dunning_run_seed

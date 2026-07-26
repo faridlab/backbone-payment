@@ -5,10 +5,18 @@
 pub mod shared_types;
 pub use shared_types::*;
 
+pub mod aging_snapshot_bulk;
+pub mod aging_bucket_bulk;
+pub mod dunning_run_bulk;
+pub mod dunning_action_bulk;
 pub mod mode_of_payment_bulk;
 pub mod payment_entry_bulk;
 pub mod payment_allocation_bulk;
 
+pub use aging_snapshot_bulk::AgingSnapshotBulkService;
+pub use aging_bucket_bulk::AgingBucketBulkService;
+pub use dunning_run_bulk::DunningRunBulkService;
+pub use dunning_action_bulk::DunningActionBulkService;
 pub use mode_of_payment_bulk::ModeOfPaymentBulkService;
 pub use payment_entry_bulk::PaymentEntryBulkService;
 pub use payment_allocation_bulk::PaymentAllocationBulkService;

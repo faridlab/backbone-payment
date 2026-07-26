@@ -4,6 +4,10 @@
 //!
 //! Uses backbone-orm's `DatabaseOperations<T>` trait.
 
+mod aging_snapshot_repository;
+mod aging_bucket_repository;
+mod dunning_run_repository;
+mod dunning_action_repository;
 mod mode_of_payment_repository;
 mod payment_entry_repository;
 mod payment_allocation_repository;
@@ -13,6 +17,10 @@ mod payment_allocation_repository;
 // END CUSTOM
 
 // Re-exports
+pub use aging_snapshot_repository::AgingSnapshotRepository;
+pub use aging_bucket_repository::AgingBucketRepository;
+pub use dunning_run_repository::DunningRunRepository;
+pub use dunning_action_repository::DunningActionRepository;
 pub use mode_of_payment_repository::ModeOfPaymentRepository;
 pub use payment_entry_repository::PaymentEntryRepository;
 pub use payment_allocation_repository::PaymentAllocationRepository;

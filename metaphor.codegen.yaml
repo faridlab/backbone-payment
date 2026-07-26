@@ -13,6 +13,9 @@
 user_owned:
   - "src/application/service/payment_events.rs"
   - "src/application/service/payment_gl.rs"
+  - "src/application/service/billing_receivables_port.rs"
+  - "src/application/service/payment_dunning_service.rs"
+  - "tests/aging_dunning_seam.rs"
   - "src/application/service/payment_write_service.rs"
   # Own the hand-written payment SQL (the entry + allocations insert, the settlement/reversal post
   # reads, the pending->posted and posted->cancelled transitions, the seam events' reads) that the

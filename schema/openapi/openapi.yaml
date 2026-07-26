@@ -11,6 +11,14 @@ servers:
     description: Development server
 
 tags:
+  - name: AgingSnapshots
+    description: AgingSnapshot management endpoints
+  - name: AgingBuckets
+    description: AgingBucket management endpoints
+  - name: DunningRuns
+    description: DunningRun management endpoints
+  - name: DunningActions
+    description: DunningAction management endpoints
   - name: ModeOfPayments
     description: ModeOfPayment management endpoints
   - name: PaymentEntries
@@ -19,6 +27,1470 @@ tags:
     description: PaymentAllocation management endpoints
 
 paths:
+  /api/v1/aging_snapshots:
+    get:
+      tags:
+        - AgingSnapshots
+      summary: List AgingSnapshots
+      description: Get a paginated list of AgingSnapshots with optional filtering and sorting
+      operationId: listAgingSnapshots
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/SortByParam'
+        - $ref: '#/components/parameters/SortOrderParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingSnapshotList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - AgingSnapshots
+      summary: Create AgingSnapshot
+      description: Create a new AgingSnapshot
+      operationId: createAgingSnapshot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAgingSnapshotRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingSnapshot'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/aging_snapshots/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+
+    get:
+      tags:
+        - AgingSnapshots
+      summary: Get AgingSnapshot by ID
+      operationId: getAgingSnapshot
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingSnapshot'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - AgingSnapshots
+      summary: Update AgingSnapshot (full)
+      operationId: updateAgingSnapshot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAgingSnapshotRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingSnapshot'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - AgingSnapshots
+      summary: Update AgingSnapshot (partial)
+      operationId: patchAgingSnapshot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchAgingSnapshotRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingSnapshot'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - AgingSnapshots
+      summary: Delete AgingSnapshot (soft)
+      operationId: deleteAgingSnapshot
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/aging_snapshots/bulk:
+    post:
+      tags:
+        - AgingSnapshots
+      summary: Bulk create AgingSnapshots
+      operationId: bulkCreateAgingSnapshots
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/CreateAgingSnapshotRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AgingSnapshot'
+    put:
+      tags:
+        - AgingSnapshots
+      summary: Bulk update AgingSnapshots (full, atomic)
+      operationId: bulkUpdateAgingSnapshots
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateAgingSnapshotRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingSnapshotBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - AgingSnapshots
+      summary: Bulk partial-update AgingSnapshots (atomic)
+      operationId: bulkPatchAgingSnapshots
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingSnapshotBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/aging_snapshots/upsert:
+    post:
+      tags:
+        - AgingSnapshots
+      summary: Upsert AgingSnapshot
+      operationId: upsertAgingSnapshot
+      parameters:
+        - name: key_field
+          in: query
+          schema:
+            type: string
+        - name: key_value
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAgingSnapshotRequest'
+      responses:
+        '200':
+          description: Upserted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingSnapshot'
+
+  /api/v1/aging_snapshots/trash:
+    get:
+      tags:
+        - AgingSnapshots
+      summary: List deleted AgingSnapshots
+      operationId: listDeletedAgingSnapshots
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingSnapshotList'
+
+  /api/v1/aging_snapshots/{id}/restore:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags:
+        - AgingSnapshots
+      summary: Restore deleted AgingSnapshot
+      operationId: restoreAgingSnapshot
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingSnapshot'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/aging_snapshots/empty:
+    delete:
+      tags:
+        - AgingSnapshots
+      summary: Empty trash for AgingSnapshots
+      operationId: emptyTrashAgingSnapshots
+      responses:
+        '200':
+          description: Trash emptied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted_count:
+                    type: integer
+
+  /api/v1/aging_snapshots/delete/bulk:
+    post:
+      tags:
+        - AgingSnapshots
+      summary: Bulk soft-delete AgingSnapshots by ids (atomic)
+      operationId: bulkDeleteAgingSnapshots
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/aging_snapshots/restore/bulk:
+    post:
+      tags:
+        - AgingSnapshots
+      summary: Bulk restore AgingSnapshots by ids (atomic)
+      operationId: bulkRestoreAgingSnapshots
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingSnapshotBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/aging_snapshots/restore/all:
+    post:
+      tags:
+        - AgingSnapshots
+      summary: Restore all soft-deleted AgingSnapshots
+      operationId: restoreAllAgingSnapshots
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/aging_snapshots/trash/bulk:
+    delete:
+      tags:
+        - AgingSnapshots
+      summary: Bulk permanently-delete AgingSnapshots from trash by ids (atomic)
+      operationId: bulkPermanentDeleteAgingSnapshots
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/aging_buckets:
+    get:
+      tags:
+        - AgingBuckets
+      summary: List AgingBuckets
+      description: Get a paginated list of AgingBuckets with optional filtering and sorting
+      operationId: listAgingBuckets
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/SortByParam'
+        - $ref: '#/components/parameters/SortOrderParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingBucketList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - AgingBuckets
+      summary: Create AgingBucket
+      description: Create a new AgingBucket
+      operationId: createAgingBucket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAgingBucketRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingBucket'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/aging_buckets/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+
+    get:
+      tags:
+        - AgingBuckets
+      summary: Get AgingBucket by ID
+      operationId: getAgingBucket
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingBucket'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - AgingBuckets
+      summary: Update AgingBucket (full)
+      operationId: updateAgingBucket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAgingBucketRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingBucket'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - AgingBuckets
+      summary: Update AgingBucket (partial)
+      operationId: patchAgingBucket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchAgingBucketRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingBucket'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - AgingBuckets
+      summary: Delete AgingBucket (soft)
+      operationId: deleteAgingBucket
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/aging_buckets/bulk:
+    post:
+      tags:
+        - AgingBuckets
+      summary: Bulk create AgingBuckets
+      operationId: bulkCreateAgingBuckets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/CreateAgingBucketRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AgingBucket'
+    put:
+      tags:
+        - AgingBuckets
+      summary: Bulk update AgingBuckets (full, atomic)
+      operationId: bulkUpdateAgingBuckets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateAgingBucketRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingBucketBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - AgingBuckets
+      summary: Bulk partial-update AgingBuckets (atomic)
+      operationId: bulkPatchAgingBuckets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingBucketBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/aging_buckets/upsert:
+    post:
+      tags:
+        - AgingBuckets
+      summary: Upsert AgingBucket
+      operationId: upsertAgingBucket
+      parameters:
+        - name: key_field
+          in: query
+          schema:
+            type: string
+        - name: key_value
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAgingBucketRequest'
+      responses:
+        '200':
+          description: Upserted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingBucket'
+
+  /api/v1/aging_buckets/trash:
+    get:
+      tags:
+        - AgingBuckets
+      summary: List deleted AgingBuckets
+      operationId: listDeletedAgingBuckets
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingBucketList'
+
+  /api/v1/aging_buckets/{id}/restore:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags:
+        - AgingBuckets
+      summary: Restore deleted AgingBucket
+      operationId: restoreAgingBucket
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingBucket'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/aging_buckets/empty:
+    delete:
+      tags:
+        - AgingBuckets
+      summary: Empty trash for AgingBuckets
+      operationId: emptyTrashAgingBuckets
+      responses:
+        '200':
+          description: Trash emptied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted_count:
+                    type: integer
+
+  /api/v1/aging_buckets/delete/bulk:
+    post:
+      tags:
+        - AgingBuckets
+      summary: Bulk soft-delete AgingBuckets by ids (atomic)
+      operationId: bulkDeleteAgingBuckets
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/aging_buckets/restore/bulk:
+    post:
+      tags:
+        - AgingBuckets
+      summary: Bulk restore AgingBuckets by ids (atomic)
+      operationId: bulkRestoreAgingBuckets
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgingBucketBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/aging_buckets/restore/all:
+    post:
+      tags:
+        - AgingBuckets
+      summary: Restore all soft-deleted AgingBuckets
+      operationId: restoreAllAgingBuckets
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/aging_buckets/trash/bulk:
+    delete:
+      tags:
+        - AgingBuckets
+      summary: Bulk permanently-delete AgingBuckets from trash by ids (atomic)
+      operationId: bulkPermanentDeleteAgingBuckets
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/dunning_runs:
+    get:
+      tags:
+        - DunningRuns
+      summary: List DunningRuns
+      description: Get a paginated list of DunningRuns with optional filtering and sorting
+      operationId: listDunningRuns
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/SortByParam'
+        - $ref: '#/components/parameters/SortOrderParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningRunList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - DunningRuns
+      summary: Create DunningRun
+      description: Create a new DunningRun
+      operationId: createDunningRun
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDunningRunRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningRun'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/dunning_runs/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+
+    get:
+      tags:
+        - DunningRuns
+      summary: Get DunningRun by ID
+      operationId: getDunningRun
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningRun'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - DunningRuns
+      summary: Update DunningRun (full)
+      operationId: updateDunningRun
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDunningRunRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningRun'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - DunningRuns
+      summary: Update DunningRun (partial)
+      operationId: patchDunningRun
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchDunningRunRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningRun'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - DunningRuns
+      summary: Delete DunningRun (soft)
+      operationId: deleteDunningRun
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/dunning_runs/bulk:
+    post:
+      tags:
+        - DunningRuns
+      summary: Bulk create DunningRuns
+      operationId: bulkCreateDunningRuns
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/CreateDunningRunRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DunningRun'
+    put:
+      tags:
+        - DunningRuns
+      summary: Bulk update DunningRuns (full, atomic)
+      operationId: bulkUpdateDunningRuns
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateDunningRunRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningRunBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - DunningRuns
+      summary: Bulk partial-update DunningRuns (atomic)
+      operationId: bulkPatchDunningRuns
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningRunBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/dunning_runs/upsert:
+    post:
+      tags:
+        - DunningRuns
+      summary: Upsert DunningRun
+      operationId: upsertDunningRun
+      parameters:
+        - name: key_field
+          in: query
+          schema:
+            type: string
+        - name: key_value
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDunningRunRequest'
+      responses:
+        '200':
+          description: Upserted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningRun'
+
+  /api/v1/dunning_runs/trash:
+    get:
+      tags:
+        - DunningRuns
+      summary: List deleted DunningRuns
+      operationId: listDeletedDunningRuns
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningRunList'
+
+  /api/v1/dunning_runs/{id}/restore:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags:
+        - DunningRuns
+      summary: Restore deleted DunningRun
+      operationId: restoreDunningRun
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningRun'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/dunning_runs/empty:
+    delete:
+      tags:
+        - DunningRuns
+      summary: Empty trash for DunningRuns
+      operationId: emptyTrashDunningRuns
+      responses:
+        '200':
+          description: Trash emptied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted_count:
+                    type: integer
+
+  /api/v1/dunning_runs/delete/bulk:
+    post:
+      tags:
+        - DunningRuns
+      summary: Bulk soft-delete DunningRuns by ids (atomic)
+      operationId: bulkDeleteDunningRuns
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/dunning_runs/restore/bulk:
+    post:
+      tags:
+        - DunningRuns
+      summary: Bulk restore DunningRuns by ids (atomic)
+      operationId: bulkRestoreDunningRuns
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningRunBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/dunning_runs/restore/all:
+    post:
+      tags:
+        - DunningRuns
+      summary: Restore all soft-deleted DunningRuns
+      operationId: restoreAllDunningRuns
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/dunning_runs/trash/bulk:
+    delete:
+      tags:
+        - DunningRuns
+      summary: Bulk permanently-delete DunningRuns from trash by ids (atomic)
+      operationId: bulkPermanentDeleteDunningRuns
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/dunning_actions:
+    get:
+      tags:
+        - DunningActions
+      summary: List DunningActions
+      description: Get a paginated list of DunningActions with optional filtering and sorting
+      operationId: listDunningActions
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/SortByParam'
+        - $ref: '#/components/parameters/SortOrderParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningActionList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - DunningActions
+      summary: Create DunningAction
+      description: Create a new DunningAction
+      operationId: createDunningAction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDunningActionRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningAction'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/dunning_actions/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+
+    get:
+      tags:
+        - DunningActions
+      summary: Get DunningAction by ID
+      operationId: getDunningAction
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningAction'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - DunningActions
+      summary: Update DunningAction (full)
+      operationId: updateDunningAction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDunningActionRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningAction'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - DunningActions
+      summary: Update DunningAction (partial)
+      operationId: patchDunningAction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchDunningActionRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningAction'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - DunningActions
+      summary: Delete DunningAction (soft)
+      operationId: deleteDunningAction
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/dunning_actions/bulk:
+    post:
+      tags:
+        - DunningActions
+      summary: Bulk create DunningActions
+      operationId: bulkCreateDunningActions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/CreateDunningActionRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DunningAction'
+    put:
+      tags:
+        - DunningActions
+      summary: Bulk update DunningActions (full, atomic)
+      operationId: bulkUpdateDunningActions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateDunningActionRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningActionBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - DunningActions
+      summary: Bulk partial-update DunningActions (atomic)
+      operationId: bulkPatchDunningActions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningActionBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/dunning_actions/upsert:
+    post:
+      tags:
+        - DunningActions
+      summary: Upsert DunningAction
+      operationId: upsertDunningAction
+      parameters:
+        - name: key_field
+          in: query
+          schema:
+            type: string
+        - name: key_value
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDunningActionRequest'
+      responses:
+        '200':
+          description: Upserted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningAction'
+
+  /api/v1/dunning_actions/trash:
+    get:
+      tags:
+        - DunningActions
+      summary: List deleted DunningActions
+      operationId: listDeletedDunningActions
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningActionList'
+
+  /api/v1/dunning_actions/{id}/restore:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags:
+        - DunningActions
+      summary: Restore deleted DunningAction
+      operationId: restoreDunningAction
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningAction'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/dunning_actions/empty:
+    delete:
+      tags:
+        - DunningActions
+      summary: Empty trash for DunningActions
+      operationId: emptyTrashDunningActions
+      responses:
+        '200':
+          description: Trash emptied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted_count:
+                    type: integer
+
+  /api/v1/dunning_actions/delete/bulk:
+    post:
+      tags:
+        - DunningActions
+      summary: Bulk soft-delete DunningActions by ids (atomic)
+      operationId: bulkDeleteDunningActions
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/dunning_actions/restore/bulk:
+    post:
+      tags:
+        - DunningActions
+      summary: Bulk restore DunningActions by ids (atomic)
+      operationId: bulkRestoreDunningActions
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningActionBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/dunning_actions/restore/all:
+    post:
+      tags:
+        - DunningActions
+      summary: Restore all soft-deleted DunningActions
+      operationId: restoreAllDunningActions
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/dunning_actions/trash/bulk:
+    delete:
+      tags:
+        - DunningActions
+      summary: Bulk permanently-delete DunningActions from trash by ids (atomic)
+      operationId: bulkPermanentDeleteDunningActions
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
   /api/v1/mode_of_payments:
     get:
       tags:
@@ -1119,6 +2591,738 @@ paths:
 
 components:
   schemas:
+    AgingSnapshot:
+      type: object
+      required:
+        - id
+        - company_id
+        - as_of_date
+        - direction
+        - total_outstanding
+        - bucket_current
+        - bucket_1_30
+        - bucket_31_60
+        - bucket_61_90
+        - bucket_90p
+        - status
+        - metadata
+      properties:
+        id:
+          type: string
+          format: uuid
+        company_id:
+          type: string
+          format: uuid
+        as_of_date:
+          type: string
+          format: date
+        direction:
+          type: string
+          maxLength: 10
+        total_outstanding:
+          type: string
+        bucket_current:
+          type: string
+        bucket_1_30:
+          type: string
+        bucket_31_60:
+          type: string
+        bucket_61_90:
+          type: string
+        bucket_90p:
+          type: string
+        status:
+          type: string
+        metadata:
+          type: object
+
+    AgingSnapshotBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgingSnapshot'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
+
+    CreateAgingSnapshotRequest:
+      type: object
+      required:
+        - company_id
+        - as_of_date
+        - direction
+        - total_outstanding
+        - bucket_current
+        - bucket_1_30
+        - bucket_31_60
+        - bucket_61_90
+        - bucket_90p
+        - status
+        - metadata
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        as_of_date:
+          type: string
+          format: date
+        direction:
+          type: string
+          maxLength: 10
+        total_outstanding:
+          type: string
+        bucket_current:
+          type: string
+        bucket_1_30:
+          type: string
+        bucket_31_60:
+          type: string
+        bucket_61_90:
+          type: string
+        bucket_90p:
+          type: string
+        status:
+          type: string
+        metadata:
+          type: object
+
+    UpdateAgingSnapshotRequest:
+      type: object
+      required:
+        - company_id
+        - as_of_date
+        - direction
+        - total_outstanding
+        - bucket_current
+        - bucket_1_30
+        - bucket_31_60
+        - bucket_61_90
+        - bucket_90p
+        - status
+        - metadata
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        as_of_date:
+          type: string
+          format: date
+        direction:
+          type: string
+          maxLength: 10
+        total_outstanding:
+          type: string
+        bucket_current:
+          type: string
+        bucket_1_30:
+          type: string
+        bucket_31_60:
+          type: string
+        bucket_61_90:
+          type: string
+        bucket_90p:
+          type: string
+        status:
+          type: string
+        metadata:
+          type: object
+
+    PatchAgingSnapshotRequest:
+      type: object
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        as_of_date:
+          type: string
+          format: date
+        direction:
+          type: string
+          maxLength: 10
+        total_outstanding:
+          type: string
+        bucket_current:
+          type: string
+        bucket_1_30:
+          type: string
+        bucket_31_60:
+          type: string
+        bucket_61_90:
+          type: string
+        bucket_90p:
+          type: string
+        status:
+          type: string
+        metadata:
+          type: object
+
+    AgingSnapshotList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgingSnapshot'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    AgingBucket:
+      type: object
+      required:
+        - id
+        - company_id
+        - snapshot_id
+        - invoice_ref
+        - invoice_kind
+        - due_date
+        - days_past_due
+        - outstanding_amount
+        - bucket
+        - metadata
+      properties:
+        id:
+          type: string
+          format: uuid
+        company_id:
+          type: string
+          format: uuid
+        snapshot_id:
+          type: string
+          format: uuid
+        invoice_ref:
+          type: string
+          format: uuid
+        invoice_kind:
+          type: string
+          maxLength: 10
+        party_id:
+          nullable: true
+          type: string
+          format: uuid
+        due_date:
+          type: string
+          format: date
+        days_past_due:
+          type: integer
+          format: int32
+        outstanding_amount:
+          type: string
+        bucket:
+          type: string
+        metadata:
+          type: object
+
+    AgingBucketBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgingBucket'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
+
+    CreateAgingBucketRequest:
+      type: object
+      required:
+        - company_id
+        - snapshot_id
+        - invoice_ref
+        - invoice_kind
+        - due_date
+        - days_past_due
+        - outstanding_amount
+        - bucket
+        - metadata
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        snapshot_id:
+          type: string
+          format: uuid
+        invoice_ref:
+          type: string
+          format: uuid
+        invoice_kind:
+          type: string
+          maxLength: 10
+        party_id:
+          nullable: true
+          type: string
+          format: uuid
+        due_date:
+          type: string
+          format: date
+        days_past_due:
+          type: integer
+          format: int32
+        outstanding_amount:
+          type: string
+        bucket:
+          type: string
+        metadata:
+          type: object
+
+    UpdateAgingBucketRequest:
+      type: object
+      required:
+        - company_id
+        - snapshot_id
+        - invoice_ref
+        - invoice_kind
+        - due_date
+        - days_past_due
+        - outstanding_amount
+        - bucket
+        - metadata
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        snapshot_id:
+          type: string
+          format: uuid
+        invoice_ref:
+          type: string
+          format: uuid
+        invoice_kind:
+          type: string
+          maxLength: 10
+        party_id:
+          nullable: true
+          type: string
+          format: uuid
+        due_date:
+          type: string
+          format: date
+        days_past_due:
+          type: integer
+          format: int32
+        outstanding_amount:
+          type: string
+        bucket:
+          type: string
+        metadata:
+          type: object
+
+    PatchAgingBucketRequest:
+      type: object
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        snapshot_id:
+          type: string
+          format: uuid
+        invoice_ref:
+          type: string
+          format: uuid
+        invoice_kind:
+          type: string
+          maxLength: 10
+        party_id:
+          nullable: true
+          type: string
+          format: uuid
+        due_date:
+          type: string
+          format: date
+        days_past_due:
+          type: integer
+          format: int32
+        outstanding_amount:
+          type: string
+        bucket:
+          type: string
+        metadata:
+          type: object
+
+    AgingBucketList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgingBucket'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    DunningRun:
+      type: object
+      required:
+        - id
+        - company_id
+        - as_of_date
+        - direction
+        - actions_emitted
+        - status
+        - metadata
+      properties:
+        id:
+          type: string
+          format: uuid
+        company_id:
+          type: string
+          format: uuid
+        as_of_date:
+          type: string
+          format: date
+        direction:
+          type: string
+          maxLength: 10
+        snapshot_id:
+          nullable: true
+          type: string
+          format: uuid
+        actions_emitted:
+          type: integer
+          format: int32
+        status:
+          type: string
+        metadata:
+          type: object
+
+    DunningRunBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DunningRun'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
+
+    CreateDunningRunRequest:
+      type: object
+      required:
+        - company_id
+        - as_of_date
+        - direction
+        - actions_emitted
+        - status
+        - metadata
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        as_of_date:
+          type: string
+          format: date
+        direction:
+          type: string
+          maxLength: 10
+        snapshot_id:
+          nullable: true
+          type: string
+          format: uuid
+        actions_emitted:
+          type: integer
+          format: int32
+        status:
+          type: string
+        metadata:
+          type: object
+
+    UpdateDunningRunRequest:
+      type: object
+      required:
+        - company_id
+        - as_of_date
+        - direction
+        - actions_emitted
+        - status
+        - metadata
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        as_of_date:
+          type: string
+          format: date
+        direction:
+          type: string
+          maxLength: 10
+        snapshot_id:
+          nullable: true
+          type: string
+          format: uuid
+        actions_emitted:
+          type: integer
+          format: int32
+        status:
+          type: string
+        metadata:
+          type: object
+
+    PatchDunningRunRequest:
+      type: object
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        as_of_date:
+          type: string
+          format: date
+        direction:
+          type: string
+          maxLength: 10
+        snapshot_id:
+          nullable: true
+          type: string
+          format: uuid
+        actions_emitted:
+          type: integer
+          format: int32
+        status:
+          type: string
+        metadata:
+          type: object
+
+    DunningRunList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DunningRun'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    DunningAction:
+      type: object
+      required:
+        - id
+        - company_id
+        - run_id
+        - invoice_ref
+        - invoice_kind
+        - level
+        - action_type
+        - days_past_due
+        - outstanding_amount
+        - status
+        - metadata
+      properties:
+        id:
+          type: string
+          format: uuid
+        company_id:
+          type: string
+          format: uuid
+        run_id:
+          type: string
+          format: uuid
+        invoice_ref:
+          type: string
+          format: uuid
+        invoice_kind:
+          type: string
+          maxLength: 10
+        party_id:
+          nullable: true
+          type: string
+          format: uuid
+        level:
+          type: string
+        action_type:
+          type: string
+        days_past_due:
+          type: integer
+          format: int32
+        outstanding_amount:
+          type: string
+        status:
+          type: string
+        processed_at:
+          nullable: true
+          type: string
+          format: date-time
+        result_ref:
+          nullable: true
+          type: string
+          maxLength: 140
+        metadata:
+          type: object
+
+    DunningActionBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DunningAction'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
+
+    CreateDunningActionRequest:
+      type: object
+      required:
+        - company_id
+        - run_id
+        - invoice_ref
+        - invoice_kind
+        - level
+        - action_type
+        - days_past_due
+        - outstanding_amount
+        - status
+        - metadata
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        run_id:
+          type: string
+          format: uuid
+        invoice_ref:
+          type: string
+          format: uuid
+        invoice_kind:
+          type: string
+          maxLength: 10
+        party_id:
+          nullable: true
+          type: string
+          format: uuid
+        level:
+          type: string
+        action_type:
+          type: string
+        days_past_due:
+          type: integer
+          format: int32
+        outstanding_amount:
+          type: string
+        status:
+          type: string
+        processed_at:
+          nullable: true
+          type: string
+          format: date-time
+        result_ref:
+          nullable: true
+          type: string
+          maxLength: 140
+        metadata:
+          type: object
+
+    UpdateDunningActionRequest:
+      type: object
+      required:
+        - company_id
+        - run_id
+        - invoice_ref
+        - invoice_kind
+        - level
+        - action_type
+        - days_past_due
+        - outstanding_amount
+        - status
+        - metadata
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        run_id:
+          type: string
+          format: uuid
+        invoice_ref:
+          type: string
+          format: uuid
+        invoice_kind:
+          type: string
+          maxLength: 10
+        party_id:
+          nullable: true
+          type: string
+          format: uuid
+        level:
+          type: string
+        action_type:
+          type: string
+        days_past_due:
+          type: integer
+          format: int32
+        outstanding_amount:
+          type: string
+        status:
+          type: string
+        processed_at:
+          nullable: true
+          type: string
+          format: date-time
+        result_ref:
+          nullable: true
+          type: string
+          maxLength: 140
+        metadata:
+          type: object
+
+    PatchDunningActionRequest:
+      type: object
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        run_id:
+          type: string
+          format: uuid
+        invoice_ref:
+          type: string
+          format: uuid
+        invoice_kind:
+          type: string
+          maxLength: 10
+        party_id:
+          nullable: true
+          type: string
+          format: uuid
+        level:
+          type: string
+        action_type:
+          type: string
+        days_past_due:
+          type: integer
+          format: int32
+        outstanding_amount:
+          type: string
+        status:
+          type: string
+        processed_at:
+          nullable: true
+          type: string
+          format: date-time
+        result_ref:
+          nullable: true
+          type: string
+          maxLength: 140
+        metadata:
+          type: object
+
+    DunningActionList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DunningAction'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
     ModeOfPayment:
       type: object
       required:

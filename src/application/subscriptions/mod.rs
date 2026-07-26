@@ -11,6 +11,10 @@ pub mod registry;
 pub use handlers::*;
 pub use registry::SubscriptionRegistry;
 
+pub use handlers::AgingSnapshotEventSubscriber;
+pub use handlers::AgingBucketEventSubscriber;
+pub use handlers::DunningRunEventSubscriber;
+pub use handlers::DunningActionEventSubscriber;
 pub use handlers::ModeOfPaymentEventSubscriber;
 pub use handlers::PaymentEntryEventSubscriber;
 pub use handlers::PaymentAllocationEventSubscriber;

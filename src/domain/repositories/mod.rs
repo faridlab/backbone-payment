@@ -6,11 +6,39 @@
 //! Implementations should be in the infrastructure layer.
 
 
+pub mod aging_snapshot_repository;
+pub mod aging_bucket_repository;
+pub mod dunning_run_repository;
+pub mod dunning_action_repository;
 pub mod mode_of_payment_repository;
 pub mod payment_entry_repository;
 pub mod payment_allocation_repository;
 
 // Re-exports
+pub use aging_snapshot_repository::{
+    AgingSnapshotRepository,
+    AgingSnapshotPaginationParams,
+    AgingSnapshotPaginatedResult,
+    AgingSnapshotFilter,
+};
+pub use aging_bucket_repository::{
+    AgingBucketRepository,
+    AgingBucketPaginationParams,
+    AgingBucketPaginatedResult,
+    AgingBucketFilter,
+};
+pub use dunning_run_repository::{
+    DunningRunRepository,
+    DunningRunPaginationParams,
+    DunningRunPaginatedResult,
+    DunningRunFilter,
+};
+pub use dunning_action_repository::{
+    DunningActionRepository,
+    DunningActionPaginationParams,
+    DunningActionPaginatedResult,
+    DunningActionFilter,
+};
 pub use mode_of_payment_repository::{
     ModeOfPaymentRepository,
     ModeOfPaymentPaginationParams,

@@ -5,6 +5,10 @@
 //! These handlers use Axum and backbone-core's BackboneCrudHandler
 //! to provide all 12 standard Backbone CRUD endpoints.
 
+pub mod aging_snapshot_handler;
+pub mod aging_bucket_handler;
+pub mod dunning_run_handler;
+pub mod dunning_action_handler;
 pub mod mode_of_payment_handler;
 pub mod payment_entry_handler;
 pub mod payment_allocation_handler;
@@ -14,6 +18,10 @@ pub mod guarded_routes;
 // END CUSTOM
 
 // Re-exports
+pub use aging_snapshot_handler::{create_aging_snapshot_routes, create_aging_snapshot_read_routes, create_aging_snapshot_write_routes};
+pub use aging_bucket_handler::{create_aging_bucket_routes, create_aging_bucket_read_routes, create_aging_bucket_write_routes};
+pub use dunning_run_handler::{create_dunning_run_routes, create_dunning_run_read_routes, create_dunning_run_write_routes};
+pub use dunning_action_handler::{create_dunning_action_routes, create_dunning_action_read_routes, create_dunning_action_write_routes};
 pub use mode_of_payment_handler::{create_mode_of_payment_routes, create_mode_of_payment_read_routes, create_mode_of_payment_write_routes};
 pub use payment_entry_handler::{create_payment_entry_routes, create_payment_entry_read_routes, create_payment_entry_write_routes};
 pub use payment_allocation_handler::{create_payment_allocation_routes, create_payment_allocation_read_routes, create_payment_allocation_write_routes};

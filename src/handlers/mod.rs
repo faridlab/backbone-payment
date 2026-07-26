@@ -9,6 +9,10 @@
 use std::sync::Arc;
 
 // Import all services
+use crate::application::service::AgingSnapshotService;
+use crate::application::service::AgingBucketService;
+use crate::application::service::DunningRunService;
+use crate::application::service::DunningActionService;
 use crate::application::service::ModeOfPaymentService;
 use crate::application::service::PaymentEntryService;
 use crate::application::service::PaymentAllocationService;
@@ -31,6 +35,14 @@ use crate::application::service::PaymentAllocationService;
 /// ```
 #[derive(Clone)]
 pub struct AppState {
+    /// AgingSnapshot service
+    pub aging_snapshot_service: Arc<AgingSnapshotService>,
+    /// AgingBucket service
+    pub aging_bucket_service: Arc<AgingBucketService>,
+    /// DunningRun service
+    pub dunning_run_service: Arc<DunningRunService>,
+    /// DunningAction service
+    pub dunning_action_service: Arc<DunningActionService>,
     /// ModeOfPayment service
     pub mode_of_payment_service: Arc<ModeOfPaymentService>,
     /// PaymentEntry service
@@ -42,11 +54,19 @@ pub struct AppState {
 impl AppState {
     /// Create a new AppState with all services.
     pub fn new(
+        aging_snapshot_service: Arc<AgingSnapshotService>,
+        aging_bucket_service: Arc<AgingBucketService>,
+        dunning_run_service: Arc<DunningRunService>,
+        dunning_action_service: Arc<DunningActionService>,
         mode_of_payment_service: Arc<ModeOfPaymentService>,
         payment_entry_service: Arc<PaymentEntryService>,
         payment_allocation_service: Arc<PaymentAllocationService>
     ) -> Self {
         Self {
+            aging_snapshot_service,
+            aging_bucket_service,
+            dunning_run_service,
+            dunning_action_service,
             mode_of_payment_service,
             payment_entry_service,
             payment_allocation_service,
@@ -56,6 +76,10 @@ impl AppState {
     /// Create AppState from module instance.
     pub fn from_module(module: &crate::PaymentModule) -> Self {
         Self {
+            aging_snapshot_service: module.aging_snapshot_service.clone(),
+            aging_bucket_service: module.aging_bucket_service.clone(),
+            dunning_run_service: module.dunning_run_service.clone(),
+            dunning_action_service: module.dunning_action_service.clone(),
             mode_of_payment_service: module.mode_of_payment_service.clone(),
             payment_entry_service: module.payment_entry_service.clone(),
             payment_allocation_service: module.payment_allocation_service.clone(),
@@ -68,6 +92,10 @@ impl AppState {
 /// Allows incremental construction of AppState.
 #[derive(Default)]
 pub struct AppStateBuilder {
+    aging_snapshot_service: Option<Arc<AgingSnapshotService>>,
+    aging_bucket_service: Option<Arc<AgingBucketService>>,
+    dunning_run_service: Option<Arc<DunningRunService>>,
+    dunning_action_service: Option<Arc<DunningActionService>>,
     mode_of_payment_service: Option<Arc<ModeOfPaymentService>>,
     payment_entry_service: Option<Arc<PaymentEntryService>>,
     payment_allocation_service: Option<Arc<PaymentAllocationService>>,
@@ -77,6 +105,30 @@ impl AppStateBuilder {
     /// Create a new builder.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Set the AgingSnapshot service.
+    pub fn with_aging_snapshot_service(mut self, service: Arc<AgingSnapshotService>) -> Self {
+        self.aging_snapshot_service = Some(service);
+        self
+    }
+
+    /// Set the AgingBucket service.
+    pub fn with_aging_bucket_service(mut self, service: Arc<AgingBucketService>) -> Self {
+        self.aging_bucket_service = Some(service);
+        self
+    }
+
+    /// Set the DunningRun service.
+    pub fn with_dunning_run_service(mut self, service: Arc<DunningRunService>) -> Self {
+        self.dunning_run_service = Some(service);
+        self
+    }
+
+    /// Set the DunningAction service.
+    pub fn with_dunning_action_service(mut self, service: Arc<DunningActionService>) -> Self {
+        self.dunning_action_service = Some(service);
+        self
     }
 
     /// Set the ModeOfPayment service.
@@ -104,6 +156,10 @@ impl AppStateBuilder {
     /// Panics if any required service is not set.
     pub fn build(self) -> AppState {
         AppState {
+            aging_snapshot_service: self.aging_snapshot_service.expect("aging_snapshot_service is required"),
+            aging_bucket_service: self.aging_bucket_service.expect("aging_bucket_service is required"),
+            dunning_run_service: self.dunning_run_service.expect("dunning_run_service is required"),
+            dunning_action_service: self.dunning_action_service.expect("dunning_action_service is required"),
             mode_of_payment_service: self.mode_of_payment_service.expect("mode_of_payment_service is required"),
             payment_entry_service: self.payment_entry_service.expect("payment_entry_service is required"),
             payment_allocation_service: self.payment_allocation_service.expect("payment_allocation_service is required"),

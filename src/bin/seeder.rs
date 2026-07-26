@@ -12,6 +12,10 @@ use sqlx::postgres::PgPoolOptions;
 use std::env;
 
 // Import seeders
+use backbone_payment::seeders::SeedAgingSnapshotSeeder;
+use backbone_payment::seeders::SeedAgingBucketSeeder;
+use backbone_payment::seeders::SeedDunningRunSeeder;
+use backbone_payment::seeders::SeedDunningActionSeeder;
 use backbone_payment::seeders::SeedModeOfPaymentSeeder;
 use backbone_payment::seeders::SeedPaymentEntrySeeder;
 use backbone_payment::seeders::SeedPaymentAllocationSeeder;
@@ -43,6 +47,10 @@ async fn main() -> Result<()> {
 
     // Register seeders in order
     let mut seeders: Vec<Box<dyn Seeder + Send + Sync>> = Vec::new();
+    seeders.push(Box::new(SeedAgingSnapshotSeeder::new()));
+    seeders.push(Box::new(SeedAgingBucketSeeder::new()));
+    seeders.push(Box::new(SeedDunningRunSeeder::new()));
+    seeders.push(Box::new(SeedDunningActionSeeder::new()));
     seeders.push(Box::new(SeedModeOfPaymentSeeder::new()));
     seeders.push(Box::new(SeedPaymentEntrySeeder::new()));
     seeders.push(Box::new(SeedPaymentAllocationSeeder::new()));

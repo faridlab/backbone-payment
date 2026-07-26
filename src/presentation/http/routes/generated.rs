@@ -9,12 +9,20 @@ use axum::Router;
 use std::sync::Arc;
 
 use super::{
+    aging_snapshot_handler::create_aging_snapshot_routes,
+    aging_bucket_handler::create_aging_bucket_routes,
+    dunning_run_handler::create_dunning_run_routes,
+    dunning_action_handler::create_dunning_action_routes,
     mode_of_payment_handler::create_mode_of_payment_routes,
     payment_entry_handler::create_payment_entry_routes,
     payment_allocation_handler::create_payment_allocation_routes,
 };
 
 use crate::application::service::{
+    AgingSnapshotService,
+    AgingBucketService,
+    DunningRunService,
+    DunningActionService,
     ModeOfPaymentService,
     PaymentEntryService,
     PaymentAllocationService,
@@ -22,6 +30,10 @@ use crate::application::service::{
 
 /// Services collection for all CRUD endpoints
 pub struct HttpServices {
+    pub aging_snapshot: Arc<AgingSnapshotService>,
+    pub aging_bucket: Arc<AgingBucketService>,
+    pub dunning_run: Arc<DunningRunService>,
+    pub dunning_action: Arc<DunningActionService>,
     pub mode_of_payment: Arc<ModeOfPaymentService>,
     pub payment_entry: Arc<PaymentEntryService>,
     pub payment_allocation: Arc<PaymentAllocationService>,
@@ -44,6 +56,14 @@ pub struct HttpServices {
 /// 12. GET /api/v1/{collection}/:id/deleted - Get deleted by ID
 pub fn configure_routes(services: HttpServices) -> Router {
     Router::new()
+        // AgingSnapshot routes (12 Backbone endpoints)
+        .merge(create_aging_snapshot_routes(services.aging_snapshot))
+        // AgingBucket routes (12 Backbone endpoints)
+        .merge(create_aging_bucket_routes(services.aging_bucket))
+        // DunningRun routes (12 Backbone endpoints)
+        .merge(create_dunning_run_routes(services.dunning_run))
+        // DunningAction routes (12 Backbone endpoints)
+        .merge(create_dunning_action_routes(services.dunning_action))
         // ModeOfPayment routes (12 Backbone endpoints)
         .merge(create_mode_of_payment_routes(services.mode_of_payment))
         // PaymentEntry routes (12 Backbone endpoints)
@@ -55,6 +75,22 @@ pub fn configure_routes(services: HttpServices) -> Router {
 /// Create an individual entity's routes (for modular configuration)
 pub mod individual {
     use super::*;
+
+    pub fn aging_snapshot_routes(service: Arc<AgingSnapshotService>) -> Router {
+        create_aging_snapshot_routes(service)
+    }
+
+    pub fn aging_bucket_routes(service: Arc<AgingBucketService>) -> Router {
+        create_aging_bucket_routes(service)
+    }
+
+    pub fn dunning_run_routes(service: Arc<DunningRunService>) -> Router {
+        create_dunning_run_routes(service)
+    }
+
+    pub fn dunning_action_routes(service: Arc<DunningActionService>) -> Router {
+        create_dunning_action_routes(service)
+    }
 
     pub fn mode_of_payment_routes(service: Arc<ModeOfPaymentService>) -> Router {
         create_mode_of_payment_routes(service)

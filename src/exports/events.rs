@@ -11,6 +11,114 @@ use chrono::{DateTime, Utc};
 use super::types::*;
 
 // ============================================================================
+// AGINGSNAPSHOT EVENTS
+// ============================================================================
+
+/// Event published when a AgingSnapshot is created
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgingSnapshotCreatedEvent {
+    pub id: AgingSnapshotId,
+    pub data: AgingSnapshotDto,
+    pub occurred_at: DateTime<Utc>,
+}
+
+/// Event published when a AgingSnapshot is updated
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgingSnapshotUpdatedEvent {
+    pub id: AgingSnapshotId,
+    pub data: AgingSnapshotDto,
+    pub occurred_at: DateTime<Utc>,
+}
+
+/// Event published when a AgingSnapshot is deleted
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgingSnapshotDeletedEvent {
+    pub id: AgingSnapshotId,
+    pub occurred_at: DateTime<Utc>,
+}
+
+// ============================================================================
+// AGINGBUCKET EVENTS
+// ============================================================================
+
+/// Event published when a AgingBucket is created
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgingBucketCreatedEvent {
+    pub id: AgingBucketId,
+    pub data: AgingBucketDto,
+    pub occurred_at: DateTime<Utc>,
+}
+
+/// Event published when a AgingBucket is updated
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgingBucketUpdatedEvent {
+    pub id: AgingBucketId,
+    pub data: AgingBucketDto,
+    pub occurred_at: DateTime<Utc>,
+}
+
+/// Event published when a AgingBucket is deleted
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgingBucketDeletedEvent {
+    pub id: AgingBucketId,
+    pub occurred_at: DateTime<Utc>,
+}
+
+// ============================================================================
+// DUNNINGRUN EVENTS
+// ============================================================================
+
+/// Event published when a DunningRun is created
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DunningRunCreatedEvent {
+    pub id: DunningRunId,
+    pub data: DunningRunDto,
+    pub occurred_at: DateTime<Utc>,
+}
+
+/// Event published when a DunningRun is updated
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DunningRunUpdatedEvent {
+    pub id: DunningRunId,
+    pub data: DunningRunDto,
+    pub occurred_at: DateTime<Utc>,
+}
+
+/// Event published when a DunningRun is deleted
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DunningRunDeletedEvent {
+    pub id: DunningRunId,
+    pub occurred_at: DateTime<Utc>,
+}
+
+// ============================================================================
+// DUNNINGACTION EVENTS
+// ============================================================================
+
+/// Event published when a DunningAction is created
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DunningActionCreatedEvent {
+    pub id: DunningActionId,
+    pub data: DunningActionDto,
+    pub occurred_at: DateTime<Utc>,
+}
+
+/// Event published when a DunningAction is updated
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DunningActionUpdatedEvent {
+    pub id: DunningActionId,
+    pub data: DunningActionDto,
+    pub occurred_at: DateTime<Utc>,
+}
+
+/// Event published when a DunningAction is deleted
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DunningActionDeletedEvent {
+    pub id: DunningActionId,
+    pub occurred_at: DateTime<Utc>,
+}
+
+// ============================================================================
 // MODEOFPAYMENT EVENTS
 // ============================================================================
 
@@ -99,6 +207,18 @@ pub struct PaymentAllocationDeletedEvent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum PaymentEvent {
+    AgingSnapshotCreated(AgingSnapshotCreatedEvent),
+    AgingSnapshotUpdated(AgingSnapshotUpdatedEvent),
+    AgingSnapshotDeleted(AgingSnapshotDeletedEvent),
+    AgingBucketCreated(AgingBucketCreatedEvent),
+    AgingBucketUpdated(AgingBucketUpdatedEvent),
+    AgingBucketDeleted(AgingBucketDeletedEvent),
+    DunningRunCreated(DunningRunCreatedEvent),
+    DunningRunUpdated(DunningRunUpdatedEvent),
+    DunningRunDeleted(DunningRunDeletedEvent),
+    DunningActionCreated(DunningActionCreatedEvent),
+    DunningActionUpdated(DunningActionUpdatedEvent),
+    DunningActionDeleted(DunningActionDeletedEvent),
     ModeOfPaymentCreated(ModeOfPaymentCreatedEvent),
     ModeOfPaymentUpdated(ModeOfPaymentUpdatedEvent),
     ModeOfPaymentDeleted(ModeOfPaymentDeletedEvent),

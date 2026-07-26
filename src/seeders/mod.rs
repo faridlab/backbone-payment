@@ -9,10 +9,18 @@ use anyhow::Result;
 use async_trait::async_trait;
 use sqlx::PgPool;
 
+mod aging_snapshot_seeder;
+mod aging_bucket_seeder;
+mod dunning_run_seeder;
+mod dunning_action_seeder;
 mod mode_of_payment_seeder;
 mod payment_entry_seeder;
 mod payment_allocation_seeder;
 
+pub use aging_snapshot_seeder::SeedAgingSnapshotSeeder;
+pub use aging_bucket_seeder::SeedAgingBucketSeeder;
+pub use dunning_run_seeder::SeedDunningRunSeeder;
+pub use dunning_action_seeder::SeedDunningActionSeeder;
 pub use mode_of_payment_seeder::SeedModeOfPaymentSeeder;
 pub use payment_entry_seeder::SeedPaymentEntrySeeder;
 pub use payment_allocation_seeder::SeedPaymentAllocationSeeder;

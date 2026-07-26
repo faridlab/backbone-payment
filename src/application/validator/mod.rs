@@ -5,10 +5,18 @@
 pub mod shared_types;
 pub use shared_types::{ValidationError, ValidationErrors, ValidationResult, EntityValidator};
 
+pub mod aging_snapshot_validator;
+pub mod aging_bucket_validator;
+pub mod dunning_run_validator;
+pub mod dunning_action_validator;
 pub mod mode_of_payment_validator;
 pub mod payment_entry_validator;
 pub mod payment_allocation_validator;
 
+pub use aging_snapshot_validator::{AgingSnapshotValidator, aging_snapshot_validator};
+pub use aging_bucket_validator::{AgingBucketValidator, aging_bucket_validator};
+pub use dunning_run_validator::{DunningRunValidator, dunning_run_validator};
+pub use dunning_action_validator::{DunningActionValidator, dunning_action_validator};
 pub use mode_of_payment_validator::{ModeOfPaymentValidator, mode_of_payment_validator};
 pub use payment_entry_validator::{PaymentEntryValidator, payment_entry_validator};
 pub use payment_allocation_validator::{PaymentAllocationValidator, payment_allocation_validator};

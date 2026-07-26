@@ -31,6 +31,10 @@ pub use domain::entity::*;
 pub use infrastructure::persistence::*;
 
 // Re-exports - Application services
+pub use application::service::AgingSnapshotService;
+pub use application::service::AgingBucketService;
+pub use application::service::DunningRunService;
+pub use application::service::DunningActionService;
 pub use application::service::ModeOfPaymentService;
 pub use application::service::PaymentEntryService;
 pub use application::service::PaymentAllocationService;
@@ -55,6 +59,10 @@ use sqlx::PgPool;
 /// let router = payment.all_crud_routes();
 /// ```
 pub struct PaymentModule {
+    pub aging_snapshot_service: Arc<AgingSnapshotService>,
+    pub aging_bucket_service: Arc<AgingBucketService>,
+    pub dunning_run_service: Arc<DunningRunService>,
+    pub dunning_action_service: Arc<DunningActionService>,
     pub mode_of_payment_service: Arc<ModeOfPaymentService>,
     pub payment_entry_service: Arc<PaymentEntryService>,
     pub payment_allocation_service: Arc<PaymentAllocationService>,
@@ -73,12 +81,20 @@ impl PaymentModule {
     /// real deployment; use this only in trusted/admin/seeding contexts.
     pub fn all_crud_routes(&self) -> Router {
         use presentation::http::{
+            create_aging_snapshot_routes,
+            create_aging_bucket_routes,
+            create_dunning_run_routes,
+            create_dunning_action_routes,
             create_mode_of_payment_routes,
             create_payment_entry_routes,
             create_payment_allocation_routes,
         };
 
         Router::new()
+            .merge(create_aging_snapshot_routes(self.aging_snapshot_service.clone()))
+            .merge(create_aging_bucket_routes(self.aging_bucket_service.clone()))
+            .merge(create_dunning_run_routes(self.dunning_run_service.clone()))
+            .merge(create_dunning_action_routes(self.dunning_action_service.clone()))
             .merge(create_mode_of_payment_routes(self.mode_of_payment_service.clone()))
             .merge(create_payment_entry_routes(self.payment_entry_service.clone()))
             .merge(create_payment_allocation_routes(self.payment_allocation_service.clone()))
@@ -122,6 +138,22 @@ impl PaymentModuleBuilder {
         let db_pool = self.db_pool
             .ok_or_else(|| anyhow::anyhow!("Database pool not configured"))?;
 
+        // AgingSnapshot service
+        let aging_snapshot_repository = Arc::new(AgingSnapshotRepository::new(db_pool.clone()));
+        let aging_snapshot_service = Arc::new(AgingSnapshotService::with_repository(aging_snapshot_repository.clone()));
+
+        // AgingBucket service
+        let aging_bucket_repository = Arc::new(AgingBucketRepository::new(db_pool.clone()));
+        let aging_bucket_service = Arc::new(AgingBucketService::with_repository(aging_bucket_repository.clone()));
+
+        // DunningRun service
+        let dunning_run_repository = Arc::new(DunningRunRepository::new(db_pool.clone()));
+        let dunning_run_service = Arc::new(DunningRunService::with_repository(dunning_run_repository.clone()));
+
+        // DunningAction service
+        let dunning_action_repository = Arc::new(DunningActionRepository::new(db_pool.clone()));
+        let dunning_action_service = Arc::new(DunningActionService::with_repository(dunning_action_repository.clone()));
+
         // ModeOfPayment service
         let mode_of_payment_repository = Arc::new(ModeOfPaymentRepository::new(db_pool.clone()));
         let mode_of_payment_service = Arc::new(ModeOfPaymentService::with_repository(mode_of_payment_repository.clone()));
@@ -138,6 +170,10 @@ impl PaymentModuleBuilder {
         // END CUSTOM
 
         Ok(PaymentModule {
+            aging_snapshot_service,
+            aging_bucket_service,
+            dunning_run_service,
+            dunning_action_service,
             mode_of_payment_service,
             payment_entry_service,
             payment_allocation_service,

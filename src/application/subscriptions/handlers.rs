@@ -4,9 +4,33 @@
 
 use backbone_messaging::GenericEventSubscriber;
 
+use crate::domain::event::AgingSnapshotEvent;
+use crate::domain::event::AgingBucketEvent;
+use crate::domain::event::DunningRunEvent;
+use crate::domain::event::DunningActionEvent;
 use crate::domain::event::ModeOfPaymentEvent;
 use crate::domain::event::PaymentEntryEvent;
 use crate::domain::event::PaymentAllocationEvent;
+
+/// Subscriber for AgingSnapshot events.
+///
+/// Register handlers via `GenericEventSubscriber::new(topics, handlers)`.
+pub type AgingSnapshotEventSubscriber = GenericEventSubscriber<AgingSnapshotEvent>;
+
+/// Subscriber for AgingBucket events.
+///
+/// Register handlers via `GenericEventSubscriber::new(topics, handlers)`.
+pub type AgingBucketEventSubscriber = GenericEventSubscriber<AgingBucketEvent>;
+
+/// Subscriber for DunningRun events.
+///
+/// Register handlers via `GenericEventSubscriber::new(topics, handlers)`.
+pub type DunningRunEventSubscriber = GenericEventSubscriber<DunningRunEvent>;
+
+/// Subscriber for DunningAction events.
+///
+/// Register handlers via `GenericEventSubscriber::new(topics, handlers)`.
+pub type DunningActionEventSubscriber = GenericEventSubscriber<DunningActionEvent>;
 
 /// Subscriber for ModeOfPayment events.
 ///

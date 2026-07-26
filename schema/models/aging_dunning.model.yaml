@@ -1,0 +1,148 @@
+# =============================================================================
+# Domain: Payment — Aging & Dunning
+# Entities: AgingSnapshot, AgingBucket, DunningRun, DunningAction
+# Description: The receivables-timeline read-model + escalation state. Payment
+#   owns aging (an invoice ages from its due_date; an allocation de-ages it) and
+#   dunning (the escalation workflow: reminder → overdue → collection → write-off).
+#   Billing stays the source of truth for outstanding_amount/due_date; payment
+#   reads them via a port (zero cargo edge) and projects the aging/dunning state.
+# =============================================================================
+
+models:
+  - name: AgingSnapshot
+    collection: aging_snapshots
+    description: "One point-in-time pass over outstanding receivables, bucketed by days-past-due"
+    fields:
+      id: { type: uuid, attributes: ["@id", "@default(uuid)"] }
+      company_id: { type: uuid, attributes: ["@required", "@exclude_from_foreign_key_check"], description: "Books owner # logical FK to organization.Company.id" }
+      as_of_date: { type: date, attributes: ["@required"], description: "The date aging is computed for" }
+      direction: { type: string, attributes: ["@required", "@max(10)"], description: "receive (A/R) | pay (A/P)" }
+      total_outstanding: { type: decimal, attributes: ["@default(0)", "@precision(18,2)", "@non_negative"] }
+      bucket_current: { type: decimal, attributes: ["@default(0)", "@precision(18,2)", "@non_negative"] }
+      bucket_1_30: { type: decimal, attributes: ["@default(0)", "@precision(18,2)", "@non_negative"] }
+      bucket_31_60: { type: decimal, attributes: ["@default(0)", "@precision(18,2)", "@non_negative"] }
+      bucket_61_90: { type: decimal, attributes: ["@default(0)", "@precision(18,2)", "@non_negative"] }
+      bucket_90p: { type: decimal, attributes: ["@default(0)", "@precision(18,2)", "@non_negative"] }
+      status: { type: SnapshotStatus, attributes: ["@default(building)"] }
+      metadata: { type: Metadata, attributes: ["@audit_metadata"] }
+    indexes:
+      - type: unique
+        fields: [company_id, as_of_date, direction]
+        where: "deleted_at IS NULL"
+      - type: index
+        fields: [company_id, as_of_date]
+
+  - name: AgingBucket
+    collection: aging_buckets
+    description: "One (snapshot × invoice × party) row — the granular aging ledger"
+    fields:
+      id: { type: uuid, attributes: ["@id", "@default(uuid)"] }
+      company_id: { type: uuid, attributes: ["@required", "@exclude_from_foreign_key_check"] }
+      snapshot_id: { type: uuid, attributes: ["@required", "@foreign_key(AgingSnapshot.id)"] }
+      invoice_ref: { type: uuid, attributes: ["@required", "@exclude_from_foreign_key_check"], description: "The aged invoice # logical FK to billing" }
+      invoice_kind: { type: string, attributes: ["@required", "@max(10)"], description: "sales | purchase" }
+      party_id: { type: uuid?, attributes: ["@exclude_from_foreign_key_check"], description: "Subledger party # logical FK to party.Party.id" }
+      due_date: { type: date, attributes: ["@required"] }
+      days_past_due: { type: int, attributes: ["@required"], description: "as_of_date − due_date (≤0 if not yet due)" }
+      outstanding_amount: { type: decimal, attributes: ["@required", "@precision(18,2)", "@non_negative"] }
+      bucket: { type: AgingBucketName, attributes: ["@required"] }
+      metadata: { type: Metadata, attributes: ["@audit_metadata"] }
+    indexes:
+      - type: index
+        fields: [snapshot_id]
+      - type: index
+        fields: [company_id, party_id, bucket]
+
+  - name: DunningRun
+    collection: dunning_runs
+    description: "One execution of the dunning escalation cycle against an aging snapshot"
+    fields:
+      id: { type: uuid, attributes: ["@id", "@default(uuid)"] }
+      company_id: { type: uuid, attributes: ["@required", "@exclude_from_foreign_key_check"] }
+      as_of_date: { type: date, attributes: ["@required"] }
+      direction: { type: string, attributes: ["@required", "@max(10)"] }
+      snapshot_id: { type: uuid?, attributes: ["@exclude_from_foreign_key_check"], description: "Optional AgingSnapshot this run was based on" }
+      actions_emitted: { type: int, attributes: ["@default(0)"] }
+      status: { type: DunningRunStatus, attributes: ["@default(building)"] }
+      metadata: { type: Metadata, attributes: ["@audit_metadata"] }
+    indexes:
+      - type: index
+        fields: [company_id, as_of_date]
+
+  - name: DunningAction
+    collection: dunning_actions
+    description: "One emitted dunning step against one invoice (the unit the channel ACL consumes)"
+    fields:
+      id: { type: uuid, attributes: ["@id", "@default(uuid)"] }
+      company_id: { type: uuid, attributes: ["@required", "@exclude_from_foreign_key_check"] }
+      run_id: { type: uuid, attributes: ["@required", "@foreign_key(DunningRun.id)"] }
+      invoice_ref: { type: uuid, attributes: ["@required", "@exclude_from_foreign_key_check"] }
+      invoice_kind: { type: string, attributes: ["@required", "@max(10)"] }
+      party_id: { type: uuid?, attributes: ["@exclude_from_foreign_key_check"] }
+      level: { type: DunningLevel, attributes: ["@required"] }
+      action_type: { type: DunningActionType, attributes: ["@required"] }
+      days_past_due: { type: int, attributes: ["@required"] }
+      outstanding_amount: { type: decimal, attributes: ["@required", "@precision(18,2)", "@non_negative"] }
+      status: { type: DunningActionStatus, attributes: ["@default(pending)"] }
+      processed_at: { type: datetime? }
+      result_ref: { type: string?, attributes: ["@max(140)"], description: "Channel-side reference (email message-id, agency case-id)" }
+      metadata: { type: Metadata, attributes: ["@audit_metadata"] }
+    indexes:
+      - type: index
+        fields: [run_id]
+      - type: index
+        fields: [company_id, party_id, status]
+      - type: unique
+        fields: [invoice_ref, invoice_kind, level]
+        where: "deleted_at IS NULL"
+
+enums:
+  - name: AgingBucketName
+    description: "Days-past-due bucket (the standard AR aging ladder)"
+    variants:
+      - { name: current, description: "Not yet due (days_past_due ≤ 0)", default: true }
+      - { name: bucket_1_30, description: "1–30 days past due" }
+      - { name: bucket_31_60, description: "31–60 days past due" }
+      - { name: bucket_61_90, description: "61–90 days past due" }
+      - { name: bucket_90p, description: "Over 90 days past due" }
+
+  - name: DunningLevel
+    description: "Escalation stage of a receivable"
+    variants:
+      - { name: current, description: "On-track; no action", default: true }
+      - { name: reminder, description: "Friendly reminder" }
+      - { name: overdue, description: "Formal overdue notice" }
+      - { name: final_notice, description: "Final notice before escalation" }
+      - { name: collection, description: "Handed to collections" }
+      - { name: written_off, description: "Recommended for write-off" }
+
+  - name: DunningActionType
+    description: "What the dunning run wants the composition layer to do"
+    variants:
+      - { name: send_reminder, description: "Emit a reminder", default: true }
+      - { name: send_overdue, description: "Emit an overdue notice" }
+      - { name: send_final_notice, description: "Emit a final notice" }
+      - { name: escalate_to_agency, description: "Hand off to collections" }
+      - { name: recommend_write_off, description: "Recommend a GL write-off" }
+
+  - name: DunningActionStatus
+    description: "Lifecycle of a single emitted dunning action"
+    variants:
+      - { name: pending, description: "Emitted, awaiting the channel ACL", default: true }
+      - { name: sent, description: "Channel accepted" }
+      - { name: failed, description: "Channel rejected — retryable" }
+      - { name: suppressed, description: "Operator-halted" }
+
+  - name: SnapshotStatus
+    description: "Aging-snapshot lifecycle"
+    variants:
+      - { name: building, description: "Rows being written", default: true }
+      - { name: final, description: "Sealed; safe to query" }
+      - { name: aborted, description: "Failed mid-build" }
+
+  - name: DunningRunStatus
+    description: "Dunning-run lifecycle"
+    variants:
+      - { name: building, description: "Actions being emitted", default: true }
+      - { name: completed, description: "Run finished" }
+      - { name: aborted, description: "Failed mid-run" }

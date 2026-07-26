@@ -12,6 +12,258 @@ use rust_decimal::Decimal;
 use crate::domain::entity::*;
 
 // ============================================================================
+// AGINGSNAPSHOT TYPES
+// ============================================================================
+
+/// Type-safe ID for AgingSnapshot
+///
+/// Use this instead of raw Uuid for type safety across modules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AgingSnapshotId(pub Uuid);
+
+impl AgingSnapshotId {
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+
+    pub fn into_inner(self) -> Uuid {
+        self.0
+    }
+}
+
+impl From<Uuid> for AgingSnapshotId {
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
+}
+
+impl From<AgingSnapshotId> for Uuid {
+    fn from(id: AgingSnapshotId) -> Self {
+        id.0
+    }
+}
+
+/// Data transfer object for AgingSnapshot
+///
+/// This is the public representation of AgingSnapshot for other modules.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgingSnapshotDto {
+    pub id: AgingSnapshotId,
+    pub company_id: Uuid,
+    pub as_of_date: NaiveDate,
+    pub direction: String,
+    pub total_outstanding: Decimal,
+    pub bucket_current: Decimal,
+    pub bucket_1_30: Decimal,
+    pub bucket_31_60: Decimal,
+    pub bucket_61_90: Decimal,
+    pub bucket_90p: Decimal,
+    pub status: SnapshotStatus,
+    pub metadata: serde_json::Value,
+}
+
+/// Summary view of AgingSnapshot for list displays
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgingSnapshotSummary {
+    pub id: AgingSnapshotId,
+    pub status: SnapshotStatus,
+}
+
+/// Reference to AgingSnapshot for foreign key relationships
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgingSnapshotRef {
+    pub id: AgingSnapshotId,
+}
+
+// ============================================================================
+// AGINGBUCKET TYPES
+// ============================================================================
+
+/// Type-safe ID for AgingBucket
+///
+/// Use this instead of raw Uuid for type safety across modules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AgingBucketId(pub Uuid);
+
+impl AgingBucketId {
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+
+    pub fn into_inner(self) -> Uuid {
+        self.0
+    }
+}
+
+impl From<Uuid> for AgingBucketId {
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
+}
+
+impl From<AgingBucketId> for Uuid {
+    fn from(id: AgingBucketId) -> Self {
+        id.0
+    }
+}
+
+/// Data transfer object for AgingBucket
+///
+/// This is the public representation of AgingBucket for other modules.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgingBucketDto {
+    pub id: AgingBucketId,
+    pub company_id: Uuid,
+    pub snapshot_id: Uuid,
+    pub invoice_ref: Uuid,
+    pub invoice_kind: String,
+    pub party_id: Option<Uuid>,
+    pub due_date: NaiveDate,
+    pub days_past_due: i32,
+    pub outstanding_amount: Decimal,
+    pub bucket: AgingBucketName,
+    pub metadata: serde_json::Value,
+}
+
+/// Summary view of AgingBucket for list displays
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgingBucketSummary {
+    pub id: AgingBucketId,
+}
+
+/// Reference to AgingBucket for foreign key relationships
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgingBucketRef {
+    pub id: AgingBucketId,
+}
+
+// ============================================================================
+// DUNNINGRUN TYPES
+// ============================================================================
+
+/// Type-safe ID for DunningRun
+///
+/// Use this instead of raw Uuid for type safety across modules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DunningRunId(pub Uuid);
+
+impl DunningRunId {
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+
+    pub fn into_inner(self) -> Uuid {
+        self.0
+    }
+}
+
+impl From<Uuid> for DunningRunId {
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
+}
+
+impl From<DunningRunId> for Uuid {
+    fn from(id: DunningRunId) -> Self {
+        id.0
+    }
+}
+
+/// Data transfer object for DunningRun
+///
+/// This is the public representation of DunningRun for other modules.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DunningRunDto {
+    pub id: DunningRunId,
+    pub company_id: Uuid,
+    pub as_of_date: NaiveDate,
+    pub direction: String,
+    pub snapshot_id: Option<Uuid>,
+    pub actions_emitted: i32,
+    pub status: DunningRunStatus,
+    pub metadata: serde_json::Value,
+}
+
+/// Summary view of DunningRun for list displays
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DunningRunSummary {
+    pub id: DunningRunId,
+    pub status: DunningRunStatus,
+}
+
+/// Reference to DunningRun for foreign key relationships
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DunningRunRef {
+    pub id: DunningRunId,
+}
+
+// ============================================================================
+// DUNNINGACTION TYPES
+// ============================================================================
+
+/// Type-safe ID for DunningAction
+///
+/// Use this instead of raw Uuid for type safety across modules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DunningActionId(pub Uuid);
+
+impl DunningActionId {
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+
+    pub fn into_inner(self) -> Uuid {
+        self.0
+    }
+}
+
+impl From<Uuid> for DunningActionId {
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
+}
+
+impl From<DunningActionId> for Uuid {
+    fn from(id: DunningActionId) -> Self {
+        id.0
+    }
+}
+
+/// Data transfer object for DunningAction
+///
+/// This is the public representation of DunningAction for other modules.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DunningActionDto {
+    pub id: DunningActionId,
+    pub company_id: Uuid,
+    pub run_id: Uuid,
+    pub invoice_ref: Uuid,
+    pub invoice_kind: String,
+    pub party_id: Option<Uuid>,
+    pub level: DunningLevel,
+    pub action_type: DunningActionType,
+    pub days_past_due: i32,
+    pub outstanding_amount: Decimal,
+    pub status: DunningActionStatus,
+    pub processed_at: Option<DateTime<Utc>>,
+    pub result_ref: Option<String>,
+    pub metadata: serde_json::Value,
+}
+
+/// Summary view of DunningAction for list displays
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DunningActionSummary {
+    pub id: DunningActionId,
+    pub status: DunningActionStatus,
+}
+
+/// Reference to DunningAction for foreign key relationships
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DunningActionRef {
+    pub id: DunningActionId,
+}
+
+// ============================================================================
 // MODEOFPAYMENT TYPES
 // ============================================================================
 

@@ -65,3 +65,4 @@ shared_types:
 imports:
   - mode_of_payment.model.yaml
   - payment_entry.model.yaml
+  - aging_dunning.model.yaml
