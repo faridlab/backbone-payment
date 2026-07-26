@@ -17,10 +17,10 @@ path = "src/lib.rs"
 # or `rev = "<commit-sha>"`. Cargo dedupes the git fetch — the repo is only
 # cloned once even though four crates reference it.
 # -----------------------------------------------------------------------------
-backbone-core = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.1", features = ["postgres"] }
-backbone-orm = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.1" }
-backbone-auth = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.1", features = ["axum"] }
-backbone-messaging = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.1" }
+backbone-core = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.6", features = ["postgres"] }
+backbone-orm = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.6" }
+backbone-auth = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.6", features = ["axum"] }
+backbone-messaging = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.6" }
 # The GL-posting wire contract (envelope + sink port) — shared across producers (ADR-0011 §6 / phase 1).
 # backbone-gl-posting 0.1.0 shipped on backbone-framework v2.7.5; payment_gl.rs re-exports it. Standalone
 # crate (serde + primitives), so it never conflicts with the git-pinned v2.7.1 framework crates.
@@ -29,7 +29,7 @@ backbone-gl-posting = { git = "https://github.com/faridlab/backbone-framework", 
 # (crash-safe emission). multi_tenant (the company-RLS fence + relay bypass, ADR-0011) shipped on
 # backbone-framework v2.7.4 (backbone-outbox 0.2.0). Standalone crate, so it never conflicts with the
 # git-pinned v2.7.1 framework crates.
-backbone-outbox = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.4", features = ["multi_tenant"] }
+backbone-outbox = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.6", features = ["multi_tenant"] }
 
 # Core async runtime and serialization
 tokio = { version = "1.0", features = ["full"] }

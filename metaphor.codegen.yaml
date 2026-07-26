@@ -17,6 +17,11 @@ user_owned:
   - "src/application/service/payment_dunning_service.rs"
   - "tests/aging_dunning_seam.rs"
   - "src/application/service/payment_write_service.rs"
+  # The write surface, chunked out of payment_write_service.rs. Each is an `impl PaymentWriteService`
+  # block; the shared vocabulary (input structs, outcomes, errors) stays in payment_write_service.rs.
+  - "src/application/service/payment_create.rs"
+  - "src/application/service/payment_settle.rs"
+  - "src/application/service/payment_reverse.rs"
   # Own the hand-written payment SQL (the entry + allocations insert, the settlement/reversal post
   # reads, the pending->posted and posted->cancelled transitions, the seam events' reads) that the
   # write service orchestrates. Declared here — not renamed with a `_custom` suffix — so the generator

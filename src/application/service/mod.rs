@@ -19,6 +19,12 @@ pub mod payment_allocation_service;
 pub mod payment_events;
 pub mod payment_gl;
 pub mod payment_write_service;
+// The write surface, chunked: each is an `impl PaymentWriteService` block over the vocabulary that
+// stays in `payment_write_service` (so the `payment_write_service::{NewPayment, ...}` import paths
+// are unchanged).
+pub mod payment_create;
+pub mod payment_settle;
+pub mod payment_reverse;
 pub mod billing_receivables_port;
 pub mod payment_dunning_service;
 pub use billing_receivables_port::{BillingReceivablesPort, ReceivableRow};
