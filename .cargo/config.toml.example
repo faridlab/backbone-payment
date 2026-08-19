@@ -2,6 +2,13 @@
 # backbone-accounting checkouts at ../backbone-*. Without it, Cargo builds them from their pinned
 # git tags (the prod/CI path). The override must NOT be committed in Cargo.toml — a committed
 # [patch] to a missing path hard-errors in a standalone clone. See the [dev-dependencies] block.
+#
+# The backbone-gl-posting patch redirects the shared contract crate to the local framework checkout —
+# needed whenever a contract change (e.g. the ReconcileSink port) ships there before the framework
+# tag carrying it is pushed. The other framework crates stay on their pinned git tags.
+
+[patch."https://github.com/faridlab/backbone-framework"]
+backbone-gl-posting = { path = "../backbone-framework/backbone-gl-posting" }
 
 [patch."https://github.com/faridlab/backbone-accounting"]
 backbone-accounting = { path = "../backbone-accounting" }
