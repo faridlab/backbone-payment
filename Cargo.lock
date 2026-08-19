@@ -208,7 +208,7 @@ dependencies = [
 
 [[package]]
 name = "backbone-accounting"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -293,7 +293,7 @@ dependencies = [
 
 [[package]]
 name = "backbone-billing"
-version = "0.4.3"
+version = "0.4.5"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -382,12 +382,12 @@ dependencies = [
 [[package]]
 name = "backbone-gl-posting"
 version = "0.1.0"
-source = "git+https://github.com/faridlab/backbone-framework?tag=v2.7.8#550b5464c49f902e18c9ec6f19a219f151f8eea9"
 dependencies = [
  "async-trait",
  "chrono",
  "rust_decimal",
  "serde",
+ "sqlx",
  "uuid",
 ]
 
@@ -474,7 +474,7 @@ dependencies = [
 
 [[package]]
 name = "backbone-payment"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "anyhow",
  "async-trait",

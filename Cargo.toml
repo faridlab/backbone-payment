@@ -1,6 +1,6 @@
 [package]
 name = "backbone-payment"
-version = "0.7.4"
+version = "0.7.5"
 edition = "2021"
 description = "Settlement & reconciliation — payment entries, allocation, modes of payment; 4th GL producer (Dr Bank·Cr A/R / Dr A/P·Cr Bank)"
 
@@ -102,5 +102,9 @@ rand = "0.8"
 # patches them to ../backbone-* for local workspace dev. See .cargo/config.toml.example. (The patch
 # override must NOT live in this committed Cargo.toml — a committed [patch] to a missing path
 # hard-errors in a standalone clone; it is not a no-op. Hence the gitignored override file.)
+# Pin discipline: a git dep on an unpushed tag fails cargo resolution even with the local patch in
+# place (cargo still resolves the original source first), so between a sibling's release commit and
+# its pushed tag these pins stay on the last-existing tags and local runs ride the patch. Flip them
+# to the reconciliation-graph releases (accounting v0.5.0, billing v0.4.5) once those tags are pushed.
 backbone-accounting = { git = "https://github.com/faridlab/backbone-accounting", tag = "v0.4.0" }
 backbone-billing = { git = "https://github.com/faridlab/backbone-billing", tag = "v0.4.0" }
