@@ -14,6 +14,11 @@ version: 2
 schema: payment
 description: "payment domain module"
 
+# ADR-0014 company fence: every entity here is company-scoped and fenced strict.
+# mode_of_payments is a global reference master with no company_id — implicitly
+# excluded from the declaration and unfenced.
+company_fence: strict
+
 config:
   database: postgresql
   soft_delete: true
