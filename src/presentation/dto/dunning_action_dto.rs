@@ -370,4 +370,3 @@ impl backbone_core::ApplyUpdateDto<UpdateDunningActionDto> for DunningAction {
 // Add custom DTOs specific to DunningAction here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
-

@@ -77,7 +77,7 @@ async fn aging_buckets_and_dunning_escalate_across_seam() {
         source_so_id: None, posting_date: due_45d_ago, due_date: Some(due_45d_ago),
         currency: None, receivable_account_id: ar,
         lines: vec![NewInvoiceLine { item_id: item, account_id: revenue, description: None,
-            quantity: d("1"), unit_price: d("1000000") }],
+            quantity: d("1"), unit_price: d("1000000"), tax_template_id: None }],
         tax_lines: vec![],
     }).await.unwrap();
     billing.post_sales_invoice(inv, &OkGl).await.unwrap();

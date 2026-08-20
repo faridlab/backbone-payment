@@ -3330,7 +3330,7 @@ components:
         - code
         - name
         - mode_type
-        - is_active
+        - status
         - metadata
       properties:
         id:
@@ -3348,8 +3348,8 @@ components:
           nullable: true
           type: string
           format: uuid
-        is_active:
-          type: boolean
+        status:
+          type: string
         metadata:
           type: object
 
@@ -3372,7 +3372,7 @@ components:
         - code
         - name
         - mode_type
-        - is_active
+        - status
         - metadata
       properties:
         code:
@@ -3387,8 +3387,8 @@ components:
           nullable: true
           type: string
           format: uuid
-        is_active:
-          type: boolean
+        status:
+          type: string
         metadata:
           type: object
 
@@ -3398,7 +3398,7 @@ components:
         - code
         - name
         - mode_type
-        - is_active
+        - status
         - metadata
       properties:
         code:
@@ -3413,8 +3413,8 @@ components:
           nullable: true
           type: string
           format: uuid
-        is_active:
-          type: boolean
+        status:
+          type: string
         metadata:
           type: object
 
@@ -3433,8 +3433,8 @@ components:
           nullable: true
           type: string
           format: uuid
-        is_active:
-          type: boolean
+        status:
+          type: string
         metadata:
           type: object
 

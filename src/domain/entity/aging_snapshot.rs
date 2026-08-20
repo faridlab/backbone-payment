@@ -69,7 +69,7 @@ pub struct AgingSnapshot {
 impl AgingSnapshot {
     /// Create a builder for AgingSnapshot
     pub fn builder() -> AgingSnapshotBuilder {
-        AgingSnapshotBuilder::default()
+        <AgingSnapshotBuilder as Default>::default()
     }
 
     /// Create a new AgingSnapshot with required fields
@@ -348,7 +348,7 @@ impl AgingSnapshotBuilder {
             bucket_31_60: self.bucket_31_60.unwrap_or(Decimal::from(0)),
             bucket_61_90: self.bucket_61_90.unwrap_or(Decimal::from(0)),
             bucket_90p: self.bucket_90p.unwrap_or(Decimal::from(0)),
-            status: self.status.unwrap_or(SnapshotStatus::default()),
+            status: self.status.unwrap_or_default(),
             metadata: AuditMetadata::default(),
         })
     }

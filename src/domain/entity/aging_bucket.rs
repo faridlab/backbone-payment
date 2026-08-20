@@ -68,7 +68,7 @@ pub struct AgingBucket {
 impl AgingBucket {
     /// Create a builder for AgingBucket
     pub fn builder() -> AgingBucketBuilder {
-        AgingBucketBuilder::default()
+        <AgingBucketBuilder as Default>::default()
     }
 
     /// Create a new AgingBucket with required fields

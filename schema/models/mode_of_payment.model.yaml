@@ -38,10 +38,10 @@ models:
         attributes: ["@exclude_from_foreign_key_check"]
         description: "Default Bank/Cash account # logical FK to accounting.Account.id"
 
-      is_active:
-        type: bool
-        attributes: ["@default(true)"]
-        description: "Available for selection"
+      status:
+        type: ModeOfPaymentStatus
+        attributes: ["@default(active)"]
+        description: "Only active modes are offered for selection"
 
       metadata:
         type: Metadata
@@ -53,9 +53,18 @@ models:
         fields: [code]
         where: "deleted_at IS NULL"
       - type: index
-        fields: [mode_type, is_active]
+        fields: [mode_type, status]
 
 enums:
+  - name: ModeOfPaymentStatus
+    description: "Lifecycle of a payment mode"
+    variants:
+      - name: active
+        description: "Offered for selection on payment entry"
+        default: true
+      - name: inactive
+        description: "Retired; historical entries keep referencing it"
+
   - name: ModeType
     description: "Settlement channel of a payment mode"
     variants:

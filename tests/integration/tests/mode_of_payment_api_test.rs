@@ -28,7 +28,7 @@ impl TestDataGenerator for ModeOfPaymentTestData {
             "name": format!("Test {}", Uuid::new_v4().to_string().split('-').next().unwrap()),
             "mode_type": "cash",
             "default_account_id": null,
-            "is_active": false,
+            "status": "active",
             "metadata": json!({}),
         })
     }
@@ -41,7 +41,7 @@ impl TestDataGenerator for ModeOfPaymentTestData {
             "name": format!("Test {}", Uuid::new_v4().to_string().split('-').next().unwrap()),
             "mode_type": "cash",
             "default_account_id": null,
-            "is_active": false,
+            "status": "active",
             "metadata": json!({}),
         })
     }

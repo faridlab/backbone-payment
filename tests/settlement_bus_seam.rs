@@ -187,7 +187,7 @@ async fn settlement_through_outbox_is_exactly_once() {
     let inv = billing.create_sales_invoice(NewSalesInvoice {
         invoice_number: uq("SI"), company_id: company, branch_id: None, customer_id: customer, source_so_id: None,
         posting_date: day(), due_date: None, currency: None, receivable_account_id: coa["1200"],
-        lines: vec![NewInvoiceLine { item_id: item, account_id: coa["4000"], description: None, quantity: d("1"), unit_price: d("1000000") }],
+        lines: vec![NewInvoiceLine { item_id: item, account_id: coa["4000"], description: None, quantity: d("1"), unit_price: d("1000000"), tax_template_id: None }],
         tax_lines: vec![],
     }).await.unwrap();
     billing.post_sales_invoice(inv, &gl).await.unwrap();

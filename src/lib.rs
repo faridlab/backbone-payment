@@ -23,6 +23,7 @@ pub mod infrastructure;
 pub mod application;
 pub mod presentation;
 pub mod seeders;
+pub mod exports;
 
 // Re-exports for convenience - Domain entities
 pub use domain::entity::*;
@@ -59,13 +60,15 @@ use sqlx::PgPool;
 /// let router = payment.all_crud_routes();
 /// ```
 pub struct PaymentModule {
-    pub aging_snapshot_service: Arc<AgingSnapshotService>,
-    pub aging_bucket_service: Arc<AgingBucketService>,
-    pub dunning_run_service: Arc<DunningRunService>,
-    pub dunning_action_service: Arc<DunningActionService>,
-    pub mode_of_payment_service: Arc<ModeOfPaymentService>,
-    pub payment_entry_service: Arc<PaymentEntryService>,
-    pub payment_allocation_service: Arc<PaymentAllocationService>,
+    pub(crate) aging_snapshot_service: Arc<AgingSnapshotService>,
+    pub(crate) aging_bucket_service: Arc<AgingBucketService>,
+    pub(crate) dunning_run_service: Arc<DunningRunService>,
+    pub(crate) dunning_action_service: Arc<DunningActionService>,
+    pub(crate) mode_of_payment_service: Arc<ModeOfPaymentService>,
+    pub(crate) payment_entry_service: Arc<PaymentEntryService>,
+    pub(crate) payment_allocation_service: Arc<PaymentAllocationService>,
+    // <<< CUSTOM FIELDS
+    // END CUSTOM
 }
 
 impl PaymentModule {
@@ -105,10 +108,39 @@ impl PaymentModule {
     /// mount exposes unguarded writes. Compose a guarded router (read + validated
     /// writes) for production, or call `all_crud_routes()` to opt into the full
     /// unguarded surface explicitly.
-    #[deprecated(note = "mounts unvalidated generic CRUD on every entity; compose a guarded router for production, or call all_crud_routes() for the intentional full/unguarded surface")]
+    #[deprecated(note = "mounts unvalidated generic CRUD; prefer readonly_routes() + validated writes, or all_crud_routes() for the full/unguarded surface")]
     pub fn routes(&self) -> Router {
         self.all_crud_routes()
     }
+
+    /// Read-only routes for every entity (GET endpoints only) — the safe base.
+    ///
+    /// Generic mutation can't reach here, so this surface cannot bypass a
+    /// validated write service's invariants. Use this as the production base and
+    /// merge validated write routes (or a write service's HTTP layer) onto it.
+    pub fn readonly_routes(&self) -> Router {
+        use presentation::http::{
+            create_aging_snapshot_read_routes,
+            create_aging_bucket_read_routes,
+            create_dunning_run_read_routes,
+            create_dunning_action_read_routes,
+            create_mode_of_payment_read_routes,
+            create_payment_entry_read_routes,
+            create_payment_allocation_read_routes,
+        };
+
+        Router::new()
+            .merge(create_aging_snapshot_read_routes(self.aging_snapshot_service.clone()))
+            .merge(create_aging_bucket_read_routes(self.aging_bucket_service.clone()))
+            .merge(create_dunning_run_read_routes(self.dunning_run_service.clone()))
+            .merge(create_dunning_action_read_routes(self.dunning_action_service.clone()))
+            .merge(create_mode_of_payment_read_routes(self.mode_of_payment_service.clone()))
+            .merge(create_payment_entry_read_routes(self.payment_entry_service.clone()))
+            .merge(create_payment_allocation_read_routes(self.payment_allocation_service.clone()))
+    }
+
+    // <<< CUSTOM METHODS
+    // END CUSTOM
 }
 
 /// Builder for PaymentModule

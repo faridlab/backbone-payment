@@ -73,7 +73,7 @@ pub struct DunningAction {
 impl DunningAction {
     /// Create a builder for DunningAction
     pub fn builder() -> DunningActionBuilder {
-        DunningActionBuilder::default()
+        <DunningActionBuilder as Default>::default()
     }
 
     /// Create a new DunningAction with required fields
@@ -405,7 +405,7 @@ impl DunningActionBuilder {
             action_type,
             days_past_due,
             outstanding_amount,
-            status: self.status.unwrap_or(DunningActionStatus::default()),
+            status: self.status.unwrap_or_default(),
             processed_at: self.processed_at,
             result_ref: self.result_ref,
             metadata: AuditMetadata::default(),

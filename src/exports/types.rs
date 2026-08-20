@@ -305,7 +305,7 @@ pub struct ModeOfPaymentDto {
     pub name: String,
     pub mode_type: ModeType,
     pub default_account_id: Option<Uuid>,
-    pub is_active: bool,
+    pub status: ModeOfPaymentStatus,
     pub metadata: serde_json::Value,
 }
 
@@ -314,6 +314,7 @@ pub struct ModeOfPaymentDto {
 pub struct ModeOfPaymentSummary {
     pub id: ModeOfPaymentId,
     pub name: String,
+    pub status: ModeOfPaymentStatus,
 }
 
 /// Reference to ModeOfPayment for foreign key relationships

@@ -87,7 +87,7 @@ pub struct PaymentEntry {
 impl PaymentEntry {
     /// Create a builder for PaymentEntry
     pub fn builder() -> PaymentEntryBuilder {
-        PaymentEntryBuilder::default()
+        <PaymentEntryBuilder as Default>::default()
     }
 
     /// Create a new PaymentEntry with required fields
@@ -607,9 +607,9 @@ impl PaymentEntryBuilder {
             party_account_id,
             withholding_amount: self.withholding_amount.unwrap_or(Decimal::from(0)),
             withholding_account_id: self.withholding_account_id,
-            withholding_tax_type: self.withholding_tax_type.unwrap_or(WithholdingTaxType::default()),
-            status: self.status.unwrap_or(PaymentStatus::default()),
-            posting_state: self.posting_state.unwrap_or(GlPostingState::default()),
+            withholding_tax_type: self.withholding_tax_type.unwrap_or_default(),
+            status: self.status.unwrap_or_default(),
+            posting_state: self.posting_state.unwrap_or_default(),
             journal_id: self.journal_id,
             accounting_post_id: self.accounting_post_id,
             posted_at: self.posted_at,

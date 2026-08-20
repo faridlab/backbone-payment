@@ -228,7 +228,7 @@ async fn settlement_across_three_modules() {
     let inv = billing.create_sales_invoice(NewSalesInvoice {
         invoice_number: uq("SI"), company_id: company, branch_id: None, customer_id: customer, source_so_id: None,
         posting_date: day(), due_date: None, currency: None, receivable_account_id: coa["1200"],
-        lines: vec![NewInvoiceLine { item_id: item, account_id: coa["4000"], description: None, quantity: d("1"), unit_price: d("1000000") }],
+        lines: vec![NewInvoiceLine { item_id: item, account_id: coa["4000"], description: None, quantity: d("1"), unit_price: d("1000000"), tax_template_id: None }],
         tax_lines: vec![],
     }).await.unwrap();
     billing.add_payment_schedule(inv, "sales", company, &[(due(1), d("600000")), (due(15), d("400000"))]).await.unwrap();
@@ -357,7 +357,7 @@ async fn reverse_payment_restores_invoice_and_is_idempotent() {
     let inv = billing.create_sales_invoice(NewSalesInvoice {
         invoice_number: uq("SI"), company_id: company, branch_id: None, customer_id: customer, source_so_id: None,
         posting_date: day(), due_date: None, currency: None, receivable_account_id: coa["1200"],
-        lines: vec![NewInvoiceLine { item_id: item, account_id: coa["4000"], description: None, quantity: d("1"), unit_price: d("1000000") }],
+        lines: vec![NewInvoiceLine { item_id: item, account_id: coa["4000"], description: None, quantity: d("1"), unit_price: d("1000000"), tax_template_id: None }],
         tax_lines: vec![],
     }).await.unwrap();
     billing.post_sales_invoice(inv, &gl).await.unwrap();
@@ -441,7 +441,7 @@ async fn racing_payments_reconcile_via_clamp_and_on_account() {
     let inv = billing.create_sales_invoice(NewSalesInvoice {
         invoice_number: uq("SI"), company_id: company, branch_id: None, customer_id: customer, source_so_id: None,
         posting_date: day(), due_date: None, currency: None, receivable_account_id: coa["1200"],
-        lines: vec![NewInvoiceLine { item_id: item, account_id: coa["4000"], description: None, quantity: d("1"), unit_price: d("1000000") }],
+        lines: vec![NewInvoiceLine { item_id: item, account_id: coa["4000"], description: None, quantity: d("1"), unit_price: d("1000000"), tax_template_id: None }],
         tax_lines: vec![],
     }).await.unwrap();
     billing.post_sales_invoice(inv, &gl).await.unwrap();
@@ -512,7 +512,7 @@ async fn two_allocations_write_two_edges_and_reverse_unwinds_both() {
     let new_invoice = |amount: Decimal| NewSalesInvoice {
         invoice_number: uq("SI"), company_id: company, branch_id: None, customer_id: customer, source_so_id: None,
         posting_date: day(), due_date: None, currency: None, receivable_account_id: coa["1200"],
-        lines: vec![NewInvoiceLine { item_id: item, account_id: coa["4000"], description: None, quantity: d("1"), unit_price: amount }],
+        lines: vec![NewInvoiceLine { item_id: item, account_id: coa["4000"], description: None, quantity: d("1"), unit_price: amount, tax_template_id: None }],
         tax_lines: vec![],
     };
     let inv_a = billing.create_sales_invoice(new_invoice(d("500000"))).await.unwrap();

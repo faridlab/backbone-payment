@@ -64,7 +64,7 @@ pub struct PaymentAllocation {
 impl PaymentAllocation {
     /// Create a builder for PaymentAllocation
     pub fn builder() -> PaymentAllocationBuilder {
-        PaymentAllocationBuilder::default()
+        <PaymentAllocationBuilder as Default>::default()
     }
 
     /// Create a new PaymentAllocation with required fields

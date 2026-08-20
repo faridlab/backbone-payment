@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use anyhow::Result;
 use uuid::Uuid;
 
-use crate::domain::entity::{ModeOfPayment, ModeType};
+use crate::domain::entity::{ModeOfPayment, ModeOfPaymentStatus, ModeType};
 
 /// Pagination parameters for list queries
 #[derive(Debug, Clone, Default)]
@@ -48,13 +48,13 @@ pub struct ModeOfPaymentFilter {
     pub name: Option<String>,
     pub mode_type: Option<ModeType>,
     pub default_account_id: Option<Uuid>,
-    pub is_active: Option<bool>,
+    pub status: Option<ModeOfPaymentStatus>,
 }
 
 impl ModeOfPaymentFilter {
     /// Check if any filter is set
     pub fn has_filters(&self) -> bool {
-        self.code.is_some() || self.name.is_some() || self.mode_type.is_some() || self.default_account_id.is_some() || self.is_active.is_some()
+        self.code.is_some() || self.name.is_some() || self.mode_type.is_some() || self.default_account_id.is_some() || self.status.is_some()
     }
 }
 

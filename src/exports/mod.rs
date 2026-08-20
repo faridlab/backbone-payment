@@ -8,7 +8,7 @@
 //! ## Usage from other modules
 //!
 //! ```text
-//! use payment::exports::{AgingSnapshotDto, PaymentQueryService};
+//! use payment::exports::{AgingSnapshotDto};
 //! ```
 
 mod types;
@@ -48,9 +48,6 @@ pub use events::*;
 /// - `PaymentAllocationDto` - Data transfer object for PaymentAllocation
 /// - `PaymentAllocationSummary` - Summary view of PaymentAllocation
 /// - `PaymentAllocationId` - Type-safe ID wrapper
-///
-/// ## Public Services
-/// - `PaymentQueryService` - Read-only queries
 ///
 /// ## Public Events
 /// - `AgingSnapshotCreatedEvent` - Published when AgingSnapshot is created

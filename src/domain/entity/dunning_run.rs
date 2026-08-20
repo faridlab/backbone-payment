@@ -64,7 +64,7 @@ pub struct DunningRun {
 impl DunningRun {
     /// Create a builder for DunningRun
     pub fn builder() -> DunningRunBuilder {
-        DunningRunBuilder::default()
+        <DunningRunBuilder as Default>::default()
     }
 
     /// Create a new DunningRun with required fields
@@ -306,7 +306,7 @@ impl DunningRunBuilder {
             direction,
             snapshot_id: self.snapshot_id,
             actions_emitted: self.actions_emitted.unwrap_or(0),
-            status: self.status.unwrap_or(DunningRunStatus::default()),
+            status: self.status.unwrap_or_default(),
             metadata: AuditMetadata::default(),
         })
     }

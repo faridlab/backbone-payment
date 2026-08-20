@@ -10,7 +10,7 @@
 --     name,
 --     mode_type,
 --     default_account_id,
---     is_active,
+--     status,
 --     metadata
 -- ) VALUES
 -- (
@@ -20,7 +20,7 @@
 -- Example: Insert reference data
 -- Uncomment and modify the following:
 
--- INSERT INTO payment.mode_of_payments (id, code, name, is_active, created_at, updated_at) VALUES
+-- INSERT INTO payment.mode_of_payments (id, code, name, status, created_at, updated_at) VALUES
 --     (gen_random_uuid(), 'SAMPLE1', 'Sample 1', true, NOW(), NOW()),
 --     (gen_random_uuid(), 'SAMPLE2', 'Sample 2', true, NOW(), NOW());
 
