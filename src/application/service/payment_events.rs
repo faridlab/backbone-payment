@@ -15,7 +15,14 @@ pub struct SettledInvoice {
     pub invoice_ref: Uuid,
     /// "sales" | "purchase" — which billing invoice table `invoice_ref` points at.
     pub invoice_kind: String,
+    /// The GROSS knock-off — the invoice's outstanding draws down by this amount regardless of any
+    /// discount taken alongside it.
     pub amount: Decimal,
+    /// Early-pay discount taken on this allocation (contract v1.1, additive: absent = none). The
+    /// materialized decision, so a replayed or mirrored event carries the same numbers the post
+    /// committed — the discount window is never re-evaluated.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub discount_amount: Option<Decimal>,
 }
 
 /// A payment posted to the GL and knocked off its allocated invoices.
@@ -29,6 +36,10 @@ pub struct PaymentSettled {
     pub payment_type: String,
     pub allocations: Vec<SettledInvoice>,
     pub paid_amount: Decimal,
+    /// The fused lifecycle status the post landed on (contract v1.1, additive: absent = a
+    /// pre-fusion event, treat as posted-equivalent). "in_flight" | "paid" for fresh posts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
     /// Correlation id for tracing the settlement flow across modules (gateway → payment → billing → accounting).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub correlation_id: Option<String>,

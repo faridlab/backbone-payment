@@ -27,7 +27,9 @@ pub struct AgingSnapshotRepository(
 
 impl std::ops::Deref for AgingSnapshotRepository {
     type Target = backbone_orm::GenericCrudRepository<AgingSnapshot, backbone_orm::SoftDelete>;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl AgingSnapshotRepository {
@@ -91,10 +93,15 @@ impl AgingSnapshotRepository {
                      bucket_31_60 = $5, bucket_61_90 = $6, bucket_90p = $7
                WHERE id = $1"#,
         )
-        .bind(snapshot_id).bind(totals.total_outstanding)
-        .bind(totals.bucket_current).bind(totals.bucket_1_30).bind(totals.bucket_31_60)
-        .bind(totals.bucket_61_90).bind(totals.bucket_90p)
-        .execute(conn).await?;
+        .bind(snapshot_id)
+        .bind(totals.total_outstanding)
+        .bind(totals.bucket_current)
+        .bind(totals.bucket_1_30)
+        .bind(totals.bucket_31_60)
+        .bind(totals.bucket_61_90)
+        .bind(totals.bucket_90p)
+        .execute(conn)
+        .await?;
         Ok(())
     }
 }

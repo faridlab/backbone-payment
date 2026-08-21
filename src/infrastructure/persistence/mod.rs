@@ -4,13 +4,13 @@
 //!
 //! Uses backbone-orm's `DatabaseOperations<T>` trait.
 
-mod aging_snapshot_repository;
 mod aging_bucket_repository;
-mod dunning_run_repository;
+mod aging_snapshot_repository;
 mod dunning_action_repository;
+mod dunning_run_repository;
 mod mode_of_payment_repository;
-mod payment_entry_repository;
 mod payment_allocation_repository;
+mod payment_entry_repository;
 
 // Custom persistence modules
 // <<< CUSTOM
@@ -24,25 +24,24 @@ pub use payment_entry_repository::{
 // The hand-written dunning SQL's parameter/projection types (see `aging_snapshot_repository`,
 // `aging_bucket_repository`, `dunning_run_repository`, `dunning_action_repository`, all declared
 // `user_owned` in metaphor.codegen.yaml). The param structs mirror COLUMNS, not entities.
-pub use aging_snapshot_repository::AgingTotals;
 pub use aging_bucket_repository::NewAgingBucketRow;
+pub use aging_snapshot_repository::AgingTotals;
 pub use dunning_action_repository::NewDunningActionRow;
 // END CUSTOM
 
 // Re-exports
-pub use aging_snapshot_repository::AgingSnapshotRepository;
 pub use aging_bucket_repository::AgingBucketRepository;
-pub use dunning_run_repository::DunningRunRepository;
+pub use aging_snapshot_repository::AgingSnapshotRepository;
 pub use dunning_action_repository::DunningActionRepository;
+pub use dunning_run_repository::DunningRunRepository;
 pub use mode_of_payment_repository::ModeOfPaymentRepository;
-pub use payment_entry_repository::PaymentEntryRepository;
 pub use payment_allocation_repository::PaymentAllocationRepository;
+pub use payment_entry_repository::PaymentEntryRepository;
 
 // Re-export backbone-orm types
 pub use backbone_orm::repository::{
-    DatabaseOperations, PostgresRepository,
-    PaginationParams, PaginationInfo, PaginatedResult,
-    FilterParams, FilterCondition, SortParams, SortDirection,
+    DatabaseOperations, FilterCondition, FilterParams, PaginatedResult, PaginationInfo,
+    PaginationParams, PostgresRepository, SortDirection, SortParams,
 };
 
 // Re-export custom persistence types

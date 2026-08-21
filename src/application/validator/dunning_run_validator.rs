@@ -5,17 +5,18 @@
 //! Returns an `EntityValidator<DunningRun>` pre-loaded with schema-derived
 //! field rules. Extend in the `// <<< CUSTOM` zone.
 
-use backbone_core::{EntityValidator, ValidationErrors, ValidationError};
-use backbone_core::{RequiredString};
 use crate::domain::entity::DunningRun;
+use backbone_core::RequiredString;
+use backbone_core::{EntityValidator, ValidationError, ValidationErrors};
 
 /// Validator type alias for DunningRun entities.
 pub type DunningRunValidator = EntityValidator<DunningRun>;
 
 /// Build a validator for DunningRun with all schema-defined field rules.
 pub fn dunning_run_validator() -> DunningRunValidator {
-    EntityValidator::new()
-        .rule(RequiredString::new("direction", |e: &DunningRun| &e.direction))
+    EntityValidator::new().rule(RequiredString::new("direction", |e: &DunningRun| {
+        &e.direction
+    }))
     // <<< CUSTOM RULES
     // END CUSTOM RULES
 }

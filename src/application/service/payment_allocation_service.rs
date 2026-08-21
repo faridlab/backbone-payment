@@ -7,9 +7,9 @@
 
 use backbone_core::GenericCrudService;
 
-use crate::presentation::dto::{CreatePaymentAllocationDto, UpdatePaymentAllocationDto};
 use crate::domain::entity::PaymentAllocation;
 use crate::infrastructure::persistence::PaymentAllocationRepository;
+use crate::presentation::dto::{CreatePaymentAllocationDto, UpdatePaymentAllocationDto};
 
 /// Application service for PaymentAllocation entities.
 ///

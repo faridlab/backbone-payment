@@ -5,11 +5,11 @@
 //! These DTOs are the ONLY types other modules should use.
 //! They are decoupled from internal domain entities.
 
+use crate::domain::entity::*;
+use chrono::{DateTime, NaiveDate, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc, NaiveDate};
-use rust_decimal::Decimal;
-use crate::domain::entity::*;
 
 // ============================================================================
 // AGINGSNAPSHOT TYPES
@@ -370,6 +370,8 @@ pub struct PaymentEntryDto {
     pub posting_date: NaiveDate,
     pub currency: String,
     pub mode_of_payment_id: Option<Uuid>,
+    pub method: PaymentMethod,
+    pub provider_txn_id: Option<Uuid>,
     pub paid_amount: Decimal,
     pub allocated_amount: Decimal,
     pub unallocated_amount: Decimal,
@@ -444,6 +446,8 @@ pub struct PaymentAllocationDto {
     pub invoice_ref: Uuid,
     pub invoice_kind: SettlementKind,
     pub allocated_amount: Decimal,
+    pub discount_amount: Decimal,
+    pub discount_account_id: Option<Uuid>,
     pub metadata: serde_json::Value,
 }
 

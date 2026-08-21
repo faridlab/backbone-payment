@@ -5,11 +5,14 @@
 //! This trait defines the repository contract for the PaymentEntry aggregate.
 //! Implementation is in the infrastructure layer.
 
-use async_trait::async_trait;
 use anyhow::Result;
+use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::domain::entity::{PaymentEntry, GlPostingState, PaymentPartyType, PaymentStatus, PaymentType, WithholdingTaxType};
+use crate::domain::entity::{
+    GlPostingState, PaymentEntry, PaymentMethod, PaymentPartyType, PaymentStatus, PaymentType,
+    WithholdingTaxType,
+};
 
 /// Pagination parameters for list queries
 #[derive(Debug, Clone, Default)]
@@ -52,6 +55,8 @@ pub struct PaymentEntryFilter {
     pub party_id: Option<Uuid>,
     pub currency: Option<String>,
     pub mode_of_payment_id: Option<Uuid>,
+    pub method: Option<PaymentMethod>,
+    pub provider_txn_id: Option<Uuid>,
     pub bank_account_id: Option<Uuid>,
     pub party_account_id: Option<Uuid>,
     pub withholding_account_id: Option<Uuid>,
@@ -67,7 +72,26 @@ pub struct PaymentEntryFilter {
 impl PaymentEntryFilter {
     /// Check if any filter is set
     pub fn has_filters(&self) -> bool {
-        self.payment_number.is_some() || self.company_id.is_some() || self.branch_id.is_some() || self.payment_type.is_some() || self.party_type.is_some() || self.party_id.is_some() || self.currency.is_some() || self.mode_of_payment_id.is_some() || self.bank_account_id.is_some() || self.party_account_id.is_some() || self.withholding_account_id.is_some() || self.withholding_tax_type.is_some() || self.status.is_some() || self.posting_state.is_some() || self.journal_id.is_some() || self.accounting_post_id.is_some() || self.reference_no.is_some() || self.notes.is_some()
+        self.payment_number.is_some()
+            || self.company_id.is_some()
+            || self.branch_id.is_some()
+            || self.payment_type.is_some()
+            || self.party_type.is_some()
+            || self.party_id.is_some()
+            || self.currency.is_some()
+            || self.mode_of_payment_id.is_some()
+            || self.method.is_some()
+            || self.provider_txn_id.is_some()
+            || self.bank_account_id.is_some()
+            || self.party_account_id.is_some()
+            || self.withholding_account_id.is_some()
+            || self.withholding_tax_type.is_some()
+            || self.status.is_some()
+            || self.posting_state.is_some()
+            || self.journal_id.is_some()
+            || self.accounting_post_id.is_some()
+            || self.reference_no.is_some()
+            || self.notes.is_some()
     }
 }
 
@@ -77,7 +101,6 @@ impl PaymentEntryFilter {
 /// Implementations should be in the infrastructure layer.
 #[async_trait]
 pub trait PaymentEntryRepository: Send + Sync {
-
     // =========================================================================
     // Core CRUD Operations
     // =========================================================================
@@ -102,10 +125,17 @@ pub trait PaymentEntryRepository: Send + Sync {
     // =========================================================================
 
     /// List payment_entry with pagination
-    async fn list(&self, params: PaymentEntryPaginationParams) -> Result<PaymentEntryPaginatedResult>;
+    async fn list(
+        &self,
+        params: PaymentEntryPaginationParams,
+    ) -> Result<PaymentEntryPaginatedResult>;
 
     /// List payment_entry with pagination and filters
-    async fn list_with_filters(&self, params: PaymentEntryPaginationParams, filters: PaymentEntryFilter) -> Result<PaymentEntryPaginatedResult>;
+    async fn list_with_filters(
+        &self,
+        params: PaymentEntryPaginationParams,
+        filters: PaymentEntryFilter,
+    ) -> Result<PaymentEntryPaginatedResult>;
 
     /// Count all payment_entry entities
     async fn count(&self) -> Result<u64>;
@@ -127,7 +157,10 @@ pub trait PaymentEntryRepository: Send + Sync {
     async fn restore(&self, id: &str) -> Result<Option<PaymentEntry>>;
 
     /// List soft-deleted payment_entry entities
-    async fn list_deleted(&self, params: PaymentEntryPaginationParams) -> Result<PaymentEntryPaginatedResult>;
+    async fn list_deleted(
+        &self,
+        params: PaymentEntryPaginationParams,
+    ) -> Result<PaymentEntryPaginatedResult>;
 
     /// Empty trash (permanently delete all soft-deleted entities)
     async fn empty_trash(&self) -> Result<u64>;

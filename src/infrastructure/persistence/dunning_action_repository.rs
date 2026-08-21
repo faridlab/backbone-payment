@@ -26,7 +26,9 @@ pub struct DunningActionRepository(
 
 impl std::ops::Deref for DunningActionRepository {
     type Target = backbone_orm::GenericCrudRepository<DunningAction, backbone_orm::SoftDelete>;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl DunningActionRepository {

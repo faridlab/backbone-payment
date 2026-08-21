@@ -26,7 +26,9 @@ impl PaymentWriteService {
         }
         let mut allocated = Decimal::ZERO;
         for a in &p.allocations {
-            if a.amount < Decimal::ZERO { return Err(PaymentError::NegativeAmount); }
+            if a.amount < Decimal::ZERO {
+                return Err(PaymentError::NegativeAmount);
+            }
             allocated += a.amount;
         }
         let paid = money(p.paid_amount);
@@ -37,44 +39,68 @@ impl PaymentWriteService {
         let unallocated = paid - allocated;
         let id = Uuid::new_v4();
         let currency = p.currency.clone().unwrap_or_else(|| "IDR".into());
+        let method = p.method.clone().unwrap_or_else(|| "manual".into());
+        if !matches!(
+            method.as_str(),
+            "manual" | "bank_transfer" | "cash" | "cheque" | "gateway"
+        ) {
+            return Err(PaymentError::UnknownPaymentMethod(method));
+        }
 
         // RLS scope (ADR-0008): company on the DTO — bind it onto the transaction so the entry +
         // allocations insert fenced (WITH CHECK sees the caller's company).
         let mut tx = self.db_pool.begin().await?;
         company_scope::bind_company_on(&mut tx, p.company_id).await?;
-        let r = self.entries.insert_entry(&mut tx, &NewPaymentEntryRow {
-            id,
-            payment_number: &p.payment_number,
-            company_id: p.company_id,
-            branch_id: p.branch_id,
-            payment_type: &p.payment_type,
-            party_type: p.party_type.as_deref(),
-            party_id: p.party_id,
-            posting_date: p.posting_date,
-            currency: &currency,
-            mode_of_payment_id: p.mode_of_payment_id,
-            paid_amount: paid,
-            allocated_amount: allocated,
-            unallocated_amount: unallocated,
-            bank_account_id: p.bank_account_id,
-            party_account_id: p.party_account_id,
-            reference_no: p.reference_no.as_deref(),
-            withholding_amount: p.withholding_amount,
-            withholding_account_id: p.withholding_account_id,
-            withholding_tax_type: &p.withholding_tax_type,
-        }).await;
+        let r = self
+            .entries
+            .insert_entry(
+                &mut tx,
+                &NewPaymentEntryRow {
+                    id,
+                    payment_number: &p.payment_number,
+                    company_id: p.company_id,
+                    branch_id: p.branch_id,
+                    payment_type: &p.payment_type,
+                    party_type: p.party_type.as_deref(),
+                    party_id: p.party_id,
+                    posting_date: p.posting_date,
+                    currency: &currency,
+                    mode_of_payment_id: p.mode_of_payment_id,
+                    method: &method,
+                    provider_txn_id: p.provider_txn_id,
+                    paid_amount: paid,
+                    allocated_amount: allocated,
+                    unallocated_amount: unallocated,
+                    bank_account_id: p.bank_account_id,
+                    party_account_id: p.party_account_id,
+                    reference_no: p.reference_no.as_deref(),
+                    withholding_amount: p.withholding_amount,
+                    withholding_account_id: p.withholding_account_id,
+                    withholding_tax_type: &p.withholding_tax_type,
+                },
+            )
+            .await;
         if let Err(e) = r {
-            return Err(if is_dup(&e) { PaymentError::DuplicateNumber(p.payment_number) } else { e.into() });
+            return Err(if is_dup(&e) {
+                PaymentError::DuplicateNumber(p.payment_number)
+            } else {
+                e.into()
+            });
         }
         for a in &p.allocations {
-            self.allocations.insert_allocation(&mut tx, &NewAllocationRow {
-                id: Uuid::new_v4(),
-                company_id: p.company_id,
-                payment_id: id,
-                invoice_ref: a.invoice_ref,
-                invoice_kind: &a.invoice_kind,
-                allocated_amount: money(a.amount),
-            }).await?;
+            self.allocations
+                .insert_allocation(
+                    &mut tx,
+                    &NewAllocationRow {
+                        id: Uuid::new_v4(),
+                        company_id: p.company_id,
+                        payment_id: id,
+                        invoice_ref: a.invoice_ref,
+                        invoice_kind: &a.invoice_kind,
+                        allocated_amount: money(a.amount),
+                    },
+                )
+                .await?;
         }
         tx.commit().await?;
         Ok(id)

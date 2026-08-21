@@ -23,7 +23,9 @@ pub struct ModeOfPaymentRepository(
 
 impl std::ops::Deref for ModeOfPaymentRepository {
     type Target = backbone_orm::GenericCrudRepository<ModeOfPayment, backbone_orm::SoftDelete>;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl ModeOfPaymentRepository {

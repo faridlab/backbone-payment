@@ -12,7 +12,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone)]
 pub struct ReceivableRow {
     pub invoice_ref: Uuid,
-    pub invoice_kind: String,        // "sales" | "purchase"
+    pub invoice_kind: String, // "sales" | "purchase"
     pub party_id: Option<Uuid>,
     pub due_date: Option<NaiveDate>, // falls back to posting_date when NULL
     pub outstanding_amount: Decimal,

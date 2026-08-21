@@ -1,11 +1,11 @@
-use chrono::{DateTime, Utc, NaiveDate};
+use chrono::{DateTime, NaiveDate, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
-use rust_decimal::Decimal;
 
-use super::SnapshotStatus;
 use super::AuditMetadata;
+use super::SnapshotStatus;
 
 /// Strongly-typed ID for AgingSnapshot
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -13,9 +13,15 @@ use super::AuditMetadata;
 pub struct AgingSnapshotId(pub Uuid);
 
 impl AgingSnapshotId {
-    pub fn new(id: Uuid) -> Self { Self(id) }
-    pub fn generate() -> Self { Self(Uuid::new_v4()) }
-    pub fn into_inner(self) -> Uuid { self.0 }
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+    pub fn generate() -> Self {
+        Self(Uuid::new_v4())
+    }
+    pub fn into_inner(self) -> Uuid {
+        self.0
+    }
 }
 
 impl std::fmt::Display for AgingSnapshotId {
@@ -32,20 +38,28 @@ impl std::str::FromStr for AgingSnapshotId {
 }
 
 impl From<Uuid> for AgingSnapshotId {
-    fn from(id: Uuid) -> Self { Self(id) }
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
 }
 
 impl From<AgingSnapshotId> for Uuid {
-    fn from(id: AgingSnapshotId) -> Self { id.0 }
+    fn from(id: AgingSnapshotId) -> Self {
+        id.0
+    }
 }
 
 impl AsRef<Uuid> for AgingSnapshotId {
-    fn as_ref(&self) -> &Uuid { &self.0 }
+    fn as_ref(&self) -> &Uuid {
+        &self.0
+    }
 }
 
 impl std::ops::Deref for AgingSnapshotId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -73,7 +87,18 @@ impl AgingSnapshot {
     }
 
     /// Create a new AgingSnapshot with required fields
-    pub fn new(company_id: Uuid, as_of_date: NaiveDate, direction: String, total_outstanding: Decimal, bucket_current: Decimal, bucket_1_30: Decimal, bucket_31_60: Decimal, bucket_61_90: Decimal, bucket_90p: Decimal, status: SnapshotStatus) -> Self {
+    pub fn new(
+        company_id: Uuid,
+        as_of_date: NaiveDate,
+        direction: String,
+        total_outstanding: Decimal,
+        bucket_current: Decimal,
+        bucket_1_30: Decimal,
+        bucket_31_60: Decimal,
+        bucket_61_90: Decimal,
+        bucket_90p: Decimal,
+        status: SnapshotStatus,
+    ) -> Self {
         Self {
             id: Uuid::new_v4(),
             company_id,
@@ -145,7 +170,6 @@ impl AgingSnapshot {
         &self.status
     }
 
-
     // ==========================================================
     // Partial Update
     // ==========================================================
@@ -155,34 +179,54 @@ impl AgingSnapshot {
         for (key, value) in fields {
             match key.as_str() {
                 "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.company_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.company_id = v;
+                    }
                 }
                 "as_of_date" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.as_of_date = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.as_of_date = v;
+                    }
                 }
                 "direction" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.direction = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.direction = v;
+                    }
                 }
                 "total_outstanding" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.total_outstanding = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.total_outstanding = v;
+                    }
                 }
                 "bucket_current" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.bucket_current = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.bucket_current = v;
+                    }
                 }
                 "bucket_1_30" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.bucket_1_30 = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.bucket_1_30 = v;
+                    }
                 }
                 "bucket_31_60" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.bucket_31_60 = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.bucket_31_60 = v;
+                    }
                 }
                 "bucket_61_90" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.bucket_61_90 = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.bucket_61_90 = v;
+                    }
                 }
                 "bucket_90p" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.bucket_90p = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.bucket_90p = v;
+                    }
                 }
                 "status" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.status = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.status = v;
+                    }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -333,9 +377,15 @@ impl AgingSnapshotBuilder {
     ///
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<AgingSnapshot, String> {
-        let company_id = self.company_id.ok_or_else(|| "company_id is required".to_string())?;
-        let as_of_date = self.as_of_date.ok_or_else(|| "as_of_date is required".to_string())?;
-        let direction = self.direction.ok_or_else(|| "direction is required".to_string())?;
+        let company_id = self
+            .company_id
+            .ok_or_else(|| "company_id is required".to_string())?;
+        let as_of_date = self
+            .as_of_date
+            .ok_or_else(|| "as_of_date is required".to_string())?;
+        let direction = self
+            .direction
+            .ok_or_else(|| "direction is required".to_string())?;
 
         Ok(AgingSnapshot {
             id: Uuid::new_v4(),

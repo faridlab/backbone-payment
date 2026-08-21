@@ -27,7 +27,9 @@ pub struct AgingBucketRepository(
 
 impl std::ops::Deref for AgingBucketRepository {
     type Target = backbone_orm::GenericCrudRepository<AgingBucket, backbone_orm::SoftDelete>;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl AgingBucketRepository {
@@ -72,11 +74,18 @@ impl AgingBucketRepository {
                   due_date, days_past_due, outstanding_amount, bucket)
                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::aging_bucket_name)"#,
         )
-        .bind(b.id).bind(b.snapshot_id).bind(b.company_id)
-        .bind(b.invoice_ref).bind(b.invoice_kind).bind(b.party_id)
-        .bind(b.due_date).bind(b.days_past_due).bind(b.outstanding_amount)
+        .bind(b.id)
+        .bind(b.snapshot_id)
+        .bind(b.company_id)
+        .bind(b.invoice_ref)
+        .bind(b.invoice_kind)
+        .bind(b.party_id)
+        .bind(b.due_date)
+        .bind(b.days_past_due)
+        .bind(b.outstanding_amount)
         .bind(b.bucket)
-        .execute(conn).await?;
+        .execute(conn)
+        .await?;
         Ok(())
     }
 }

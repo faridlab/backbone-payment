@@ -5,9 +5,9 @@
 //! DTOs provide a clean separation between domain entities and API
 //! representations, with validation and OpenAPI documentation support.
 
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc, NaiveDate};
 
 #[cfg(feature = "openapi")]
 #[cfg(feature = "openapi")]
@@ -16,8 +16,8 @@ use utoipa::ToSchema;
 #[cfg(feature = "validation")]
 use validator::Validate;
 
-use crate::domain::entity::DunningRun;
 use crate::domain::entity::AuditMetadata;
+use crate::domain::entity::DunningRun;
 use crate::domain::entity::DunningRunStatus;
 
 // =============================================================================
@@ -33,7 +33,10 @@ use crate::domain::entity::DunningRunStatus;
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct CreateDunningRunDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(alias = "company_id")]
     pub company_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01"))]
@@ -42,7 +45,11 @@ pub struct CreateDunningRunDto {
     #[cfg_attr(feature = "validation", validate(length(max = 10)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub direction: String,
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "snapshot_id")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "snapshot_id"
+    )]
     pub snapshot_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(alias = "actions_emitted")]
@@ -63,7 +70,10 @@ pub struct CreateDunningRunDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateDunningRunDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(alias = "company_id")]
     pub company_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01"))]
@@ -72,7 +82,11 @@ pub struct UpdateDunningRunDto {
     #[cfg_attr(feature = "validation", validate(length(max = 10)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub direction: String,
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "snapshot_id")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "snapshot_id"
+    )]
     pub snapshot_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(alias = "actions_emitted")]
@@ -93,7 +107,10 @@ pub struct UpdateDunningRunDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct PatchDunningRunDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(skip_serializing_if = "Option::is_none", alias = "company_id")]
     pub company_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01"))]
@@ -115,7 +132,12 @@ pub struct PatchDunningRunDto {
 impl PatchDunningRunDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.company_id.is_some() || self.as_of_date.is_some() || self.direction.is_some() || self.snapshot_id.is_some() || self.actions_emitted.is_some() || self.status.is_some()
+        self.company_id.is_some()
+            || self.as_of_date.is_some()
+            || self.direction.is_some()
+            || self.snapshot_id.is_some()
+            || self.actions_emitted.is_some()
+            || self.status.is_some()
     }
 }
 
@@ -131,9 +153,15 @@ impl PatchDunningRunDto {
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct DunningRunResponseDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     pub id: Uuid,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     pub company_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01"))]
     pub as_of_date: NaiveDate,

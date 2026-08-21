@@ -65,6 +65,16 @@ models:
         attributes: ["@exclude_from_foreign_key_check"]
         description: "How money moved # logical FK to payment.ModeOfPayment.id"
 
+      method:
+        type: PaymentMethod
+        attributes: ["@default(manual)"]
+        description: "Settlement channel dimension that drives the landing state at post: cash (or a non-reconcilable bank account) lands paid; reconcilable channels land in_flight until the bank confirms"
+
+      provider_txn_id:
+        type: uuid?
+        attributes: ["@exclude_from_foreign_key_check"]
+        description: "Gateway/provider transaction # logical FK to a future gateway module's transaction (P6 seam; no codecs yet)"
+
       paid_amount:
         type: decimal
         attributes: ["@required", "@precision(18,2)", "@non_negative"]
@@ -108,7 +118,7 @@ models:
       status:
         type: PaymentStatus
         attributes: ["@default(draft)"]
-        description: "Document lifecycle"
+        description: "Document lifecycle (the fused state machine — see PaymentStatus below for the transition contract)"
 
       posting_state:
         type: GlPostingState
@@ -193,7 +203,17 @@ models:
       allocated_amount:
         type: decimal
         attributes: ["@required", "@precision(18,2)", "@non_negative"]
-        description: "Amount of this payment knocked off that invoice"
+        description: "Amount of this payment knocked off that invoice (the GROSS knock-off; an early-pay discount is separate)"
+
+      discount_amount:
+        type: decimal
+        attributes: ["@default(0)", "@precision(18,2)", "@non_negative"]
+        description: "Early-pay discount taken on this allocation, materialized at post (the decision is stamped, so replays and the mirrored reversal are deterministic — the window is never re-evaluated)"
+
+      discount_account_id:
+        type: uuid?
+        attributes: ["@exclude_from_foreign_key_check"]
+        description: "The discount expense/revenue GL account # logical FK to accounting.Account.id. Required when discount_amount > 0."
 
       metadata:
         type: Metadata
@@ -242,18 +262,37 @@ enums:
       - name: employee
         description: "Employee (advances/reimbursements)"
 
+  - name: PaymentMethod
+    description: "Settlement channel — the dimension that decides whether a posted payment awaits bank confirmation"
+    variants:
+      - name: manual
+        description: "Hand-keyed journal settlement (no channel)"
+        default: true
+      - name: bank_transfer
+        description: "Bank transfer — reconcilable when the bank account is"
+      - name: cash
+        description: "Physical cash — lands paid immediately (no bank statement will confirm it)"
+      - name: cheque
+        description: "Paper cheque — in flight until it clears"
+      - name: gateway
+        description: "Electronic gateway (provider_txn_id links the provider's transaction; codecs are a later seam)"
+
   - name: PaymentStatus
-    description: "Payment document lifecycle"
+    description: "Fused payment lifecycle. `posting_state` stays the GL-sync truth and owns idempotency; this status is the business state. Transition contract: draft→submitted (submit verb, CAS draft); submitted→in_flight|paid (post_payment computes the landing: cash method or a non-reconcilable bank account ⇒ paid, else in_flight; CAS posting_state=pending AND status IN (draft,submitted)); in_flight→paid (computed drift ONLY via the BankClearanceRecorded consumer, CAS in_flight, no-op from any other state); in_flight|paid→cancelled (reverse_payment, gate status IN (in_flight,paid,cancelled) AND posting_state=posted); submitted→rejected (reject_payment, CAS submitted, terminal — the PRE-settlement stop: a landed payment is exited by reverse, never reject, so no state strands a committed journal). posting_state pending→posted|failed (mark_posted/mark_failed; mark_failed CAS-guarded to pending|failed so a spurious sink error can never overwrite a committed posted) — a GL failure leaves status at submitted, retryable"
     variants:
       - name: draft
         description: "Being prepared; not posted"
         default: true
       - name: submitted
-        description: "Submitted; posting in progress"
-      - name: posted
-        description: "Posted to the GL + allocations knocked off"
+        description: "Submitted; awaiting or mid-posting"
+      - name: in_flight
+        description: "Posted to the GL; awaiting bank confirmation (the bank account is reconcilable)"
+      - name: paid
+        description: "Posted to the GL and confirmed (cash, non-reconcilable account, or bank-cleared)"
       - name: cancelled
         description: "Voided (reversed in the GL)"
+      - name: rejected
+        description: "Refused (terminal) — the operator exit for a payment that must not settle"
 
   - name: GlPostingState
     description: "GL-posting reconciliation state"

@@ -29,7 +29,9 @@ pub struct PaymentAllocationRepository(
 
 impl std::ops::Deref for PaymentAllocationRepository {
     type Target = backbone_orm::GenericCrudRepository<PaymentAllocation, backbone_orm::SoftDelete>;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl PaymentAllocationRepository {
@@ -51,12 +53,16 @@ pub struct NewAllocationRow<'a> {
     pub allocated_amount: Decimal,
 }
 
-/// One allocation as the settled/cancelled seam events carry it — which invoice was knocked down, and
-/// by how much.
+/// One allocation as the settled/cancelled seam events carry it — which invoice was knocked down, by
+/// how much, and the early-pay discount taken on it (the materialized decision, mirrored into the
+/// events and the reversal).
 pub struct AllocationRow {
+    pub id: Uuid,
     pub invoice_ref: Uuid,
     pub invoice_kind: String,
     pub allocated_amount: Decimal,
+    pub discount_amount: Decimal,
+    pub discount_account_id: Option<Uuid>,
 }
 
 /// Hand-written allocation SQL. Lives here (not in the write service) per the module's 4-layer rule:
@@ -79,7 +85,12 @@ impl PaymentAllocationRepository {
                 (id, company_id, payment_id, invoice_ref, invoice_kind, allocated_amount)
                VALUES ($1,$2,$3,$4,$5::settlement_kind,$6)"#,
         )
-        .bind(a.id).bind(a.company_id).bind(a.payment_id).bind(a.invoice_ref).bind(a.invoice_kind).bind(a.allocated_amount)
+        .bind(a.id)
+        .bind(a.company_id)
+        .bind(a.payment_id)
+        .bind(a.invoice_ref)
+        .bind(a.invoice_kind)
+        .bind(a.allocated_amount)
         .execute(conn)
         .await?;
         Ok(())
@@ -94,14 +105,21 @@ impl PaymentAllocationRepository {
     ) -> Result<Vec<AllocationRow>, sqlx::Error> {
         let rows = company_scope::fetch_all_rows_scoped(
             pool,
-            sqlx::query("SELECT invoice_ref, invoice_kind::text AS kind, allocated_amount FROM payment.payment_allocations WHERE payment_id=$1 AND (metadata->>'deleted_at') IS NULL")
+            sqlx::query("SELECT id, invoice_ref, invoice_kind::text AS kind, allocated_amount, discount_amount, discount_account_id FROM payment.payment_allocations WHERE payment_id=$1 AND (metadata->>'deleted_at') IS NULL")
                 .bind(payment_id),
         )
         .await?;
-        Ok(rows.iter().map(|r| AllocationRow {
-            invoice_ref: r.get("invoice_ref"), invoice_kind: r.get("kind"),
-            allocated_amount: r.get("allocated_amount"),
-        }).collect())
+        Ok(rows
+            .iter()
+            .map(|r| AllocationRow {
+                id: r.get("id"),
+                invoice_ref: r.get("invoice_ref"),
+                invoice_kind: r.get("kind"),
+                allocated_amount: r.get("allocated_amount"),
+                discount_amount: r.get("discount_amount"),
+                discount_account_id: r.get("discount_account_id"),
+            })
+            .collect())
     }
 
     /// Read the same allocations on the CALLER'S transaction, so the outbox stage reads them on the SAME
@@ -113,14 +131,41 @@ impl PaymentAllocationRepository {
         conn: &mut sqlx::PgConnection,
         payment_id: Uuid,
     ) -> Result<Vec<AllocationRow>, sqlx::Error> {
-        let rows = sqlx::query("SELECT invoice_ref, invoice_kind::text AS kind, allocated_amount FROM payment.payment_allocations WHERE payment_id=$1 AND (metadata->>'deleted_at') IS NULL")
+        let rows = sqlx::query("SELECT id, invoice_ref, invoice_kind::text AS kind, allocated_amount, discount_amount, discount_account_id FROM payment.payment_allocations WHERE payment_id=$1 AND (metadata->>'deleted_at') IS NULL")
             .bind(payment_id)
             .fetch_all(conn)
             .await?;
-        Ok(rows.iter().map(|r| AllocationRow {
-            invoice_ref: r.get("invoice_ref"), invoice_kind: r.get("kind"),
-            allocated_amount: r.get("allocated_amount"),
-        }).collect())
+        Ok(rows
+            .iter()
+            .map(|r| AllocationRow {
+                id: r.get("id"),
+                invoice_ref: r.get("invoice_ref"),
+                invoice_kind: r.get("kind"),
+                allocated_amount: r.get("allocated_amount"),
+                discount_amount: r.get("discount_amount"),
+                discount_account_id: r.get("discount_account_id"),
+            })
+            .collect())
+    }
+
+    /// Stamp the materialized early-pay-discount decision on one allocation, on the CALLER'S
+    /// transaction — the stamp commits in the same unit as the posted-transition, so a crash between
+    /// the GL post and this write never leaves a discount in the journal without its decision row (or
+    /// vice versa). Idempotent by value: a retry of a resolved decision writes the same numbers.
+    pub async fn stamp_discount(
+        &self,
+        conn: &mut sqlx::PgConnection,
+        allocation_id: Uuid,
+        discount_amount: Decimal,
+        discount_account_id: Option<Uuid>,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE payment.payment_allocations SET discount_amount=$2, discount_account_id=$3 WHERE id=$1",
+        )
+        .bind(allocation_id).bind(discount_amount).bind(discount_account_id)
+        .execute(conn)
+        .await?;
+        Ok(())
     }
 }
 

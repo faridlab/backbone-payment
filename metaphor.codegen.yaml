@@ -39,6 +39,19 @@ user_owned:
   - "src/infrastructure/persistence/dunning_action_repository.rs"
   - "src/presentation/http/guarded_routes.rs"
   - "tests/payment_golden_cases.rs"
+  # The fused-lifecycle migration: the status enum swap with its conditional posted→paid/in_flight
+  # backfill (to_regclass-guarded banking probe), the method/provider columns, the allocation
+  # discount columns — hand-written because a generated create-table cannot express a type swap.
+  - "migrations/20260821100002_payment_state_fusion.up.sql"
+  - "migrations/20260821100002_payment_state_fusion.down.sql"
+  - "src/application/service/payment_lifecycle.rs"
+  - "src/application/service/payment_discount.rs"
+  # The fused-lifecycle contract suites: the state machine, the trap guard (writers-set probe +
+  # no-status-PATCH route probe), the bank-confirmation drift consumer, and the 3-leg discount GL.
+  - "tests/payment_state_machine_suite.rs"
+  - "tests/pfb2_hybrid_state_regression.rs"
+  - "tests/cash_confirm_consumer_suite.rs"
+  - "tests/early_pay_discount_gl_golden.rs"
   - "tests/integrity_probes.rs"
   - "tests/settlement_seam.rs"
   - "tests/settlement_bus_seam.rs"

@@ -26,7 +26,9 @@ pub struct DunningRunRepository(
 
 impl std::ops::Deref for DunningRunRepository {
     type Target = backbone_orm::GenericCrudRepository<DunningRun, backbone_orm::SoftDelete>;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl DunningRunRepository {
@@ -55,8 +57,12 @@ impl DunningRunRepository {
             r#"INSERT INTO payment.dunning_runs (id, company_id, as_of_date, direction, status)
                VALUES ($1, $2, $3, $4, 'completed'::dunning_run_status) RETURNING id"#,
         )
-        .bind(id).bind(company_id).bind(as_of).bind(direction)
-        .fetch_one(conn).await?;
+        .bind(id)
+        .bind(company_id)
+        .bind(as_of)
+        .bind(direction)
+        .fetch_one(conn)
+        .await?;
         Ok(run_id)
     }
 
@@ -70,8 +76,10 @@ impl DunningRunRepository {
         actions_emitted: i32,
     ) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE payment.dunning_runs SET actions_emitted = $2 WHERE id = $1")
-            .bind(run_id).bind(actions_emitted)
-            .execute(conn).await?;
+            .bind(run_id)
+            .bind(actions_emitted)
+            .execute(conn)
+            .await?;
         Ok(())
     }
 }

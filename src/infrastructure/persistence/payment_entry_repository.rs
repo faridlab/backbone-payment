@@ -29,7 +29,9 @@ pub struct PaymentEntryRepository(
 
 impl std::ops::Deref for PaymentEntryRepository {
     type Target = backbone_orm::GenericCrudRepository<PaymentEntry, backbone_orm::SoftDelete>;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl PaymentEntryRepository {
@@ -56,6 +58,8 @@ pub struct NewPaymentEntryRow<'a> {
     pub posting_date: chrono::NaiveDate,
     pub currency: &'a str,
     pub mode_of_payment_id: Option<Uuid>,
+    pub method: &'a str,
+    pub provider_txn_id: Option<Uuid>,
     pub paid_amount: Decimal,
     pub allocated_amount: Decimal,
     pub unallocated_amount: Decimal,
@@ -77,6 +81,10 @@ pub struct PostSourceRow {
     pub party_id: Option<Uuid>,
     pub posting_date: chrono::NaiveDate,
     pub currency: String,
+    pub method: String,
+    /// The fused status — the pre-sink gate reads it so a terminal payment refuses BEFORE the GL
+    /// sink is driven (the CAS alone would refuse only after the journal existed).
+    pub status: String,
     pub paid_amount: Decimal,
     pub bank_account_id: Uuid,
     pub party_account_id: Uuid,
@@ -125,14 +133,16 @@ impl PaymentEntryRepository {
         sqlx::query(
             r#"INSERT INTO payment.payment_entries
                 (id, payment_number, company_id, branch_id, payment_type, party_type, party_id,
-                 posting_date, currency, mode_of_payment_id, paid_amount, allocated_amount,
-                 unallocated_amount, bank_account_id, party_account_id, status, posting_state, reference_no,
-                 withholding_amount, withholding_account_id, withholding_tax_type)
-               VALUES ($1,$2,$3,$4,$5::payment_type,$6::payment_party_type,$7,$8,$9,$10,$11,$12,$13,$14,$15,
-                       'draft'::payment_status,'pending'::gl_posting_state,$16,$17,$18,$19::withholding_tax_type)"#,
+                 posting_date, currency, mode_of_payment_id, method, provider_txn_id, paid_amount,
+                 allocated_amount, unallocated_amount, bank_account_id, party_account_id, status,
+                 posting_state, reference_no, withholding_amount, withholding_account_id, withholding_tax_type)
+               VALUES ($1,$2,$3,$4,$5::payment_type,$6::payment_party_type,$7,$8,$9,$10,$11::payment_method,$12,
+                       $13,$14,$15,$16,$17,
+                       'draft'::payment_status,'pending'::gl_posting_state,$18,$19,$20,$21::withholding_tax_type)"#,
         )
         .bind(p.id).bind(p.payment_number).bind(p.company_id).bind(p.branch_id).bind(p.payment_type)
         .bind(p.party_type).bind(p.party_id).bind(p.posting_date).bind(p.currency).bind(p.mode_of_payment_id)
+        .bind(p.method).bind(p.provider_txn_id)
         .bind(p.paid_amount).bind(p.allocated_amount).bind(p.unallocated_amount).bind(p.bank_account_id)
         .bind(p.party_account_id).bind(p.reference_no)
         .bind(p.withholding_amount).bind(p.withholding_account_id).bind(p.withholding_tax_type)
@@ -156,20 +166,29 @@ impl PaymentEntryRepository {
             pool,
             sqlx::query(
                 r#"SELECT payment_number, company_id, branch_id, payment_type::text AS pt, party_type::text AS party_t,
-                          party_id, posting_date, currency, paid_amount, bank_account_id, party_account_id,
-                          withholding_amount, withholding_account_id
+                          party_id, posting_date, currency, method::text AS m, status::text AS st,
+                          paid_amount, bank_account_id, party_account_id, withholding_amount, withholding_account_id
                    FROM payment.payment_entries WHERE id=$1 AND (metadata->>'deleted_at') IS NULL"#,
             )
             .bind(payment_id),
         )
         .await?;
         Ok(row.map(|p| PostSourceRow {
-            payment_number: p.get("payment_number"), company_id: p.get("company_id"),
-            branch_id: p.get("branch_id"), payment_type: p.get("pt"), party_type: p.get("party_t"),
-            party_id: p.get("party_id"), posting_date: p.get("posting_date"), currency: p.get("currency"),
-            paid_amount: p.get("paid_amount"), bank_account_id: p.get("bank_account_id"),
+            payment_number: p.get("payment_number"),
+            company_id: p.get("company_id"),
+            branch_id: p.get("branch_id"),
+            payment_type: p.get("pt"),
+            party_type: p.get("party_t"),
+            party_id: p.get("party_id"),
+            posting_date: p.get("posting_date"),
+            currency: p.get("currency"),
+            method: p.get("m"),
+            status: p.get("st"),
+            paid_amount: p.get("paid_amount"),
+            bank_account_id: p.get("bank_account_id"),
             party_account_id: p.get("party_account_id"),
-            withholding_amount: p.get("withholding_amount"), withholding_account_id: p.get("withholding_account_id"),
+            withholding_amount: p.get("withholding_amount"),
+            withholding_account_id: p.get("withholding_account_id"),
         }))
     }
 
@@ -182,8 +201,10 @@ impl PaymentEntryRepository {
     ) -> Result<Option<Uuid>, sqlx::Error> {
         company_scope::fetch_one_scalar_scoped(
             pool,
-            sqlx::query_scalar("SELECT accounting_post_id FROM payment.payment_entries WHERE id=$1")
-                .bind(payment_id),
+            sqlx::query_scalar(
+                "SELECT accounting_post_id FROM payment.payment_entries WHERE id=$1",
+            )
+            .bind(payment_id),
         )
         .await
     }
@@ -204,29 +225,37 @@ impl PaymentEntryRepository {
         )
         .await?;
         Ok(row.map(|r| PostedStateRow {
-            posting_state: r.get("ps"), journal_id: r.get("journal_id"),
+            posting_state: r.get("ps"),
+            journal_id: r.get("journal_id"),
             accounting_post_id: r.get("accounting_post_id"),
         }))
     }
 
-    /// Read a payment's status, for the reverse gate. Same ID-only scope contract as
-    /// [`Self::fetch_post_source`].
+    /// Read a payment's status and GL posting state — the pair the reverse gate keys on (status
+    /// alone cannot tell a landed-but-gl-broken entry from a truly reversible one). Same ID-only
+    /// scope contract as [`Self::fetch_post_source`].
     pub async fn fetch_status(
         &self,
         pool: &PgPool,
         payment_id: Uuid,
-    ) -> Result<Option<String>, sqlx::Error> {
-        company_scope::fetch_optional_scalar_scoped(
+    ) -> Result<Option<(String, String)>, sqlx::Error> {
+        company_scope::fetch_optional_scoped(
             pool,
-            sqlx::query_scalar("SELECT status::text FROM payment.payment_entries WHERE id=$1 AND (metadata->>'deleted_at') IS NULL")
-                .bind(payment_id),
+            sqlx::query_as::<_, (String, String)>(
+                "SELECT status::text, posting_state::text FROM payment.payment_entries WHERE id=$1 AND (metadata->>'deleted_at') IS NULL",
+            )
+            .bind(payment_id),
         )
         .await
     }
 
-    /// Perform the pending→posted transition. Returns the rows affected: the caller gates the reconcile
-    /// and the `PaymentSettled` seam event on this being 1, because the seam routes into
-    /// `billing::apply_settlement` — a double-emit would draw an invoice's outstanding down twice.
+    /// Perform the pending|failed→posted transition, landing the fused status (`in_flight` or
+    /// `paid` — the caller computed which via `landing_state`). Returns the rows affected: the
+    /// caller gates the reconcile and the `PaymentSettled` seam event on this being 1, because the
+    /// seam routes into `billing::apply_settlement` — a double-emit would draw an invoice's
+    /// outstanding down twice. The CAS covers both columns: only a pending-or-failed (retry after a
+    /// GL rejection), not-yet-landed entry transitions — a rejected or already-landed payment
+    /// matches zero rows.
     ///
     /// Takes the CALLER'S connection so this transition and the durable outbox stage commit as ONE unit;
     /// a crash after the transition can then never lose the event. The caller has already bound the
@@ -237,38 +266,93 @@ impl PaymentEntryRepository {
         payment_id: Uuid,
         journal_id: Uuid,
         accounting_post_id: Uuid,
+        new_status: &str,
     ) -> Result<u64, sqlx::Error> {
         let res = sqlx::query(
             r#"UPDATE payment.payment_entries SET posting_state='posted'::gl_posting_state,
-                status='posted'::payment_status, journal_id=$2, accounting_post_id=$3, posted_at=now()
-               WHERE id=$1 AND posting_state <> 'posted'::gl_posting_state"#,
+                status=$4::payment_status, journal_id=$2, accounting_post_id=$3, posted_at=now()
+               WHERE id=$1 AND posting_state IN ('pending'::gl_posting_state, 'failed'::gl_posting_state)
+                 AND status IN ('draft'::payment_status, 'submitted'::payment_status)"#,
         )
-        .bind(payment_id).bind(journal_id).bind(accounting_post_id)
+        .bind(payment_id).bind(journal_id).bind(accounting_post_id).bind(new_status)
         .execute(conn)
         .await?;
         Ok(res.rows_affected())
     }
 
-    /// Record that the ledger rejected this post. Caller supplies the company scope; the caller also
-    /// deliberately IGNORES the result — the GL rejection is the error being reported, and failing to
-    /// mark it must not mask that.
-    pub async fn mark_failed(
+    /// Perform the draft→submitted transition (the `submit` verb). Returns the rows affected: 0 means
+    /// the CAS refused (already submitted, landed, or terminal). Caller supplies the company scope.
+    pub async fn mark_submitted(
         &self,
         pool: &PgPool,
         payment_id: Uuid,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<u64, sqlx::Error> {
+        let res = company_scope::execute_scoped(
+            pool,
+            sqlx::query("UPDATE payment.payment_entries SET status='submitted'::payment_status WHERE id=$1 AND status='draft'::payment_status")
+                .bind(payment_id),
+        )
+        .await?;
+        Ok(res.rows_affected())
+    }
+
+    /// Perform the submitted→rejected transition (the `reject` verb, terminal — the PRE-settlement
+    /// stop: nothing has committed, so rejecting is a pure label flip). An in_flight or paid entry
+    /// HAS a committed journal and a billing knock-off; its exit is `reverse_payment` (which unwinds
+    /// the GL and restores the invoices), never reject — a rejected-from-in_flight entry would
+    /// strand its journal with no verb left that could remove it. Returns the rows affected: 0 means
+    /// the CAS refused (draft, landed, or terminal). Caller supplies the company scope.
+    pub async fn mark_rejected(&self, pool: &PgPool, payment_id: Uuid) -> Result<u64, sqlx::Error> {
+        let res = company_scope::execute_scoped(
+            pool,
+            sqlx::query("UPDATE payment.payment_entries SET status='rejected'::payment_status WHERE id=$1 AND status='submitted'::payment_status")
+                .bind(payment_id),
+        )
+        .await?;
+        Ok(res.rows_affected())
+    }
+
+    /// Perform the in_flight→paid drift — the bank-confirmation landing. This is the ONLY writer of
+    /// that transition (the `confirm_cash_once` consumer on `BankClearanceRecorded`); a hand verb
+    /// cannot reach it. Returns the rows affected: 0 from any other state is the documented no-op,
+    /// not an error (the event may legitimately arrive for an already-paid or never-in-flight
+    /// payment). Takes the CALLER'S connection so the drift and the inbox dedup commit as one unit.
+    pub async fn confirm_cash_on(
+        &self,
+        conn: &mut sqlx::PgConnection,
+        payment_id: Uuid,
+    ) -> Result<u64, sqlx::Error> {
+        let res = sqlx::query(
+            "UPDATE payment.payment_entries SET status='paid'::payment_status WHERE id=$1 AND status='in_flight'::payment_status",
+        )
+        .bind(payment_id)
+        .execute(conn)
+        .await?;
+        Ok(res.rows_affected())
+    }
+
+    /// Record that the ledger rejected this post. CAS-guarded on `posting_state`: a `failed` stamp
+    /// may only land on a pending-or-failed entry — never over a committed `posted`. Without the
+    /// guard, a spurious sink error (transport timeout AFTER the GL committed) in a concurrent
+    /// retry would overwrite the live `posted` truth, and the entry would enter a state no verb can
+    /// exit (reverse's journal would post while `mark_cancelled` matches zero rows). Caller supplies
+    /// the company scope; the caller also deliberately IGNORES the result — the GL rejection is the
+    /// error being reported, and failing to mark it must not mask that.
+    pub async fn mark_failed(&self, pool: &PgPool, payment_id: Uuid) -> Result<(), sqlx::Error> {
         company_scope::execute_scoped(
             pool,
-            sqlx::query("UPDATE payment.payment_entries SET posting_state='failed'::gl_posting_state WHERE id=$1")
+            sqlx::query("UPDATE payment.payment_entries SET posting_state='failed'::gl_posting_state WHERE id=$1 AND posting_state IN ('pending'::gl_posting_state, 'failed'::gl_posting_state)")
                 .bind(payment_id),
         )
         .await?;
         Ok(())
     }
 
-    /// Perform the posted→cancelled transition. Returns the rows affected: the caller gates the
+    /// Perform the in_flight|paid→cancelled transition. Returns the rows affected: the caller gates the
     /// `PaymentCancelled` emission on this being 1, so the reverse-seam restores each invoice exactly
-    /// once even under a repeat/concurrent reverse. Caller supplies the company scope.
+    /// once even under a repeat/concurrent reverse. The CAS keys on `posting_state` (the GL-sync
+    /// truth): only an entry whose post actually committed can be cancelled — a draft/submitted/
+    /// rejected payment matches zero rows. Caller supplies the company scope.
     pub async fn mark_cancelled(
         &self,
         pool: &PgPool,
@@ -276,7 +360,7 @@ impl PaymentEntryRepository {
     ) -> Result<u64, sqlx::Error> {
         let res = company_scope::execute_scoped(
             pool,
-            sqlx::query("UPDATE payment.payment_entries SET status='cancelled'::payment_status WHERE id=$1 AND status='posted'::payment_status")
+            sqlx::query("UPDATE payment.payment_entries SET status='cancelled'::payment_status WHERE id=$1 AND posting_state='posted'::gl_posting_state AND status IN ('in_flight'::payment_status, 'paid'::payment_status)")
                 .bind(payment_id),
         )
         .await?;
@@ -296,8 +380,10 @@ impl PaymentEntryRepository {
         )
         .await?;
         Ok(SettledHeaderRow {
-            payment_type: hdr.get("pt"), party_id: hdr.get("party_id"),
-            paid_amount: hdr.get("paid_amount"), unallocated_amount: hdr.get("unallocated_amount"),
+            payment_type: hdr.get("pt"),
+            party_id: hdr.get("party_id"),
+            paid_amount: hdr.get("paid_amount"),
+            unallocated_amount: hdr.get("unallocated_amount"),
         })
     }
 
@@ -313,7 +399,10 @@ impl PaymentEntryRepository {
                 .bind(payment_id),
         )
         .await?;
-        Ok(PaymentTypeAmountRow { payment_type: hdr.get("pt"), paid_amount: hdr.get("paid_amount") })
+        Ok(PaymentTypeAmountRow {
+            payment_type: hdr.get("pt"),
+            paid_amount: hdr.get("paid_amount"),
+        })
     }
 
     /// Read the same minimal header on the CALLER'S transaction, so the outbox stage reads the payment
@@ -323,11 +412,16 @@ impl PaymentEntryRepository {
         conn: &mut sqlx::PgConnection,
         payment_id: Uuid,
     ) -> Result<PaymentTypeAmountRow, sqlx::Error> {
-        let hdr = sqlx::query("SELECT payment_type::text AS pt, paid_amount FROM payment.payment_entries WHERE id=$1")
-            .bind(payment_id)
-            .fetch_one(conn)
-            .await?;
-        Ok(PaymentTypeAmountRow { payment_type: hdr.get("pt"), paid_amount: hdr.get("paid_amount") })
+        let hdr = sqlx::query(
+            "SELECT payment_type::text AS pt, paid_amount FROM payment.payment_entries WHERE id=$1",
+        )
+        .bind(payment_id)
+        .fetch_one(conn)
+        .await?;
+        Ok(PaymentTypeAmountRow {
+            payment_type: hdr.get("pt"),
+            paid_amount: hdr.get("paid_amount"),
+        })
     }
 }
 

@@ -1,11 +1,11 @@
 use chrono::{DateTime, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
-use rust_decimal::Decimal;
 
-use super::SettlementKind;
 use super::AuditMetadata;
+use super::SettlementKind;
 
 /// Strongly-typed ID for PaymentAllocation
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -13,9 +13,15 @@ use super::AuditMetadata;
 pub struct PaymentAllocationId(pub Uuid);
 
 impl PaymentAllocationId {
-    pub fn new(id: Uuid) -> Self { Self(id) }
-    pub fn generate() -> Self { Self(Uuid::new_v4()) }
-    pub fn into_inner(self) -> Uuid { self.0 }
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+    pub fn generate() -> Self {
+        Self(Uuid::new_v4())
+    }
+    pub fn into_inner(self) -> Uuid {
+        self.0
+    }
 }
 
 impl std::fmt::Display for PaymentAllocationId {
@@ -32,20 +38,28 @@ impl std::str::FromStr for PaymentAllocationId {
 }
 
 impl From<Uuid> for PaymentAllocationId {
-    fn from(id: Uuid) -> Self { Self(id) }
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
 }
 
 impl From<PaymentAllocationId> for Uuid {
-    fn from(id: PaymentAllocationId) -> Self { id.0 }
+    fn from(id: PaymentAllocationId) -> Self {
+        id.0
+    }
 }
 
 impl AsRef<Uuid> for PaymentAllocationId {
-    fn as_ref(&self) -> &Uuid { &self.0 }
+    fn as_ref(&self) -> &Uuid {
+        &self.0
+    }
 }
 
 impl std::ops::Deref for PaymentAllocationId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -56,6 +70,8 @@ pub struct PaymentAllocation {
     pub invoice_ref: Uuid,
     pub invoice_kind: SettlementKind,
     pub allocated_amount: Decimal,
+    pub discount_amount: Decimal,
+    pub discount_account_id: Option<Uuid>,
     #[serde(default)]
     #[sqlx(json)]
     pub metadata: AuditMetadata,
@@ -68,7 +84,14 @@ impl PaymentAllocation {
     }
 
     /// Create a new PaymentAllocation with required fields
-    pub fn new(company_id: Uuid, payment_id: Uuid, invoice_ref: Uuid, invoice_kind: SettlementKind, allocated_amount: Decimal) -> Self {
+    pub fn new(
+        company_id: Uuid,
+        payment_id: Uuid,
+        invoice_ref: Uuid,
+        invoice_kind: SettlementKind,
+        allocated_amount: Decimal,
+        discount_amount: Decimal,
+    ) -> Self {
         Self {
             id: Uuid::new_v4(),
             company_id,
@@ -76,6 +99,8 @@ impl PaymentAllocation {
             invoice_ref,
             invoice_kind,
             allocated_amount,
+            discount_amount,
+            discount_account_id: None,
             metadata: AuditMetadata::default(),
         }
     }
@@ -130,6 +155,15 @@ impl PaymentAllocation {
         self.metadata.deleted_by.as_ref()
     }
 
+    // ==========================================================
+    // Fluent Setters (with_* for optional fields)
+    // ==========================================================
+
+    /// Set the discount_account_id field (chainable)
+    pub fn with_discount_account_id(mut self, value: Uuid) -> Self {
+        self.discount_account_id = Some(value);
+        self
+    }
 
     // ==========================================================
     // Partial Update
@@ -140,19 +174,39 @@ impl PaymentAllocation {
         for (key, value) in fields {
             match key.as_str() {
                 "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.company_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.company_id = v;
+                    }
                 }
                 "payment_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.payment_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.payment_id = v;
+                    }
                 }
                 "invoice_ref" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.invoice_ref = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.invoice_ref = v;
+                    }
                 }
                 "invoice_kind" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.invoice_kind = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.invoice_kind = v;
+                    }
                 }
                 "allocated_amount" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.allocated_amount = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.allocated_amount = v;
+                    }
+                }
+                "discount_amount" => {
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.discount_amount = v;
+                    }
+                }
+                "discount_account_id" => {
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.discount_account_id = v;
+                    }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -210,6 +264,7 @@ impl backbone_orm::EntityRepoMeta for PaymentAllocation {
         m.insert("id".to_string(), "uuid".to_string());
         m.insert("company_id".to_string(), "uuid".to_string());
         m.insert("payment_id".to_string(), "uuid".to_string());
+        m.insert("discount_account_id".to_string(), "uuid".to_string());
         m.insert("invoice_kind".to_string(), "settlement_kind".to_string());
         m
     }
@@ -235,6 +290,8 @@ pub struct PaymentAllocationBuilder {
     invoice_ref: Option<Uuid>,
     invoice_kind: Option<SettlementKind>,
     allocated_amount: Option<Decimal>,
+    discount_amount: Option<Decimal>,
+    discount_account_id: Option<Uuid>,
 }
 
 impl PaymentAllocationBuilder {
@@ -268,15 +325,37 @@ impl PaymentAllocationBuilder {
         self
     }
 
+    /// Set the discount_amount field (default: `Decimal::from(0)`)
+    pub fn discount_amount(mut self, value: Decimal) -> Self {
+        self.discount_amount = Some(value);
+        self
+    }
+
+    /// Set the discount_account_id field (optional)
+    pub fn discount_account_id(mut self, value: Uuid) -> Self {
+        self.discount_account_id = Some(value);
+        self
+    }
+
     /// Build the PaymentAllocation entity
     ///
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<PaymentAllocation, String> {
-        let company_id = self.company_id.ok_or_else(|| "company_id is required".to_string())?;
-        let payment_id = self.payment_id.ok_or_else(|| "payment_id is required".to_string())?;
-        let invoice_ref = self.invoice_ref.ok_or_else(|| "invoice_ref is required".to_string())?;
-        let invoice_kind = self.invoice_kind.ok_or_else(|| "invoice_kind is required".to_string())?;
-        let allocated_amount = self.allocated_amount.ok_or_else(|| "allocated_amount is required".to_string())?;
+        let company_id = self
+            .company_id
+            .ok_or_else(|| "company_id is required".to_string())?;
+        let payment_id = self
+            .payment_id
+            .ok_or_else(|| "payment_id is required".to_string())?;
+        let invoice_ref = self
+            .invoice_ref
+            .ok_or_else(|| "invoice_ref is required".to_string())?;
+        let invoice_kind = self
+            .invoice_kind
+            .ok_or_else(|| "invoice_kind is required".to_string())?;
+        let allocated_amount = self
+            .allocated_amount
+            .ok_or_else(|| "allocated_amount is required".to_string())?;
 
         Ok(PaymentAllocation {
             id: Uuid::new_v4(),
@@ -285,6 +364,8 @@ impl PaymentAllocationBuilder {
             invoice_ref,
             invoice_kind,
             allocated_amount,
+            discount_amount: self.discount_amount.unwrap_or(Decimal::from(0)),
+            discount_account_id: self.discount_account_id,
             metadata: AuditMetadata::default(),
         })
     }

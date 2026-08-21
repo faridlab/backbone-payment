@@ -5,17 +5,18 @@
 //! Returns an `EntityValidator<AgingBucket>` pre-loaded with schema-derived
 //! field rules. Extend in the `// <<< CUSTOM` zone.
 
-use backbone_core::{EntityValidator, ValidationErrors, ValidationError};
-use backbone_core::{NonNegative, RequiredString};
 use crate::domain::entity::AgingBucket;
+use backbone_core::{EntityValidator, ValidationError, ValidationErrors};
+use backbone_core::{NonNegative, RequiredString};
 
 /// Validator type alias for AgingBucket entities.
 pub type AgingBucketValidator = EntityValidator<AgingBucket>;
 
 /// Build a validator for AgingBucket with all schema-defined field rules.
 pub fn aging_bucket_validator() -> AgingBucketValidator {
-    EntityValidator::new()
-        .rule(RequiredString::new("invoice_kind", |e: &AgingBucket| &e.invoice_kind))
+    EntityValidator::new().rule(RequiredString::new("invoice_kind", |e: &AgingBucket| {
+        &e.invoice_kind
+    }))
     // <<< CUSTOM RULES
     // END CUSTOM RULES
 }

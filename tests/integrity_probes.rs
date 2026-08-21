@@ -28,12 +28,38 @@ use backbone_payment::application::service::payment_write_service::{
     NewAllocation, NewPayment, PaymentError, PaymentWriteService,
 };
 
-fn d(s: &str) -> Decimal { Decimal::from_str_exact(s).unwrap() }
-fn day() -> chrono::NaiveDate { chrono::NaiveDate::from_ymd_opt(2026, 7, 5).unwrap() }
-fn uq(p: &str) -> String { format!("{p}-{}", &Uuid::new_v4().simple().to_string()[..8]) }
+/// Tests inject the reconcilability read — the real probe reads accounting, which these
+/// fixtures do not populate; landing-state behavior is asserted via the stub and in the
+/// lifecycle suite.
+struct AlwaysReconcilable;
+#[async_trait::async_trait]
+impl backbone_payment::application::service::payment_lifecycle::BankReconcilablePort
+    for AlwaysReconcilable
+{
+    async fn bank_reconcilable(
+        &self,
+        _pool: &sqlx::PgPool,
+        _company_id: uuid::Uuid,
+        _account_id: uuid::Uuid,
+    ) -> Result<bool, backbone_payment::application::service::payment_write_service::PaymentError>
+    {
+        Ok(true)
+    }
+}
+
+fn d(s: &str) -> Decimal {
+    Decimal::from_str_exact(s).unwrap()
+}
+fn day() -> chrono::NaiveDate {
+    chrono::NaiveDate::from_ymd_opt(2026, 7, 5).unwrap()
+}
+fn uq(p: &str) -> String {
+    format!("{p}-{}", &Uuid::new_v4().simple().to_string()[..8])
+}
 async fn pool() -> PgPool {
-    let url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost:5433/backbone_payment".to_string());
+    let url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+        "postgresql://postgres:postgres@localhost:5433/backbone_payment".to_string()
+    });
     PgPool::connect(&url).await.expect("connect DB")
 }
 
@@ -41,40 +67,77 @@ struct RejectingGl;
 #[async_trait::async_trait]
 impl GlPostSink for RejectingGl {
     async fn post(&self, _e: &AccountingPostEnvelope) -> Result<GlPostAck, GlPostRejected> {
-        Err(GlPostRejected { code: "period_closed".into(), message: "accounting period is closed".into() })
+        Err(GlPostRejected {
+            code: "period_closed".into(),
+            message: "accounting period is closed".into(),
+        })
     }
 }
 #[derive(Clone)]
-struct OkGl { journal: Uuid, post: Uuid }
+struct OkGl {
+    journal: Uuid,
+    post: Uuid,
+}
 #[async_trait::async_trait]
 impl GlPostSink for OkGl {
     async fn post(&self, _e: &AccountingPostEnvelope) -> Result<GlPostAck, GlPostRejected> {
-        Ok(GlPostAck { post_id: self.post, journal_id: self.journal, idempotent_reuse: false })
+        Ok(GlPostAck {
+            post_id: self.post,
+            journal_id: self.journal,
+            idempotent_reuse: false,
+        })
     }
 }
 /// Blocks on a barrier BEFORE returning the ack — makes the pending→posted UPDATE race deterministic.
 #[derive(Clone)]
-struct BarrierGl { gate: Arc<tokio::sync::Barrier>, journal: Uuid, post: Uuid }
+struct BarrierGl {
+    gate: Arc<tokio::sync::Barrier>,
+    journal: Uuid,
+    post: Uuid,
+}
 #[async_trait::async_trait]
 impl GlPostSink for BarrierGl {
     async fn post(&self, _e: &AccountingPostEnvelope) -> Result<GlPostAck, GlPostRejected> {
         self.gate.wait().await;
-        Ok(GlPostAck { post_id: self.post, journal_id: self.journal, idempotent_reuse: false })
+        Ok(GlPostAck {
+            post_id: self.post,
+            journal_id: self.journal,
+            idempotent_reuse: false,
+        })
     }
 }
 #[derive(Default, Clone)]
-struct Recorder { events: Arc<Mutex<Vec<PaymentEvent>>> }
+struct Recorder {
+    events: Arc<Mutex<Vec<PaymentEvent>>>,
+}
 impl PaymentEventSink for Recorder {
-    fn publish(&self, e: PaymentEvent) { self.events.lock().unwrap().push(e); }
+    fn publish(&self, e: PaymentEvent) {
+        self.events.lock().unwrap().push(e);
+    }
 }
 
 fn receive(company: Uuid, currency: Option<String>) -> NewPayment {
     NewPayment {
-        payment_number: uq("PE"), company_id: company, branch_id: None, payment_type: "receive".into(),
-        party_type: Some("customer".into()), party_id: Some(Uuid::new_v4()), posting_date: day(), currency,
-        mode_of_payment_id: None, bank_account_id: Uuid::new_v4(), party_account_id: Uuid::new_v4(),
-        paid_amount: d("100000"), reference_no: None,
-        allocations: vec![NewAllocation { invoice_ref: Uuid::new_v4(), invoice_kind: "sales".into(), amount: d("100000") }],
+        payment_number: uq("PE"),
+        company_id: company,
+        branch_id: None,
+        payment_type: "receive".into(),
+        party_type: Some("customer".into()),
+        party_id: Some(Uuid::new_v4()),
+        posting_date: day(),
+        currency,
+        mode_of_payment_id: None,
+        method: None,
+        provider_txn_id: None,
+        bank_account_id: Uuid::new_v4(),
+        party_account_id: Uuid::new_v4(),
+        paid_amount: d("100000"),
+        reference_no: None,
+        allocations: vec![NewAllocation {
+            invoice_ref: Uuid::new_v4(),
+            invoice_kind: "sales".into(),
+            amount: d("100000"),
+        }],
         withholding_amount: rust_decimal::Decimal::ZERO,
         withholding_account_id: None,
         withholding_tax_type: "none".into(),
@@ -82,12 +145,17 @@ fn receive(company: Uuid, currency: Option<String>) -> NewPayment {
 }
 
 // IP-1: a rejected GL post leaves the payment NOT posted and recoverable — posting_state=failed,
-// status still draft, no journal. A later good sink completes it.
+// status still draft, no journal. A later good sink completes it (failed is retryable), landing the
+// fused status: reconcilable bank + manual method ⇒ in_flight.
 #[tokio::test]
 async fn rejected_post_is_recoverable() {
     let pool = pool().await;
-    let w = PaymentWriteService::new(pool.clone());
-    let id = w.create_payment(receive(Uuid::new_v4(), None)).await.unwrap();
+    let w = PaymentWriteService::new(pool.clone())
+        .with_reconcilable_port(std::sync::Arc::new(AlwaysReconcilable));
+    let id = w
+        .create_payment(receive(Uuid::new_v4(), None))
+        .await
+        .unwrap();
     let e = w.post_payment(id, &RejectingGl).await.unwrap_err();
     assert!(matches!(e, PaymentError::GlRejected { .. }));
     let (ps, st, jid): (String, String, Option<Uuid>) = sqlx::query_as(
@@ -97,20 +165,46 @@ async fn rejected_post_is_recoverable() {
     assert_eq!(st, "draft");
     assert!(jid.is_none());
 
-    w.post_payment(id, &OkGl { journal: Uuid::new_v4(), post: Uuid::new_v4() }).await.unwrap();
-    let (ps2, st2): (String, String) = sqlx::query_as("SELECT posting_state::text, status::text FROM payment.payment_entries WHERE id=$1")
-        .bind(id).fetch_one(&pool).await.unwrap();
+    w.post_payment(
+        id,
+        &OkGl {
+            journal: Uuid::new_v4(),
+            post: Uuid::new_v4(),
+        },
+    )
+    .await
+    .unwrap();
+    let (ps2, st2): (String, String) = sqlx::query_as(
+        "SELECT posting_state::text, status::text FROM payment.payment_entries WHERE id=$1",
+    )
+    .bind(id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
     assert_eq!(ps2, "posted");
-    assert_eq!(st2, "posted");
+    assert_eq!(st2, "in_flight");
 }
 
 // IP-2: a non-IDR payment is refused at post time; no mis-valued post reaches the ledger.
 #[tokio::test]
 async fn non_idr_refused_at_post() {
     let pool = pool().await;
-    let w = PaymentWriteService::new(pool.clone());
-    let id = w.create_payment(receive(Uuid::new_v4(), Some("USD".into()))).await.unwrap();
-    let e = w.post_payment(id, &OkGl { journal: Uuid::new_v4(), post: Uuid::new_v4() }).await.unwrap_err();
+    let w = PaymentWriteService::new(pool.clone())
+        .with_reconcilable_port(std::sync::Arc::new(AlwaysReconcilable));
+    let id = w
+        .create_payment(receive(Uuid::new_v4(), Some("USD".into())))
+        .await
+        .unwrap();
+    let e = w
+        .post_payment(
+            id,
+            &OkGl {
+                journal: Uuid::new_v4(),
+                post: Uuid::new_v4(),
+            },
+        )
+        .await
+        .unwrap_err();
     assert!(matches!(e, PaymentError::UnsupportedCurrency(c) if c == "USD"));
 }
 
@@ -121,9 +215,19 @@ async fn non_idr_refused_at_post() {
 async fn concurrent_post_emits_settled_once() {
     let pool = pool().await;
     let rec = Recorder::default();
-    let w = Arc::new(PaymentWriteService::with_sink(pool.clone(), Arc::new(rec.clone())));
-    let id = w.create_payment(receive(Uuid::new_v4(), None)).await.unwrap();
-    let gl = BarrierGl { gate: Arc::new(tokio::sync::Barrier::new(2)), journal: Uuid::new_v4(), post: Uuid::new_v4() };
+    let w = Arc::new(
+        PaymentWriteService::with_sink(pool.clone(), Arc::new(rec.clone()))
+            .with_reconcilable_port(std::sync::Arc::new(AlwaysReconcilable)),
+    );
+    let id = w
+        .create_payment(receive(Uuid::new_v4(), None))
+        .await
+        .unwrap();
+    let gl = BarrierGl {
+        gate: Arc::new(tokio::sync::Barrier::new(2)),
+        journal: Uuid::new_v4(),
+        post: Uuid::new_v4(),
+    };
     let (w1, w2, g1, g2) = (w.clone(), w.clone(), gl.clone(), gl.clone());
     let (r1, r2) = tokio::join!(
         tokio::spawn(async move { w1.post_payment(id, &g1).await }),
@@ -131,8 +235,17 @@ async fn concurrent_post_emits_settled_once() {
     );
     r1.unwrap().unwrap();
     r2.unwrap().unwrap();
-    let emitted = rec.events.lock().unwrap().iter().filter(|e| matches!(e, PaymentEvent::PaymentSettled(s) if s.payment_id == id)).count();
-    assert_eq!(emitted, 1, "the settlement event must fire exactly once, even under a concurrent double-post");
+    let emitted = rec
+        .events
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|e| matches!(e, PaymentEvent::PaymentSettled(s) if s.payment_id == id))
+        .count();
+    assert_eq!(
+        emitted, 1,
+        "the settlement event must fire exactly once, even under a concurrent double-post"
+    );
 }
 
 // IP-4: a posted payment can be reversed — reverse_payment posts the sign-flipped mirror journal,
@@ -141,31 +254,72 @@ async fn concurrent_post_emits_settled_once() {
 async fn posted_payment_is_reversible_and_idempotent() {
     let pool = pool().await;
     let rec = Recorder::default();
-    let w = PaymentWriteService::with_sink(pool.clone(), Arc::new(rec.clone()));
+    let w = PaymentWriteService::with_sink(pool.clone(), Arc::new(rec.clone()))
+        .with_reconcilable_port(std::sync::Arc::new(AlwaysReconcilable));
     let company = Uuid::new_v4();
     let id = w.create_payment(receive(company, None)).await.unwrap();
-    w.post_payment(id, &OkGl { journal: Uuid::new_v4(), post: Uuid::new_v4() }).await.unwrap();
+    w.post_payment(
+        id,
+        &OkGl {
+            journal: Uuid::new_v4(),
+            post: Uuid::new_v4(),
+        },
+    )
+    .await
+    .unwrap();
 
     // Reverse it.
-    let outcome = w.reverse_payment(id, &OkGl { journal: Uuid::new_v4(), post: Uuid::new_v4() }).await.unwrap();
-    assert!(!outcome.idempotent_reuse, "first reverse must succeed (not an idempotent reuse)");
+    let outcome = w
+        .reverse_payment(
+            id,
+            &OkGl {
+                journal: Uuid::new_v4(),
+                post: Uuid::new_v4(),
+            },
+        )
+        .await
+        .unwrap();
+    assert!(
+        !outcome.idempotent_reuse,
+        "first reverse must succeed (not an idempotent reuse)"
+    );
 
     // DB state: status=cancelled, posting_state still posted (the reversal post succeeded).
     let (status, posting_state): (String, String) = sqlx::query_as(
         "SELECT status::text, posting_state::text FROM payment.payment_entries WHERE id=$1",
-    ).bind(id).fetch_one(&pool).await.unwrap();
+    )
+    .bind(id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
     assert_eq!(status, "cancelled");
     assert_eq!(posting_state, "posted");
 
     // PaymentCancelled emitted.
-    let cancelled = rec.events.lock().unwrap().iter()
+    let cancelled = rec
+        .events
+        .lock()
+        .unwrap()
+        .iter()
         .filter(|e| matches!(e, PaymentEvent::PaymentCancelled(c) if c.payment_id == id))
         .count();
     assert_eq!(cancelled, 1, "PaymentCancelled must fire exactly once");
 
     // A second reverse is a no-op (already cancelled).
-    let outcome2 = w.reverse_payment(id, &OkGl { journal: Uuid::new_v4(), post: Uuid::new_v4() }).await.unwrap();
-    assert!(outcome2.idempotent_reuse, "second reverse must be an idempotent no-op");
+    let outcome2 = w
+        .reverse_payment(
+            id,
+            &OkGl {
+                journal: Uuid::new_v4(),
+                post: Uuid::new_v4(),
+            },
+        )
+        .await
+        .unwrap();
+    assert!(
+        outcome2.idempotent_reuse,
+        "second reverse must be an idempotent no-op"
+    );
 }
 
 // ── guarded HTTP surface: tenancy ────────────────────────────────────────────
@@ -183,12 +337,24 @@ struct TestClaims {
 /// Mint an HS256 access token. `company_id = None` models a token that authenticates a user but
 /// carries no tenant — it must not be allowed to move money.
 fn token(company_id: Option<Uuid>) -> String {
-    let claims = TestClaims { sub: "probe-user".into(), exp: 9_999_999_999, company_id };
-    encode(&Header::new(Algorithm::HS256), &claims, &EncodingKey::from_secret(SECRET)).unwrap()
+    let claims = TestClaims {
+        sub: "probe-user".into(),
+        exp: 9_999_999_999,
+        company_id,
+    };
+    encode(
+        &Header::new(Algorithm::HS256),
+        &claims,
+        &EncodingKey::from_secret(SECRET),
+    )
+    .unwrap()
 }
 
 async fn module(pool: &PgPool) -> PaymentModule {
-    PaymentModule::builder().with_database(pool.clone()).build().unwrap()
+    PaymentModule::builder()
+        .with_database(pool.clone())
+        .build()
+        .unwrap()
 }
 fn app(pool: &PgPool, m: &PaymentModule) -> axum::Router {
     create_guarded_payment_routes(m, pool.clone(), CompanyVerifier::hs256(SECRET))
@@ -212,7 +378,9 @@ async fn req_with(
     }
     let resp = app.oneshot(builder.body(b).unwrap()).await.unwrap();
     let status = resp.status();
-    let bytes = axum::body::to_bytes(resp.into_body(), 64 * 1024).await.unwrap();
+    let bytes = axum::body::to_bytes(resp.into_body(), 64 * 1024)
+        .await
+        .unwrap();
     (status, String::from_utf8_lossy(&bytes).to_string())
 }
 
@@ -226,7 +394,12 @@ fn payment_body(number: &str, smuggled_company: Option<Uuid>) -> String {
         r#"{{"paymentNumber":"{}",{}"paymentType":"receive","partyType":"customer","partyId":"{}",
              "postingDate":"2026-07-05","bankAccountId":"{}","partyAccountId":"{}","paidAmount":"100000",
              "allocations":[{{"invoiceRef":"{}","invoiceKind":"sales","amount":"100000"}}]}}"#,
-        number, smuggled, Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4(),
+        number,
+        smuggled,
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+        Uuid::new_v4(),
     )
 }
 
@@ -236,9 +409,19 @@ fn payment_body(number: &str, smuggled_company: Option<Uuid>) -> String {
 async fn guarded_write_rejects_unauthenticated() {
     let pool = pool().await;
     let m = module(&pool).await;
-    let (status, _) =
-        req_with(app(&pool, &m), "POST", "/payment-entries", Some(payment_body(&uq("PE"), None)), None).await;
-    assert_eq!(status, StatusCode::UNAUTHORIZED, "an unauthenticated write must not reach the service");
+    let (status, _) = req_with(
+        app(&pool, &m),
+        "POST",
+        "/payment-entries",
+        Some(payment_body(&uq("PE"), None)),
+        None,
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::UNAUTHORIZED,
+        "an unauthenticated write must not reach the service"
+    );
 }
 
 // IGT-2: a token that authenticates a user but carries no `company_id` claim is rejected — a writer
@@ -248,9 +431,18 @@ async fn guarded_write_rejects_token_without_company_id() {
     let pool = pool().await;
     let m = module(&pool).await;
     let (status, _) = req_with(
-        app(&pool, &m), "POST", "/payment-entries", Some(payment_body(&uq("PE"), None)), Some(token(None)),
-    ).await;
-    assert_eq!(status, StatusCode::UNAUTHORIZED, "a token with no tenant must not write");
+        app(&pool, &m),
+        "POST",
+        "/payment-entries",
+        Some(payment_body(&uq("PE"), None)),
+        Some(token(None)),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::UNAUTHORIZED,
+        "a token with no tenant must not write"
+    );
 }
 
 // IGT-3: a `companyId` smuggled in the body is ignored — the persisted tenant is the token's. This is
@@ -269,15 +461,23 @@ async fn body_company_id_cannot_override_the_token_tenant() {
         "/payment-entries",
         Some(payment_body(&number, Some(attacker_company))),
         Some(token(Some(token_company))),
-    ).await;
+    )
+    .await;
     assert_eq!(status, StatusCode::CREATED, "got: {body}");
 
-    let persisted: Uuid =
-        sqlx::query_scalar("SELECT company_id FROM payment.payment_entries WHERE payment_number = $1")
-            .bind(&number)
-            .fetch_one(&pool)
-            .await
-            .expect("payment row");
-    assert_eq!(persisted, token_company, "tenant must come from the token, not the body");
-    assert_ne!(persisted, attacker_company, "the body's companyId must be ignored");
+    let persisted: Uuid = sqlx::query_scalar(
+        "SELECT company_id FROM payment.payment_entries WHERE payment_number = $1",
+    )
+    .bind(&number)
+    .fetch_one(&pool)
+    .await
+    .expect("payment row");
+    assert_eq!(
+        persisted, token_company,
+        "tenant must come from the token, not the body"
+    );
+    assert_ne!(
+        persisted, attacker_company,
+        "the body's companyId must be ignored"
+    );
 }

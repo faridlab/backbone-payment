@@ -5,70 +5,42 @@
 //! This module provides DTOs for the presentation layer,
 //! with validation and OpenAPI schema support.
 
-pub mod aging_snapshot_dto;
 pub mod aging_bucket_dto;
-pub mod dunning_run_dto;
+pub mod aging_snapshot_dto;
 pub mod dunning_action_dto;
+pub mod dunning_run_dto;
 pub mod mode_of_payment_dto;
-pub mod payment_entry_dto;
 pub mod payment_allocation_dto;
+pub mod payment_entry_dto;
 
 // Re-exports
-pub use aging_snapshot_dto::{
-    CreateAgingSnapshotDto,
-    UpdateAgingSnapshotDto,
-    PatchAgingSnapshotDto,
-    AgingSnapshotResponseDto,
-    AgingSnapshotListResponseDto,
-    AgingSnapshotSummaryDto,
-};
 pub use aging_bucket_dto::{
-    CreateAgingBucketDto,
-    UpdateAgingBucketDto,
-    PatchAgingBucketDto,
-    AgingBucketResponseDto,
-    AgingBucketListResponseDto,
-    AgingBucketSummaryDto,
+    AgingBucketListResponseDto, AgingBucketResponseDto, AgingBucketSummaryDto,
+    CreateAgingBucketDto, PatchAgingBucketDto, UpdateAgingBucketDto,
 };
-pub use dunning_run_dto::{
-    CreateDunningRunDto,
-    UpdateDunningRunDto,
-    PatchDunningRunDto,
-    DunningRunResponseDto,
-    DunningRunListResponseDto,
-    DunningRunSummaryDto,
+pub use aging_snapshot_dto::{
+    AgingSnapshotListResponseDto, AgingSnapshotResponseDto, AgingSnapshotSummaryDto,
+    CreateAgingSnapshotDto, PatchAgingSnapshotDto, UpdateAgingSnapshotDto,
 };
 pub use dunning_action_dto::{
-    CreateDunningActionDto,
-    UpdateDunningActionDto,
-    PatchDunningActionDto,
-    DunningActionResponseDto,
-    DunningActionListResponseDto,
-    DunningActionSummaryDto,
+    CreateDunningActionDto, DunningActionListResponseDto, DunningActionResponseDto,
+    DunningActionSummaryDto, PatchDunningActionDto, UpdateDunningActionDto,
+};
+pub use dunning_run_dto::{
+    CreateDunningRunDto, DunningRunListResponseDto, DunningRunResponseDto, DunningRunSummaryDto,
+    PatchDunningRunDto, UpdateDunningRunDto,
 };
 pub use mode_of_payment_dto::{
-    CreateModeOfPaymentDto,
-    UpdateModeOfPaymentDto,
-    PatchModeOfPaymentDto,
-    ModeOfPaymentResponseDto,
-    ModeOfPaymentListResponseDto,
-    ModeOfPaymentSummaryDto,
-};
-pub use payment_entry_dto::{
-    CreatePaymentEntryDto,
-    UpdatePaymentEntryDto,
-    PatchPaymentEntryDto,
-    PaymentEntryResponseDto,
-    PaymentEntryListResponseDto,
-    PaymentEntrySummaryDto,
+    CreateModeOfPaymentDto, ModeOfPaymentListResponseDto, ModeOfPaymentResponseDto,
+    ModeOfPaymentSummaryDto, PatchModeOfPaymentDto, UpdateModeOfPaymentDto,
 };
 pub use payment_allocation_dto::{
-    CreatePaymentAllocationDto,
-    UpdatePaymentAllocationDto,
-    PatchPaymentAllocationDto,
-    PaymentAllocationResponseDto,
-    PaymentAllocationListResponseDto,
-    PaymentAllocationSummaryDto,
+    CreatePaymentAllocationDto, PatchPaymentAllocationDto, PaymentAllocationListResponseDto,
+    PaymentAllocationResponseDto, PaymentAllocationSummaryDto, UpdatePaymentAllocationDto,
+};
+pub use payment_entry_dto::{
+    CreatePaymentEntryDto, PatchPaymentEntryDto, PaymentEntryListResponseDto,
+    PaymentEntryResponseDto, PaymentEntrySummaryDto, UpdatePaymentEntryDto,
 };
 
 // Common pagination types
@@ -94,8 +66,12 @@ pub struct PaginationParams {
     pub sort_order: Option<String>,
 }
 
-fn default_page() -> u32 { 1 }
-fn default_per_page() -> u32 { 20 }
+fn default_page() -> u32 {
+    1
+}
+fn default_per_page() -> u32 {
+    20
+}
 
 /// API response wrapper
 #[derive(Debug, Clone, Serialize)]
@@ -120,7 +96,11 @@ pub struct ApiError {
 
 impl<T> ApiResponse<T> {
     pub fn ok(data: T) -> Self {
-        Self { success: true, data: Some(data), error: None }
+        Self {
+            success: true,
+            data: Some(data),
+            error: None,
+        }
     }
 
     pub fn err(code: impl Into<String>, message: impl Into<String>) -> Self {

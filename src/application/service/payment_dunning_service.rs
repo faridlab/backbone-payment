@@ -42,7 +42,9 @@ impl std::fmt::Display for PaymentDunningError {
 }
 impl std::error::Error for PaymentDunningError {}
 impl From<sqlx::Error> for PaymentDunningError {
-    fn from(e: sqlx::Error) -> Self { PaymentDunningError::Db(e) }
+    fn from(e: sqlx::Error) -> Self {
+        PaymentDunningError::Db(e)
+    }
 }
 
 #[derive(Clone)]
@@ -53,16 +55,23 @@ pub struct PaymentDunningService {
 
 impl PaymentDunningService {
     pub fn new(db_pool: PgPool, receivables: Arc<dyn BillingReceivablesPort>) -> Self {
-        Self { db_pool, receivables }
+        Self {
+            db_pool,
+            receivables,
+        }
     }
 
     /// Run one aging snapshot: read outstanding, bucket by days-past-due, persist.
     /// Idempotent: the unique (company, as_of, direction) fence means a re-run for the same date
     /// reuses the snapshot.
     pub async fn run_aging_snapshot(
-        &self, company_id: Uuid, direction: &str, as_of: NaiveDate,
+        &self,
+        company_id: Uuid,
+        direction: &str,
+        as_of: NaiveDate,
     ) -> Result<Uuid, PaymentDunningError> {
-        let recs = self.receivables
+        let recs = self
+            .receivables
             .outstanding_for(company_id, direction, as_of)
             .await
             .map_err(PaymentDunningError::Port)?;
@@ -86,28 +95,39 @@ impl PaymentDunningService {
             let idx = bucket_index(dpd);
             totals[idx] += r.outstanding_amount;
 
-            buckets.insert_bucket(&mut *tx, &NewAgingBucketRow {
-                id: Uuid::new_v4(),
-                snapshot_id,
-                company_id,
-                invoice_ref: r.invoice_ref,
-                invoice_kind: &r.invoice_kind,
-                party_id: r.party_id,
-                due_date: due,
-                days_past_due: dpd as i32,
-                outstanding_amount: r.outstanding_amount,
-                bucket: bucket_name(dpd),
-            }).await?;
+            buckets
+                .insert_bucket(
+                    &mut *tx,
+                    &NewAgingBucketRow {
+                        id: Uuid::new_v4(),
+                        snapshot_id,
+                        company_id,
+                        invoice_ref: r.invoice_ref,
+                        invoice_kind: &r.invoice_kind,
+                        party_id: r.party_id,
+                        due_date: due,
+                        days_past_due: dpd as i32,
+                        outstanding_amount: r.outstanding_amount,
+                        bucket: bucket_name(dpd),
+                    },
+                )
+                .await?;
         }
 
-        snapshots.update_totals(&mut *tx, snapshot_id, &AgingTotals {
-            total_outstanding: totals.iter().copied().sum::<Decimal>(),
-            bucket_current: totals[0],
-            bucket_1_30: totals[1],
-            bucket_31_60: totals[2],
-            bucket_61_90: totals[3],
-            bucket_90p: totals[4],
-        }).await?;
+        snapshots
+            .update_totals(
+                &mut *tx,
+                snapshot_id,
+                &AgingTotals {
+                    total_outstanding: totals.iter().copied().sum::<Decimal>(),
+                    bucket_current: totals[0],
+                    bucket_1_30: totals[1],
+                    bucket_31_60: totals[2],
+                    bucket_61_90: totals[3],
+                    bucket_90p: totals[4],
+                },
+            )
+            .await?;
 
         tx.commit().await?;
         Ok(snapshot_id)
@@ -116,9 +136,13 @@ impl PaymentDunningService {
     /// Run one dunning cycle: read outstanding, escalate each overdue invoice by days-past-due,
     /// emit actions (unique on invoice_ref + level → idempotent).
     pub async fn run_dunning(
-        &self, company_id: Uuid, direction: &str, as_of: NaiveDate,
+        &self,
+        company_id: Uuid,
+        direction: &str,
+        as_of: NaiveDate,
     ) -> Result<(Uuid, i32), PaymentDunningError> {
-        let recs = self.receivables
+        let recs = self
+            .receivables
             .outstanding_for(company_id, direction, as_of)
             .await
             .map_err(PaymentDunningError::Port)?;
@@ -137,22 +161,31 @@ impl PaymentDunningService {
         for r in &recs {
             let due = r.due_date.unwrap_or(as_of);
             let dpd = as_of.signed_duration_since(due).num_days();
-            if dpd <= 0 { continue; } // not overdue — no action
+            if dpd <= 0 {
+                continue;
+            } // not overdue — no action
             let (level, action_type) = dunning_level(dpd);
 
-            let inserted = actions.upsert_action(&mut *tx, &NewDunningActionRow {
-                id: Uuid::new_v4(),
-                company_id,
-                run_id,
-                invoice_ref: r.invoice_ref,
-                invoice_kind: &r.invoice_kind,
-                party_id: r.party_id,
-                level,
-                action_type,
-                days_past_due: dpd as i32,
-                outstanding_amount: r.outstanding_amount,
-            }).await?;
-            if inserted > 0 { emitted += 1; }
+            let inserted = actions
+                .upsert_action(
+                    &mut *tx,
+                    &NewDunningActionRow {
+                        id: Uuid::new_v4(),
+                        company_id,
+                        run_id,
+                        invoice_ref: r.invoice_ref,
+                        invoice_kind: &r.invoice_kind,
+                        party_id: r.party_id,
+                        level,
+                        action_type,
+                        days_past_due: dpd as i32,
+                        outstanding_amount: r.outstanding_amount,
+                    },
+                )
+                .await?;
+            if inserted > 0 {
+                emitted += 1;
+            }
         }
 
         runs.set_actions_emitted(&mut *tx, run_id, emitted).await?;
@@ -166,11 +199,11 @@ impl PaymentDunningService {
 
 fn bucket_index(dpd: i64) -> usize {
     match dpd {
-        d if d <= 0 => 0,   // current
+        d if d <= 0 => 0, // current
         1..=30 => 1,
         31..=60 => 2,
         61..=90 => 3,
-        _ => 4,             // 90+
+        _ => 4, // 90+
     }
 }
 

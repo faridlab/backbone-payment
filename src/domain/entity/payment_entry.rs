@@ -1,15 +1,16 @@
-use chrono::{DateTime, Utc, NaiveDate};
+use chrono::{DateTime, NaiveDate, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
-use rust_decimal::Decimal;
 
-use super::PaymentType;
-use super::PaymentPartyType;
-use super::WithholdingTaxType;
-use super::PaymentStatus;
-use super::GlPostingState;
 use super::AuditMetadata;
+use super::GlPostingState;
+use super::PaymentMethod;
+use super::PaymentPartyType;
+use super::PaymentStatus;
+use super::PaymentType;
+use super::WithholdingTaxType;
 
 /// Strongly-typed ID for PaymentEntry
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -17,9 +18,15 @@ use super::AuditMetadata;
 pub struct PaymentEntryId(pub Uuid);
 
 impl PaymentEntryId {
-    pub fn new(id: Uuid) -> Self { Self(id) }
-    pub fn generate() -> Self { Self(Uuid::new_v4()) }
-    pub fn into_inner(self) -> Uuid { self.0 }
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+    pub fn generate() -> Self {
+        Self(Uuid::new_v4())
+    }
+    pub fn into_inner(self) -> Uuid {
+        self.0
+    }
 }
 
 impl std::fmt::Display for PaymentEntryId {
@@ -36,20 +43,28 @@ impl std::str::FromStr for PaymentEntryId {
 }
 
 impl From<Uuid> for PaymentEntryId {
-    fn from(id: Uuid) -> Self { Self(id) }
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
 }
 
 impl From<PaymentEntryId> for Uuid {
-    fn from(id: PaymentEntryId) -> Self { id.0 }
+    fn from(id: PaymentEntryId) -> Self {
+        id.0
+    }
 }
 
 impl AsRef<Uuid> for PaymentEntryId {
-    fn as_ref(&self) -> &Uuid { &self.0 }
+    fn as_ref(&self) -> &Uuid {
+        &self.0
+    }
 }
 
 impl std::ops::Deref for PaymentEntryId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -64,6 +79,8 @@ pub struct PaymentEntry {
     pub posting_date: NaiveDate,
     pub currency: String,
     pub mode_of_payment_id: Option<Uuid>,
+    pub method: PaymentMethod,
+    pub provider_txn_id: Option<Uuid>,
     pub paid_amount: Decimal,
     pub allocated_amount: Decimal,
     pub unallocated_amount: Decimal,
@@ -91,7 +108,23 @@ impl PaymentEntry {
     }
 
     /// Create a new PaymentEntry with required fields
-    pub fn new(payment_number: String, company_id: Uuid, payment_type: PaymentType, posting_date: NaiveDate, currency: String, paid_amount: Decimal, allocated_amount: Decimal, unallocated_amount: Decimal, bank_account_id: Uuid, party_account_id: Uuid, withholding_amount: Decimal, withholding_tax_type: WithholdingTaxType, status: PaymentStatus, posting_state: GlPostingState) -> Self {
+    pub fn new(
+        payment_number: String,
+        company_id: Uuid,
+        payment_type: PaymentType,
+        posting_date: NaiveDate,
+        currency: String,
+        method: PaymentMethod,
+        paid_amount: Decimal,
+        allocated_amount: Decimal,
+        unallocated_amount: Decimal,
+        bank_account_id: Uuid,
+        party_account_id: Uuid,
+        withholding_amount: Decimal,
+        withholding_tax_type: WithholdingTaxType,
+        status: PaymentStatus,
+        posting_state: GlPostingState,
+    ) -> Self {
         Self {
             id: Uuid::new_v4(),
             payment_number,
@@ -103,6 +136,8 @@ impl PaymentEntry {
             posting_date,
             currency,
             mode_of_payment_id: None,
+            method,
+            provider_txn_id: None,
             paid_amount,
             allocated_amount,
             unallocated_amount,
@@ -177,7 +212,6 @@ impl PaymentEntry {
         &self.status
     }
 
-
     // ==========================================================
     // Fluent Setters (with_* for optional fields)
     // ==========================================================
@@ -203,6 +237,12 @@ impl PaymentEntry {
     /// Set the mode_of_payment_id field (chainable)
     pub fn with_mode_of_payment_id(mut self, value: Uuid) -> Self {
         self.mode_of_payment_id = Some(value);
+        self
+    }
+
+    /// Set the provider_txn_id field (chainable)
+    pub fn with_provider_txn_id(mut self, value: Uuid) -> Self {
+        self.provider_txn_id = Some(value);
         self
     }
 
@@ -251,76 +291,134 @@ impl PaymentEntry {
         for (key, value) in fields {
             match key.as_str() {
                 "payment_number" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.payment_number = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.payment_number = v;
+                    }
                 }
                 "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.company_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.company_id = v;
+                    }
                 }
                 "branch_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.branch_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.branch_id = v;
+                    }
                 }
                 "payment_type" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.payment_type = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.payment_type = v;
+                    }
                 }
                 "party_type" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.party_type = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.party_type = v;
+                    }
                 }
                 "party_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.party_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.party_id = v;
+                    }
                 }
                 "posting_date" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.posting_date = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.posting_date = v;
+                    }
                 }
                 "currency" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.currency = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.currency = v;
+                    }
                 }
                 "mode_of_payment_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.mode_of_payment_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.mode_of_payment_id = v;
+                    }
+                }
+                "method" => {
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.method = v;
+                    }
+                }
+                "provider_txn_id" => {
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.provider_txn_id = v;
+                    }
                 }
                 "paid_amount" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.paid_amount = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.paid_amount = v;
+                    }
                 }
                 "allocated_amount" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.allocated_amount = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.allocated_amount = v;
+                    }
                 }
                 "unallocated_amount" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.unallocated_amount = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.unallocated_amount = v;
+                    }
                 }
                 "bank_account_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.bank_account_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.bank_account_id = v;
+                    }
                 }
                 "party_account_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.party_account_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.party_account_id = v;
+                    }
                 }
                 "withholding_amount" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.withholding_amount = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.withholding_amount = v;
+                    }
                 }
                 "withholding_account_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.withholding_account_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.withholding_account_id = v;
+                    }
                 }
                 "withholding_tax_type" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.withholding_tax_type = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.withholding_tax_type = v;
+                    }
                 }
                 "status" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.status = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.status = v;
+                    }
                 }
                 "posting_state" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.posting_state = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.posting_state = v;
+                    }
                 }
                 "journal_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.journal_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.journal_id = v;
+                    }
                 }
                 "accounting_post_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.accounting_post_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.accounting_post_id = v;
+                    }
                 }
                 "posted_at" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.posted_at = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.posted_at = v;
+                    }
                 }
                 "reference_no" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.reference_no = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.reference_no = v;
+                    }
                 }
                 "notes" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.notes = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.notes = v;
+                    }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -380,6 +478,7 @@ impl backbone_orm::EntityRepoMeta for PaymentEntry {
         m.insert("branch_id".to_string(), "uuid".to_string());
         m.insert("party_id".to_string(), "uuid".to_string());
         m.insert("mode_of_payment_id".to_string(), "uuid".to_string());
+        m.insert("provider_txn_id".to_string(), "uuid".to_string());
         m.insert("bank_account_id".to_string(), "uuid".to_string());
         m.insert("party_account_id".to_string(), "uuid".to_string());
         m.insert("withholding_account_id".to_string(), "uuid".to_string());
@@ -387,7 +486,11 @@ impl backbone_orm::EntityRepoMeta for PaymentEntry {
         m.insert("accounting_post_id".to_string(), "uuid".to_string());
         m.insert("payment_type".to_string(), "payment_type".to_string());
         m.insert("party_type".to_string(), "payment_party_type".to_string());
-        m.insert("withholding_tax_type".to_string(), "withholding_tax_type".to_string());
+        m.insert("method".to_string(), "payment_method".to_string());
+        m.insert(
+            "withholding_tax_type".to_string(),
+            "withholding_tax_type".to_string(),
+        );
         m.insert("status".to_string(), "payment_status".to_string());
         m.insert("posting_state".to_string(), "gl_posting_state".to_string());
         m
@@ -415,6 +518,8 @@ pub struct PaymentEntryBuilder {
     posting_date: Option<NaiveDate>,
     currency: Option<String>,
     mode_of_payment_id: Option<Uuid>,
+    method: Option<PaymentMethod>,
+    provider_txn_id: Option<Uuid>,
     paid_amount: Option<Decimal>,
     allocated_amount: Option<Decimal>,
     unallocated_amount: Option<Decimal>,
@@ -484,6 +589,18 @@ impl PaymentEntryBuilder {
     /// Set the mode_of_payment_id field (optional)
     pub fn mode_of_payment_id(mut self, value: Uuid) -> Self {
         self.mode_of_payment_id = Some(value);
+        self
+    }
+
+    /// Set the method field (default: `PaymentMethod::default()`)
+    pub fn method(mut self, value: PaymentMethod) -> Self {
+        self.method = Some(value);
+        self
+    }
+
+    /// Set the provider_txn_id field (optional)
+    pub fn provider_txn_id(mut self, value: Uuid) -> Self {
+        self.provider_txn_id = Some(value);
         self
     }
 
@@ -581,13 +698,27 @@ impl PaymentEntryBuilder {
     ///
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<PaymentEntry, String> {
-        let payment_number = self.payment_number.ok_or_else(|| "payment_number is required".to_string())?;
-        let company_id = self.company_id.ok_or_else(|| "company_id is required".to_string())?;
-        let payment_type = self.payment_type.ok_or_else(|| "payment_type is required".to_string())?;
-        let posting_date = self.posting_date.ok_or_else(|| "posting_date is required".to_string())?;
-        let paid_amount = self.paid_amount.ok_or_else(|| "paid_amount is required".to_string())?;
-        let bank_account_id = self.bank_account_id.ok_or_else(|| "bank_account_id is required".to_string())?;
-        let party_account_id = self.party_account_id.ok_or_else(|| "party_account_id is required".to_string())?;
+        let payment_number = self
+            .payment_number
+            .ok_or_else(|| "payment_number is required".to_string())?;
+        let company_id = self
+            .company_id
+            .ok_or_else(|| "company_id is required".to_string())?;
+        let payment_type = self
+            .payment_type
+            .ok_or_else(|| "payment_type is required".to_string())?;
+        let posting_date = self
+            .posting_date
+            .ok_or_else(|| "posting_date is required".to_string())?;
+        let paid_amount = self
+            .paid_amount
+            .ok_or_else(|| "paid_amount is required".to_string())?;
+        let bank_account_id = self
+            .bank_account_id
+            .ok_or_else(|| "bank_account_id is required".to_string())?;
+        let party_account_id = self
+            .party_account_id
+            .ok_or_else(|| "party_account_id is required".to_string())?;
 
         Ok(PaymentEntry {
             id: Uuid::new_v4(),
@@ -600,6 +731,8 @@ impl PaymentEntryBuilder {
             posting_date,
             currency: self.currency.unwrap_or("IDR".to_string()),
             mode_of_payment_id: self.mode_of_payment_id,
+            method: self.method.unwrap_or_default(),
+            provider_txn_id: self.provider_txn_id,
             paid_amount,
             allocated_amount: self.allocated_amount.unwrap_or(Decimal::from(0)),
             unallocated_amount: self.unallocated_amount.unwrap_or(Decimal::from(0)),

@@ -8,9 +8,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use axum::Router;
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use rust_decimal::Decimal;
 
 // Backbone framework imports
 use backbone_core::http::BackboneCrudHandler;
@@ -22,12 +22,14 @@ use backbone_auth::middleware::AuthContext;
 use backbone_auth::AuthMiddleware;
 
 // Domain imports
-use crate::domain::entity::*;
 use crate::application::service::{PaymentAllocationService, ServiceError};
+use crate::domain::entity::*;
 
 // DTO imports
-use crate::presentation::dto::{CreatePaymentAllocationDto, UpdatePaymentAllocationDto, PatchPaymentAllocationDto, PaymentAllocationResponseDto};
-
+use crate::presentation::dto::{
+    CreatePaymentAllocationDto, PatchPaymentAllocationDto, PaymentAllocationResponseDto,
+    UpdatePaymentAllocationDto,
+};
 
 /// Application error type
 #[derive(Debug, thiserror::Error)]
@@ -61,9 +63,18 @@ impl axum::response::IntoResponse for PaymentAllocationError {
 
         let (status, code) = match &self {
             Self::NotFound(_) => (StatusCode::NOT_FOUND, "PAYMENTALLOCATION_NOT_FOUND"),
-            Self::Validation(_) => (StatusCode::BAD_REQUEST, "PAYMENTALLOCATION_VALIDATION_ERROR"),
-            Self::Database(_) => (StatusCode::INTERNAL_SERVER_ERROR, "PAYMENTALLOCATION_DATABASE_ERROR"),
-            Self::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, "PAYMENTALLOCATION_INTERNAL_ERROR"),
+            Self::Validation(_) => (
+                StatusCode::BAD_REQUEST,
+                "PAYMENTALLOCATION_VALIDATION_ERROR",
+            ),
+            Self::Database(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "PAYMENTALLOCATION_DATABASE_ERROR",
+            ),
+            Self::Internal(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "PAYMENTALLOCATION_INTERNAL_ERROR",
+            ),
         };
 
         let body = serde_json::json!({
@@ -109,10 +120,13 @@ impl axum::response::IntoResponse for PaymentAllocationError {
 /// let router = create_payment_allocation_routes(service);
 /// ```
 pub fn create_payment_allocation_routes(service: Arc<PaymentAllocationService>) -> Router {
-    BackboneCrudHandler::<PaymentAllocationService, PaymentAllocation, CreatePaymentAllocationDto, UpdatePaymentAllocationDto, PaymentAllocationResponseDto>::routes(
-        service,
-        "/payment_allocations",
-    )
+    BackboneCrudHandler::<
+        PaymentAllocationService,
+        PaymentAllocation,
+        CreatePaymentAllocationDto,
+        UpdatePaymentAllocationDto,
+        PaymentAllocationResponseDto,
+    >::routes(service, "/payment_allocations")
 }
 
 /// Create Axum router with only the read (GET) endpoints for PaymentAllocation.
@@ -121,10 +135,13 @@ pub fn create_payment_allocation_routes(service: Arc<PaymentAllocationService>) 
 /// Mutations must be served separately via `create_payment_allocation_write_routes`,
 /// typically wrapped in an auth middleware layer.
 pub fn create_payment_allocation_read_routes(service: Arc<PaymentAllocationService>) -> Router {
-    BackboneCrudHandler::<PaymentAllocationService, PaymentAllocation, CreatePaymentAllocationDto, UpdatePaymentAllocationDto, PaymentAllocationResponseDto>::read_routes(
-        service,
-        "/payment_allocations",
-    )
+    BackboneCrudHandler::<
+        PaymentAllocationService,
+        PaymentAllocation,
+        CreatePaymentAllocationDto,
+        UpdatePaymentAllocationDto,
+        PaymentAllocationResponseDto,
+    >::read_routes(service, "/payment_allocations")
 }
 
 /// Create Axum router with only the write (mutation) endpoints for PaymentAllocation.
@@ -139,10 +156,13 @@ pub fn create_payment_allocation_read_routes(service: Arc<PaymentAllocationServi
 /// service (e.g. a command router over its domain engine), serve THAT instead
 /// for any mutation that must respect domain rules.
 pub fn create_payment_allocation_write_routes(service: Arc<PaymentAllocationService>) -> Router {
-    BackboneCrudHandler::<PaymentAllocationService, PaymentAllocation, CreatePaymentAllocationDto, UpdatePaymentAllocationDto, PaymentAllocationResponseDto>::write_routes(
-        service,
-        "/payment_allocations",
-    )
+    BackboneCrudHandler::<
+        PaymentAllocationService,
+        PaymentAllocation,
+        CreatePaymentAllocationDto,
+        UpdatePaymentAllocationDto,
+        PaymentAllocationResponseDto,
+    >::write_routes(service, "/payment_allocations")
 }
 
 /// Create authenticated routes with auth middleware.
@@ -159,30 +179,35 @@ pub fn create_protected_payment_allocation_routes<A: AuthMiddleware + Send + Syn
     use axum::response::IntoResponse;
 
     let auth_layer = auth.clone();
-    create_payment_allocation_routes(service)
-        .layer(middleware::from_fn(move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+    create_payment_allocation_routes(service).layer(middleware::from_fn(
+        move |mut req: axum::extract::Request, next: axum::middleware::Next| {
             let auth = auth_layer.clone();
             async move {
-                let token = req.headers()
+                let token = req
+                    .headers()
                     .get(axum::http::header::AUTHORIZATION)
                     .and_then(|h| h.to_str().ok())
-                    .and_then(|raw| raw.strip_prefix("Bearer ").or_else(|| raw.strip_prefix("bearer ")))
+                    .and_then(|raw| {
+                        raw.strip_prefix("Bearer ")
+                            .or_else(|| raw.strip_prefix("bearer "))
+                    })
                     .unwrap_or("");
                 match auth.authenticate(token).await {
                     Ok(ctx) => {
                         req.extensions_mut().insert(ctx);
                         next.run(req).await
                     }
-                    Err(_) => {
-                        (axum::http::StatusCode::UNAUTHORIZED,
-                         axum::Json(serde_json::json!({
-                             "success": false,
-                             "error": "unauthorized",
-                             "message": "Authentication required"
-                         }))
-                        ).into_response()
-                    }
+                    Err(_) => (
+                        axum::http::StatusCode::UNAUTHORIZED,
+                        axum::Json(serde_json::json!({
+                            "success": false,
+                            "error": "unauthorized",
+                            "message": "Authentication required"
+                        })),
+                    )
+                        .into_response(),
                 }
             }
-        }))
+        },
+    ))
 }

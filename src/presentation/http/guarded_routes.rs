@@ -26,12 +26,24 @@ use crate::PaymentModule;
 use super::{create_mode_of_payment_read_routes, create_payment_entry_read_routes};
 
 #[derive(Debug, Serialize)]
-struct ErrorBody { error: String, message: String }
+struct ErrorBody {
+    error: String,
+    message: String,
+}
 #[derive(Debug, Serialize)]
-struct IdResponse { id: Uuid }
+struct IdResponse {
+    id: Uuid,
+}
 fn err(e: PaymentError) -> axum::response::Response {
     let s = StatusCode::from_u16(e.http_status()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-    (s, Json(ErrorBody { error: e.code(), message: e.to_string() })).into_response()
+    (
+        s,
+        Json(ErrorBody {
+            error: e.code(),
+            message: e.to_string(),
+        }),
+    )
+        .into_response()
 }
 
 #[derive(Debug, Deserialize)]
@@ -43,7 +55,11 @@ struct AllocationBody {
 }
 impl From<AllocationBody> for NewAllocation {
     fn from(b: AllocationBody) -> Self {
-        NewAllocation { invoice_ref: b.invoice_ref, invoice_kind: b.invoice_kind, amount: b.amount }
+        NewAllocation {
+            invoice_ref: b.invoice_ref,
+            invoice_kind: b.invoice_kind,
+            amount: b.amount,
+        }
     }
 }
 
@@ -55,16 +71,28 @@ struct CreatePaymentBody {
     // never from the request body — a client must not be able to name the company whose bank/party
     // accounts it moves money against.
     payment_type: String,
-    #[serde(default)] party_type: Option<String>,
-    #[serde(default)] party_id: Option<Uuid>,
+    #[serde(default)]
+    party_type: Option<String>,
+    #[serde(default)]
+    party_id: Option<Uuid>,
     posting_date: chrono::NaiveDate,
-    #[serde(default)] currency: Option<String>,
-    #[serde(default)] mode_of_payment_id: Option<Uuid>,
+    #[serde(default)]
+    currency: Option<String>,
+    #[serde(default)]
+    mode_of_payment_id: Option<Uuid>,
+    /// "manual" | "bank_transfer" | "cash" | "cheque" | "gateway" — the channel that decides the
+    /// post's landing state. Absent = manual.
+    #[serde(default)]
+    method: Option<String>,
+    #[serde(default)]
+    provider_txn_id: Option<Uuid>,
     bank_account_id: Uuid,
     party_account_id: Uuid,
     paid_amount: Decimal,
-    #[serde(default)] reference_no: Option<String>,
-    #[serde(default)] allocations: Vec<AllocationBody>,
+    #[serde(default)]
+    reference_no: Option<String>,
+    #[serde(default)]
+    allocations: Vec<AllocationBody>,
 }
 async fn create_payment(
     State(svc): State<Arc<PaymentWriteService>>,
@@ -72,10 +100,20 @@ async fn create_payment(
     Json(b): Json<CreatePaymentBody>,
 ) -> axum::response::Response {
     let p = NewPayment {
-        payment_number: b.payment_number, company_id: tenant.company_id, branch_id: tenant.branch_id,
-        payment_type: b.payment_type, party_type: b.party_type, party_id: b.party_id,
-        posting_date: b.posting_date, currency: b.currency, mode_of_payment_id: b.mode_of_payment_id,
-        bank_account_id: b.bank_account_id, party_account_id: b.party_account_id, paid_amount: b.paid_amount,
+        payment_number: b.payment_number,
+        company_id: tenant.company_id,
+        branch_id: tenant.branch_id,
+        payment_type: b.payment_type,
+        party_type: b.party_type,
+        party_id: b.party_id,
+        posting_date: b.posting_date,
+        currency: b.currency,
+        mode_of_payment_id: b.mode_of_payment_id,
+        method: b.method,
+        provider_txn_id: b.provider_txn_id,
+        bank_account_id: b.bank_account_id,
+        party_account_id: b.party_account_id,
+        paid_amount: b.paid_amount,
         reference_no: b.reference_no,
         allocations: b.allocations.into_iter().map(Into::into).collect(),
         withholding_amount: rust_decimal::Decimal::ZERO,
@@ -88,9 +126,36 @@ async fn create_payment(
     }
 }
 
+// The hand lifecycle verbs. There is deliberately NO route that writes `status` directly — the
+// fused state machine's writers are exactly: submit, post (computes the landing), reject, reverse,
+// and the bank-confirmation consumer. A PATCH-status route would hand callers a fifth writer and
+// undo that contract.
+async fn submit_payment(
+    State(svc): State<Arc<PaymentWriteService>>,
+    tenant: CompanyContext,
+    axum::extract::Path(payment_id): axum::extract::Path<Uuid>,
+) -> axum::response::Response {
+    match svc.submit_payment(tenant.company_id, payment_id).await {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(e) => err(e),
+    }
+}
+async fn reject_payment(
+    State(svc): State<Arc<PaymentWriteService>>,
+    tenant: CompanyContext,
+    axum::extract::Path(payment_id): axum::extract::Path<Uuid>,
+) -> axum::response::Response {
+    match svc.reject_payment(tenant.company_id, payment_id).await {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(e) => err(e),
+    }
+}
+
 fn write_routes(svc: Arc<PaymentWriteService>, verifier: CompanyVerifier) -> Router {
     Router::new()
         .route("/payment-entries", post(create_payment))
+        .route("/payment-entries/:id/submit", post(submit_payment))
+        .route("/payment-entries/:id/reject", post(reject_payment))
         // Every write above is tenant-scoped: `company_auth` rejects a request whose token is absent,
         // invalid, or carries no `company_id`, so a handler only ever runs with a proven tenant.
         //
@@ -118,10 +183,14 @@ pub fn create_guarded_payment_routes(
     // `company_scope::fetch_*_scoped`, which rides it, so RLS returns only the caller's rows). mode_of_
     // payment is GLOBAL reference data (no company_id, no RLS) — it stays public, unwrapped.
     let entity_reads = Router::new()
-        .merge(create_payment_entry_read_routes(m.payment_entry_service.clone()))
+        .merge(create_payment_entry_read_routes(
+            m.payment_entry_service.clone(),
+        ))
         .route_layer(from_fn_with_state(verifier.clone(), company_auth));
     Router::new()
-        .merge(create_mode_of_payment_read_routes(m.mode_of_payment_service.clone()))
+        .merge(create_mode_of_payment_read_routes(
+            m.mode_of_payment_service.clone(),
+        ))
         .merge(entity_reads)
         .merge(write_routes(write, verifier))
 }

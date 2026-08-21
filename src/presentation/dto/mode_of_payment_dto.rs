@@ -5,9 +5,9 @@
 //! DTOs provide a clean separation between domain entities and API
 //! representations, with validation and OpenAPI documentation support.
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 #[cfg(feature = "openapi")]
 #[cfg(feature = "openapi")]
@@ -16,8 +16,8 @@ use utoipa::ToSchema;
 #[cfg(feature = "validation")]
 use validator::Validate;
 
-use crate::domain::entity::ModeOfPayment;
 use crate::domain::entity::AuditMetadata;
+use crate::domain::entity::ModeOfPayment;
 use crate::domain::entity::ModeOfPaymentStatus;
 use crate::domain::entity::ModeType;
 
@@ -42,7 +42,11 @@ pub struct CreateModeOfPaymentDto {
     pub name: String,
     #[serde(alias = "mode_type")]
     pub mode_type: ModeType,
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "default_account_id")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "default_account_id"
+    )]
     pub default_account_id: Option<Uuid>,
     pub status: ModeOfPaymentStatus,
 }
@@ -68,7 +72,11 @@ pub struct UpdateModeOfPaymentDto {
     pub name: String,
     #[serde(alias = "mode_type")]
     pub mode_type: ModeType,
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "default_account_id")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "default_account_id"
+    )]
     pub default_account_id: Option<Uuid>,
     pub status: ModeOfPaymentStatus,
 }
@@ -105,7 +113,11 @@ pub struct PatchModeOfPaymentDto {
 impl PatchModeOfPaymentDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.code.is_some() || self.name.is_some() || self.mode_type.is_some() || self.default_account_id.is_some() || self.status.is_some()
+        self.code.is_some()
+            || self.name.is_some()
+            || self.mode_type.is_some()
+            || self.default_account_id.is_some()
+            || self.status.is_some()
     }
 }
 
@@ -121,7 +133,10 @@ impl PatchModeOfPaymentDto {
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct ModeOfPaymentResponseDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     pub id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub code: String,
