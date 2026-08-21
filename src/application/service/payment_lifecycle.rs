@@ -81,16 +81,21 @@ impl BankReconcilablePort for AccountingReconcilableRead {
                     .into(),
             ));
         }
-        // RLS note: `with_company_scope` here, not a tx — this read precedes the post unit of work;
-        // `fetch_optional_row_scoped` rides the company scope (ADR-0008).
+        // RLS note: this read precedes the post unit of work, so it cannot ride the caller's tx —
+        // `fetch_optional_row_scoped` opens its own short tx and binds `app.company_id` there
+        // (ADR-0008). A plain pool fetch would skip the bind entirely: `with_company_scope` is only
+        // a task-local, and the RLS fence on accounting.accounts then filters every row out, which
+        // reads as "account absent" and refuses the post of an otherwise valid payment.
         let row = company_scope::with_company_scope(
             Some(company_id),
-            sqlx::query(
-                "SELECT is_reconcilable FROM accounting.accounts WHERE id=$1 AND company_id=$2",
-            )
-            .bind(account_id)
-            .bind(company_id)
-            .fetch_optional(pool),
+            company_scope::fetch_optional_row_scoped(
+                pool,
+                sqlx::query(
+                    "SELECT is_reconcilable FROM accounting.accounts WHERE id=$1 AND company_id=$2",
+                )
+                .bind(account_id)
+                .bind(company_id),
+            ),
         )
         .await
         .map_err(PaymentError::Db)?;
