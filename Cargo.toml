@@ -1,6 +1,6 @@
 [package]
 name = "backbone-payment"
-version = "0.8.4"
+version = "0.8.6"
 edition = "2021"
 description = "Settlement & reconciliation — payment entries, allocation, modes of payment; 4th GL producer (Dr Bank·Cr A/R / Dr A/P·Cr Bank)"
 
@@ -17,19 +17,19 @@ path = "src/lib.rs"
 # or `rev = "<commit-sha>"`. Cargo dedupes the git fetch — the repo is only
 # cloned once even though four crates reference it.
 # -----------------------------------------------------------------------------
-backbone-core = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.16", features = ["postgres"] }
-backbone-orm = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.16" }
-backbone-auth = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.16", features = ["axum"] }
-backbone-messaging = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.16" }
+backbone-core = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.17", features = ["postgres"] }
+backbone-orm = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.17" }
+backbone-auth = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.17", features = ["axum"] }
+backbone-messaging = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.17" }
 # The GL-posting wire contract (envelope + sink port) — shared across producers (ADR-0011 §6 / phase 1).
 # backbone-gl-posting 0.1.0 shipped on backbone-framework v2.7.5; payment_gl.rs re-exports it. Standalone
 # crate (serde + primitives), so it never conflicts with the git-pinned v2.7.1 framework crates.
-backbone-gl-posting = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.16" }
+backbone-gl-posting = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.17" }
 # Go-live durable bus: the producer stages `PaymentSettled` into its outbox in the posted-transition tx
 # (crash-safe emission). multi_tenant (the company-RLS fence + relay bypass, ADR-0011) shipped on
 # backbone-framework v2.7.4 (backbone-outbox 0.2.0). Standalone crate, so it never conflicts with the
 # git-pinned v2.7.1 framework crates.
-backbone-outbox = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.16", features = ["multi_tenant"] }
+backbone-outbox = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.17", features = ["multi_tenant"] }
 
 # Core async runtime and serialization
 tokio = { version = "1.0", features = ["full"] }
@@ -106,5 +106,5 @@ rand = "0.8"
 # place (cargo still resolves the original source first), so between a sibling's release commit and
 # its pushed tag these pins stay on the last-existing tags and local runs ride the patch. Flip them
 # to the new tags in the same push that announces the sibling release.
-backbone-accounting = { git = "https://github.com/faridlab/backbone-accounting", tag = "v0.6.9" }
-backbone-billing = { git = "https://github.com/faridlab/backbone-billing", tag = "v0.5.6" }
+backbone-accounting = { git = "https://github.com/faridlab/backbone-accounting", tag = "v0.6.10" }
+backbone-billing = { git = "https://github.com/faridlab/backbone-billing", tag = "v0.5.7" }
