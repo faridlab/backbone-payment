@@ -274,9 +274,9 @@ async fn seed_coa(pool: &PgPool) -> (Uuid, HashMap<&'static str, Uuid>) {
     let mut m = HashMap::new();
     for (code, name, at, st, nb, rec) in coa {
         let id = Uuid::new_v4();
-        sqlx::query(r#"INSERT INTO accounting.accounts (id, company_id, account_number, account_code, name, account_type, account_subtype, normal_balance, is_header, is_detail, is_reconcilable, status)
-            VALUES ($1,$2,$3,$4,$5,$6::account_type,$7::account_subtype,$8::normal_balance,false,true,$9,'active'::account_status)"#)
-            .bind(id).bind(company).bind(code).bind(code).bind(name).bind(at).bind(st).bind(nb).bind(rec)
+        sqlx::query(r#"INSERT INTO accounting.accounts (id, account_number, account_code, name, account_type, account_subtype, normal_balance, is_header, is_detail, is_reconcilable, status)
+            VALUES ($1,$2,$3,$4,$5::account_type,$6::account_subtype,$7::normal_balance,false,true,$8,'active'::account_status)"#)
+            .bind(id).bind(code).bind(code).bind(name).bind(at).bind(st).bind(nb).bind(rec)
             .execute(pool).await.expect("seed acct");
         m.insert(*code, id);
     }
@@ -289,10 +289,17 @@ async fn outstanding(pool: &PgPool, id: Uuid) -> Decimal {
         .await
         .unwrap()
 }
-/// Σ settlement edges + their count for the company — the graph-side twin of `outstanding`.
-async fn settlement_edges(pool: &PgPool, company: Uuid) -> (Decimal, i64) {
-    sqlx::query_as("SELECT COALESCE(SUM(amount),0), COUNT(*) FROM accounting.partial_reconciles WHERE company_id=$1 AND origin='settlement'")
-        .bind(company).fetch_one(pool).await.unwrap()
+/// The test's COA account ids — the per-test separator on the tenant-agnostic accounting tables
+/// (ADR-0029); parallel tests in the shared scratch database never cross-count.
+fn coa_ids(coa: &HashMap<&str, Uuid>) -> Vec<Uuid> {
+    coa.values().copied().collect()
+}
+/// Σ settlement edges + their count for this test's accounts — the graph-side twin of `outstanding`.
+async fn settlement_edges(pool: &PgPool, accounts: &[Uuid]) -> (Decimal, i64) {
+    sqlx::query_as("SELECT COALESCE(SUM(amount),0), COUNT(*) FROM accounting.partial_reconciles WHERE origin='settlement' \
+                    AND (debit_move_id IN (SELECT id FROM accounting.journal_lines WHERE account_id = ANY($1)) \
+                      OR credit_move_id IN (SELECT id FROM accounting.journal_lines WHERE account_id = ANY($1)))")
+        .bind(accounts).fetch_one(pool).await.unwrap()
 }
 
 /// SBSEAM-1 — the settlement seam routed through the durable outbox: crash-safe + redelivery-deduped.
@@ -412,7 +419,7 @@ async fn settlement_through_outbox_is_exactly_once() {
         "settlement applied once via REAL billing"
     );
     assert_eq!(
-        settlement_edges(&pool, company).await,
+        settlement_edges(&pool, &coa_ids(&coa)).await,
         (d("600000.00"), 1),
         "the consume also wrote the graph edge — subledger and ledger moved together"
     );
@@ -435,7 +442,7 @@ async fn settlement_through_outbox_is_exactly_once() {
         "redelivery deduped at the inbox — the settlement did NOT double-draw (exactly-once)"
     );
     assert_eq!(
-        settlement_edges(&pool, company).await,
+        settlement_edges(&pool, &coa_ids(&coa)).await,
         (d("600000.00"), 1),
         "exactly-once extends to the graph — no second edge from the redelivery"
     );

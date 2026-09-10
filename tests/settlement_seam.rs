@@ -274,9 +274,9 @@ async fn seed_coa(pool: &PgPool) -> (Uuid, HashMap<&'static str, Uuid>) {
     let mut m = HashMap::new();
     for (code, name, at, st, nb, rec) in coa {
         let id = Uuid::new_v4();
-        sqlx::query(r#"INSERT INTO accounting.accounts (id, company_id, account_number, account_code, name, account_type, account_subtype, normal_balance, is_header, is_detail, is_reconcilable, status)
-            VALUES ($1,$2,$3,$4,$5,$6::account_type,$7::account_subtype,$8::normal_balance,false,true,$9,'active'::account_status)"#)
-            .bind(id).bind(company).bind(code).bind(code).bind(name).bind(at).bind(st).bind(nb).bind(rec)
+        sqlx::query(r#"INSERT INTO accounting.accounts (id, account_number, account_code, name, account_type, account_subtype, normal_balance, is_header, is_detail, is_reconcilable, status)
+            VALUES ($1,$2,$3,$4,$5::account_type,$6::account_subtype,$7::normal_balance,false,true,$8,'active'::account_status)"#)
+            .bind(id).bind(code).bind(code).bind(name).bind(at).bind(st).bind(nb).bind(rec)
             .execute(pool).await.expect("seed acct");
         m.insert(*code, id);
     }
@@ -312,16 +312,25 @@ async fn sched(pool: &PgPool, inv: Uuid, no: i32) -> (Decimal, String) {
 // payment adds a sign-flipped mirror journal with the SAME source identity (the original line is
 // the non-reversing one) — same disambiguation the graph's own line locators make.
 
-/// Σ settlement edges + their count for the company.
-async fn settlement_edges(pool: &PgPool, company: Uuid) -> (Decimal, i64) {
-    sqlx::query_as("SELECT COALESCE(SUM(amount),0), COUNT(*) FROM accounting.partial_reconciles WHERE company_id=$1 AND origin='settlement'")
-        .bind(company).fetch_one(pool).await.unwrap()
+/// The test's COA account ids — the per-test separator on the tenant-agnostic accounting tables
+/// (ADR-0029): every journal line this test posts references one of these freshly seeded ids, so
+/// parallel tests in the shared scratch database never cross-count.
+fn coa_ids(coa: &HashMap<&str, Uuid>) -> Vec<Uuid> {
+    coa.values().copied().collect()
+}
+/// Σ settlement edges + their count for this test's accounts.
+async fn settlement_edges(pool: &PgPool, accounts: &[Uuid]) -> (Decimal, i64) {
+    sqlx::query_as("SELECT COALESCE(SUM(amount),0), COUNT(*) FROM accounting.partial_reconciles WHERE origin='settlement' \
+                    AND (debit_move_id IN (SELECT id FROM accounting.journal_lines WHERE account_id = ANY($1)) \
+                      OR credit_move_id IN (SELECT id FROM accounting.journal_lines WHERE account_id = ANY($1)))")
+        .bind(accounts).fetch_one(pool).await.unwrap()
 }
 /// The control-account ORIGINAL (non-reversing) line's residual — its signed amount minus every
 /// partial touching it. This is the authoritative "still owed / still unapplied" read.
+/// Isolation comes from the account + source ids, both freshly minted per test.
 async fn residual(
     pool: &PgPool,
-    company: Uuid,
+    _company: Uuid,
     source_type: &str,
     source_id: Uuid,
     account: Uuid,
@@ -331,29 +340,30 @@ async fn residual(
                  - COALESCE((SELECT SUM(p.amount) FROM accounting.partial_reconciles p WHERE p.debit_move_id=l.id),0)
                  - COALESCE((SELECT SUM(p.amount) FROM accounting.partial_reconciles p WHERE p.credit_move_id=l.id),0)
              FROM accounting.journal_lines l JOIN accounting.journals j ON j.id=l.journal_id
-            WHERE l.company_id=$1 AND l.source_type=$2 AND l.source_id=$3 AND l.account_id=$4
+            WHERE l.source_type=$1 AND l.source_id=$2 AND l.account_id=$3
               AND l.is_posted AND j.is_reversing=false"#,
     )
-    .bind(company).bind(source_type).bind(source_id).bind(account)
+    .bind(source_type).bind(source_id).bind(account)
     .fetch_one(pool).await.unwrap()
 }
 async fn line_reconciled(
     pool: &PgPool,
-    company: Uuid,
+    _company: Uuid,
     source_type: &str,
     source_id: Uuid,
     account: Uuid,
 ) -> (bool, Option<Uuid>) {
     sqlx::query_as(
         "SELECT l.is_reconciled, l.full_reconcile_id FROM accounting.journal_lines l JOIN accounting.journals j ON j.id=l.journal_id \
-         WHERE l.company_id=$1 AND l.source_type=$2 AND l.source_id=$3 AND l.account_id=$4 AND l.is_posted AND j.is_reversing=false",
+         WHERE l.source_type=$1 AND l.source_id=$2 AND l.account_id=$3 AND l.is_posted AND j.is_reversing=false",
     )
-    .bind(company).bind(source_type).bind(source_id).bind(account)
+    .bind(source_type).bind(source_id).bind(account)
     .fetch_one(pool).await.unwrap()
 }
-async fn full_groups(pool: &PgPool, company: Uuid) -> i64 {
-    sqlx::query_scalar("SELECT COUNT(*) FROM accounting.full_reconciles WHERE company_id=$1")
-        .bind(company)
+async fn full_groups(pool: &PgPool, accounts: &[Uuid]) -> i64 {
+    sqlx::query_scalar("SELECT COUNT(*) FROM accounting.full_reconciles WHERE id IN \
+                       (SELECT full_reconcile_id FROM accounting.journal_lines WHERE account_id = ANY($1) AND full_reconcile_id IS NOT NULL)")
+        .bind(accounts)
         .fetch_one(pool)
         .await
         .unwrap()
@@ -420,7 +430,7 @@ async fn settlement_across_three_modules() {
         (d("1000000.00"), "submitted".to_string())
     );
     // Nothing reconciled yet: no edges, the A/R debit fully open.
-    assert_eq!(settlement_edges(&pool, company).await, (Decimal::ZERO, 0));
+    assert_eq!(settlement_edges(&pool, &coa_ids(&coa)).await, (Decimal::ZERO, 0));
     assert_eq!(
         residual(&pool, company, "order", inv, coa["1200"]).await,
         d("1000000.00")
@@ -476,7 +486,7 @@ async fn settlement_across_three_modules() {
     // Graph: exactly one settlement edge of 600k. The payment's credit line is fully consumed
     // (residual 0) but the INVOICE line still carries 400k — partial, so the component is not
     // all-zero: NO full group yet and no line flagged.
-    assert_eq!(settlement_edges(&pool, company).await, (d("600000.00"), 1));
+    assert_eq!(settlement_edges(&pool, &coa_ids(&coa)).await, (d("600000.00"), 1));
     assert_eq!(
         residual(&pool, company, "order", inv, coa["1200"]).await,
         d("400000.00")
@@ -485,11 +495,11 @@ async fn settlement_across_three_modules() {
         residual(&pool, company, "payment", pay_a, coa["1200"]).await,
         Decimal::ZERO
     );
-    assert_eq!(full_groups(&pool, company).await, 0);
+    assert_eq!(full_groups(&pool, &coa_ids(&coa)).await, 0);
     // The seam's invariant: outstanding == grand_total − Σ settlement edges.
     assert_eq!(
         d("400000.00"),
-        d("1000000.00") - settlement_edges(&pool, company).await.0
+        d("1000000.00") - settlement_edges(&pool, &coa_ids(&coa)).await.0
     );
 
     // 4) payment B: receive the remaining 400,000, settle → invoice fully paid + full reconcile.
@@ -535,7 +545,7 @@ async fn settlement_across_three_modules() {
     );
     // Graph: one edge per payment (600k + 400k); the invoice line and BOTH payment lines are
     // consumed into ONE full-reconcile group — every A/R line of the chain stamped + flagged.
-    let (sum, n) = settlement_edges(&pool, company).await;
+    let (sum, n) = settlement_edges(&pool, &coa_ids(&coa)).await;
     assert_eq!(
         (sum, n),
         (d("1000000.00"), 2),
@@ -559,7 +569,7 @@ async fn settlement_across_three_modules() {
     let (ra, fa) = line_reconciled(&pool, company, "payment", pay_a, coa["1200"]).await;
     assert!(ra);
     assert_eq!(fa, Some(group), "both payment lines join the SAME group");
-    assert_eq!(full_groups(&pool, company).await, 1);
+    assert_eq!(full_groups(&pool, &coa_ids(&coa)).await, 1);
 }
 
 /// Route each `PaymentSettled` allocation → billing.apply_settlement (CLAMP + graph edge). Returns
@@ -717,8 +727,8 @@ async fn reverse_payment_restores_invoice_and_is_idempotent() {
         (d("0.00"), "paid".to_string())
     );
     // Fully reconciled before the reverse: one settlement edge, one group, both lines flagged.
-    assert_eq!(settlement_edges(&pool, company).await, (d("1000000.00"), 1));
-    assert_eq!(full_groups(&pool, company).await, 1);
+    assert_eq!(settlement_edges(&pool, &coa_ids(&coa)).await, (d("1000000.00"), 1));
+    assert_eq!(full_groups(&pool, &coa_ids(&coa)).await, 1);
     assert!(
         line_reconciled(&pool, company, "order", inv, coa["1200"])
             .await
@@ -756,7 +766,7 @@ async fn reverse_payment_restores_invoice_and_is_idempotent() {
     // group that survives is the reverse-then-reconcile pairing of the payment's original credit
     // with the reversal's debit (the payment's own two lines netting zero).
     assert_eq!(
-        settlement_edges(&pool, company).await,
+        settlement_edges(&pool, &coa_ids(&coa)).await,
         (Decimal::ZERO, 0),
         "the settlement edge is unlinked"
     );
@@ -778,8 +788,10 @@ async fn reverse_payment_restores_invoice_and_is_idempotent() {
         "the reverse-then-reconcile pair forms its own group"
     );
     let paired: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM accounting.partial_reconciles WHERE company_id=$1 AND metadata->>'rule'='reverse_then_reconcile'")
-        .bind(company).fetch_one(&pool).await.unwrap();
+        "SELECT COUNT(*) FROM accounting.partial_reconciles WHERE metadata->>'rule'='reverse_then_reconcile' \
+                 AND (debit_move_id IN (SELECT id FROM accounting.journal_lines WHERE account_id = ANY($1)) \
+                   OR credit_move_id IN (SELECT id FROM accounting.journal_lines WHERE account_id = ANY($1)))")
+        .bind(coa_ids(&coa)).fetch_one(&pool).await.unwrap();
     assert_eq!(paired, 1, "exactly one reverse-then-reconcile edge");
 
     // Re-reverse: single reversal post (accounting dedups), PaymentCancelled emitted once (gate),
@@ -806,7 +818,7 @@ async fn reverse_payment_restores_invoice_and_is_idempotent() {
         (d("1000000.00"), "submitted".to_string()),
         "outstanding not double-restored"
     );
-    assert_eq!(settlement_edges(&pool, company).await, (Decimal::ZERO, 0));
+    assert_eq!(settlement_edges(&pool, &coa_ids(&coa)).await, (Decimal::ZERO, 0));
 }
 
 /// SSEAM-2 (council 2026-07-05, skeptic): the split invariant COMPOSES — two payments racing the same
@@ -923,7 +935,7 @@ async fn racing_payments_reconcile_via_clamp_and_on_account() {
     // Graph: edges total exactly the invoice (600k + 400k) — the second edge clamped WITH billing —
     // so the invoice line closes into a full group while pay2's line keeps a 200k residual: the
     // on-account credit, measured by the graph itself.
-    let (sum, n) = settlement_edges(&pool, company).await;
+    let (sum, n) = settlement_edges(&pool, &coa_ids(&coa)).await;
     assert_eq!(
         (sum, n),
         (d("1000000.00"), 2),
@@ -951,7 +963,7 @@ async fn racing_payments_reconcile_via_clamp_and_on_account() {
             .0,
         "the component stays open while the on-account credit lives"
     );
-    assert_eq!(full_groups(&pool, company).await, 0);
+    assert_eq!(full_groups(&pool, &coa_ids(&coa)).await, 0);
 }
 
 /// SSEAM-4: ONE payment, TWO invoices — every allocation writes its own edge, and the payment's
@@ -1059,7 +1071,7 @@ async fn two_allocations_write_two_edges_and_reverse_unwinds_both() {
         invoice_row(&pool, inv_b).await,
         (d("0.00"), "paid".to_string())
     );
-    let (sum, n) = settlement_edges(&pool, company).await;
+    let (sum, n) = settlement_edges(&pool, &coa_ids(&coa)).await;
     assert_eq!((sum, n), (d("900000.00"), 2), "one edge per allocation");
     assert_eq!(
         residual(&pool, company, "order", inv_a, coa["1200"]).await,
@@ -1074,7 +1086,7 @@ async fn two_allocations_write_two_edges_and_reverse_unwinds_both() {
         Decimal::ZERO
     );
     assert_eq!(
-        full_groups(&pool, company).await,
+        full_groups(&pool, &coa_ids(&coa)).await,
         1,
         "one connected component, one group"
     );
@@ -1099,7 +1111,7 @@ async fn two_allocations_write_two_edges_and_reverse_unwinds_both() {
         "B restored"
     );
     assert_eq!(
-        settlement_edges(&pool, company).await,
+        settlement_edges(&pool, &coa_ids(&coa)).await,
         (Decimal::ZERO, 0),
         "both edges unlinked"
     );
@@ -1122,8 +1134,10 @@ async fn two_allocations_write_two_edges_and_reverse_unwinds_both() {
             .0
     );
     let paired: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM accounting.partial_reconciles WHERE company_id=$1 AND metadata->>'rule'='reverse_then_reconcile'")
-        .bind(company).fetch_one(&pool).await.unwrap();
+        "SELECT COUNT(*) FROM accounting.partial_reconciles WHERE metadata->>'rule'='reverse_then_reconcile' \
+                 AND (debit_move_id IN (SELECT id FROM accounting.journal_lines WHERE account_id = ANY($1)) \
+                   OR credit_move_id IN (SELECT id FROM accounting.journal_lines WHERE account_id = ANY($1)))")
+        .bind(coa_ids(&coa)).fetch_one(&pool).await.unwrap();
     assert_eq!(
         paired, 1,
         "the payment's own credit↔reversal pair is the only survivor"

@@ -1,6 +1,6 @@
 [package]
 name = "backbone-payment"
-version = "0.8.6"
+version = "0.8.7"
 edition = "2021"
 description = "Settlement & reconciliation — payment entries, allocation, modes of payment; 4th GL producer (Dr Bank·Cr A/R / Dr A/P·Cr Bank)"
 
@@ -106,5 +106,5 @@ rand = "0.8"
 # place (cargo still resolves the original source first), so between a sibling's release commit and
 # its pushed tag these pins stay on the last-existing tags and local runs ride the patch. Flip them
 # to the new tags in the same push that announces the sibling release.
-backbone-accounting = { git = "https://github.com/faridlab/backbone-accounting", tag = "v0.6.10" }
-backbone-billing = { git = "https://github.com/faridlab/backbone-billing", tag = "v0.5.7" }
+backbone-accounting = { git = "https://github.com/faridlab/backbone-accounting", tag = "v0.7.0" }
+backbone-billing = { git = "https://github.com/faridlab/backbone-billing", tag = "v0.5.8" }

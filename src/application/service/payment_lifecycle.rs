@@ -25,6 +25,7 @@ use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 use backbone_orm::company_scope;
+use backbone_orm::org_scope::{self, OrgScope};
 
 use super::payment_write_service::{PaymentError, PaymentWriteService};
 
@@ -82,22 +83,25 @@ impl BankReconcilablePort for AccountingReconcilableRead {
             ));
         }
         // RLS note: this read precedes the post unit of work, so it cannot ride the caller's tx —
-        // `fetch_optional_row_scoped` opens its own short tx and binds `app.company_id` there
-        // (ADR-0008). A plain pool fetch would skip the bind entirely: `with_company_scope` is only
-        // a task-local, and the RLS fence on accounting.accounts then filters every row out, which
-        // reads as "account absent" and refuses the post of an otherwise valid payment.
-        let row = company_scope::with_company_scope(
-            Some(company_id),
-            company_scope::fetch_optional_row_scoped(
+        // `fetch_optional_row_scoped` opens its own short tx on the request-dedicated connection
+        // and binds the org fence variables there. The predicate is id-only and the company is
+        // carried by the scope: compositions that strip `company_id` from accounting (org-unit
+        // axis, ADR-0029) have no company column to filter on, and their entitlement-union fence
+        // reads `app.scope_unit_ids` — a legacy `app.company_id`-only bind leaves that empty and
+        // the fence hides the row, which reads as "account absent" and refuses the post of an
+        // otherwise valid payment. Compositions that still carry the company column stay correct
+        // too: the scope also binds the legacy variable, so the company fence arm still matches.
+        let row = org_scope::with_org_request_scope(
+            pool,
+            OrgScope::for_company_unit(company_id),
+            org_scope::fetch_optional_row_scoped(
                 pool,
-                sqlx::query(
-                    "SELECT is_reconcilable FROM accounting.accounts WHERE id=$1 AND company_id=$2",
-                )
-                .bind(account_id)
-                .bind(company_id),
+                sqlx::query("SELECT is_reconcilable FROM accounting.accounts WHERE id=$1")
+                    .bind(account_id),
             ),
         )
         .await
+        .map_err(PaymentError::Db)?
         .map_err(PaymentError::Db)?;
         match row {
             None => Err(PaymentError::ReconcilableProbeRefused(format!(
