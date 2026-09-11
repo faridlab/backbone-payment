@@ -14,6 +14,20 @@ use rust_decimal::Decimal;
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use std::future::Future;
+
+/// Drive a settlement/reversal verb inside the org request scope the composition layer always
+/// binds (ADR-0029) — those verbs read the legacy company twin off the ambient scope.
+async fn in_org_scope<R>(pool: &PgPool, f: impl Future<Output = R>) -> R {
+    backbone_orm::org_scope::with_org_request_scope(
+        pool,
+        backbone_orm::org_scope::OrgScope::for_company_unit(Uuid::new_v4()),
+        f,
+    )
+    .await
+    .expect("bind org request scope")
+}
+
 use backbone_payment::application::service::payment_events::{PaymentEvent, PaymentEventSink};
 use backbone_payment::application::service::payment_gl::{
     AccountingPostEnvelope, GlPostAck, GlPostRejected, GlPostSink,
@@ -90,7 +104,7 @@ fn svc(pool: &PgPool, reconcilable: bool, rec: Recorder) -> PaymentWriteService 
 }
 
 fn new_payment(
-    company: Uuid,
+    _company: Uuid,
     method: Option<&str>,
     paid: &str,
     inv: Uuid,
@@ -98,7 +112,6 @@ fn new_payment(
 ) -> NewPayment {
     NewPayment {
         payment_number: uq("PE"),
-        company_id: company,
         branch_id: None,
         payment_type: "receive".into(),
         party_type: Some("customer".into()),
@@ -177,7 +190,7 @@ async fn post_lands_by_channel_and_reconcilability() {
         ))
         .await
         .unwrap();
-    w.post_payment(id, &OkGl::default()).await.unwrap();
+    in_org_scope(&pool, w.post_payment(id, &OkGl::default())).await.unwrap();
     assert_eq!(
         status_of(&pool, id).await,
         ("in_flight".into(), "posted".into())
@@ -194,7 +207,7 @@ async fn post_lands_by_channel_and_reconcilability() {
         ))
         .await
         .unwrap();
-    w.post_payment(id, &OkGl::default()).await.unwrap();
+    in_org_scope(&pool, w.post_payment(id, &OkGl::default())).await.unwrap();
     assert_eq!(status_of(&pool, id).await, ("paid".into(), "posted".into()));
 
     // Non-reconcilable + manual ⇒ paid now.
@@ -209,7 +222,7 @@ async fn post_lands_by_channel_and_reconcilability() {
         ))
         .await
         .unwrap();
-    w.post_payment(id, &OkGl::default()).await.unwrap();
+    in_org_scope(&pool, w.post_payment(id, &OkGl::default())).await.unwrap();
     assert_eq!(status_of(&pool, id).await, ("paid".into(), "posted".into()));
 }
 
@@ -231,26 +244,26 @@ async fn submit_verb_and_refusals() {
         .await
         .unwrap();
 
-    w.submit_payment(company, id).await.unwrap();
+    w.submit_payment(id).await.unwrap();
     assert_eq!(
         status_of(&pool, id).await,
         ("submitted".into(), "pending".into())
     );
 
-    match w.submit_payment(company, id).await.unwrap_err() {
+    match w.submit_payment(id).await.unwrap_err() {
         PaymentError::NotSubmittable(s) => assert_eq!(s, "submitted"),
         e => panic!("expected NotSubmittable, got {e:?}"),
     }
 
     // Post from submitted: the normal happy path (submit is the operator's readiness mark).
-    w.post_payment(id, &OkGl::default()).await.unwrap();
+    in_org_scope(&pool, w.post_payment(id, &OkGl::default())).await.unwrap();
     assert_eq!(
         status_of(&pool, id).await,
         ("in_flight".into(), "posted".into())
     );
 
     // Post-landing, submit is refused.
-    match w.submit_payment(company, id).await.unwrap_err() {
+    match w.submit_payment(id).await.unwrap_err() {
         PaymentError::NotSubmittable(s) => assert_eq!(s, "in_flight"),
         e => panic!("expected NotSubmittable, got {e:?}"),
     }
@@ -277,7 +290,7 @@ async fn reject_verb_arms() {
         ))
         .await
         .unwrap();
-    match w.reject_payment(company, draft).await.unwrap_err() {
+    match w.reject_payment(draft).await.unwrap_err() {
         PaymentError::NotRejectable(s) => assert_eq!(s, "draft"),
         e => panic!("expected NotRejectable, got {e:?}"),
     }
@@ -293,13 +306,13 @@ async fn reject_verb_arms() {
         ))
         .await
         .unwrap();
-    w.submit_payment(company, sub).await.unwrap();
-    w.reject_payment(company, sub).await.unwrap();
+    w.submit_payment(sub).await.unwrap();
+    w.reject_payment(sub).await.unwrap();
     assert_eq!(
         status_of(&pool, sub).await,
         ("rejected".into(), "pending".into())
     );
-    match w.reject_payment(company, sub).await.unwrap_err() {
+    match w.reject_payment(sub).await.unwrap_err() {
         PaymentError::NotRejectable(s) => assert_eq!(s, "rejected"),
         e => panic!("expected NotRejectable, got {e:?}"),
     }
@@ -318,19 +331,19 @@ async fn reject_verb_arms() {
         ))
         .await
         .unwrap();
-    w.post_payment(flt, &OkGl::default()).await.unwrap();
+    in_org_scope(&pool, w.post_payment(flt, &OkGl::default())).await.unwrap();
     assert_eq!(
         status_of(&pool, flt).await,
         ("in_flight".into(), "posted".into())
     );
-    match w.reject_payment(company, flt).await.unwrap_err() {
+    match w.reject_payment(flt).await.unwrap_err() {
         PaymentError::NotRejectable(s) => assert_eq!(s, "in_flight"),
         e => panic!("expected NotRejectable, got {e:?}"),
     }
     // …and the exit works: reverse succeeds and emits the cancellation.
     let rec2 = Recorder::default();
     let w2 = svc(&pool, true, rec2.clone());
-    w2.reverse_payment(flt, &OkGl::default()).await.unwrap();
+    in_org_scope(&pool, w2.reverse_payment(flt, &OkGl::default())).await.unwrap();
     assert_eq!(
         status_of(&pool, flt).await,
         ("cancelled".into(), "posted".into())
@@ -355,8 +368,8 @@ async fn reject_verb_arms() {
         ))
         .await
         .unwrap();
-    w.post_payment(cash, &OkGl::default()).await.unwrap();
-    match w.reject_payment(company, cash).await.unwrap_err() {
+    in_org_scope(&pool, w.post_payment(cash, &OkGl::default())).await.unwrap();
+    match w.reject_payment(cash).await.unwrap_err() {
         PaymentError::NotRejectable(s) => assert_eq!(s, "paid"),
         e => panic!("expected NotRejectable, got {e:?}"),
     }
@@ -382,8 +395,8 @@ async fn reverse_verb_arms() {
         ))
         .await
         .unwrap();
-    match w
-        .reverse_payment(draft, &OkGl::default())
+    match in_org_scope(&pool, w
+        .reverse_payment(draft, &OkGl::default()))
         .await
         .unwrap_err()
     {
@@ -402,8 +415,8 @@ async fn reverse_verb_arms() {
         ))
         .await
         .unwrap();
-    w.post_payment(id, &OkGl::default()).await.unwrap();
-    let out = w.reverse_payment(id, &OkGl::default()).await.unwrap();
+    in_org_scope(&pool, w.post_payment(id, &OkGl::default())).await.unwrap();
+    let out = in_org_scope(&pool, w.reverse_payment(id, &OkGl::default())).await.unwrap();
     assert!(!out.idempotent_reuse);
     assert_eq!(
         status_of(&pool, id).await,
@@ -413,7 +426,7 @@ async fn reverse_verb_arms() {
     // Repeat reverse: idempotent (no second mirror journal effect, no second event).
     let rec = Recorder::default();
     let w2 = svc(&pool, true, rec.clone());
-    let out2 = w2.reverse_payment(id, &OkGl::default()).await.unwrap();
+    let out2 = in_org_scope(&pool, w2.reverse_payment(id, &OkGl::default())).await.unwrap();
     assert!(
         out2.idempotent_reuse,
         "second reverse is an idempotent no-op"
@@ -438,9 +451,9 @@ async fn reverse_verb_arms() {
         ))
         .await
         .unwrap();
-    w.submit_payment(company, sub).await.unwrap();
-    w.reject_payment(company, sub).await.unwrap();
-    match w.reverse_payment(sub, &OkGl::default()).await.unwrap_err() {
+    w.submit_payment(sub).await.unwrap();
+    w.reject_payment(sub).await.unwrap();
+    match in_org_scope(&pool, w.reverse_payment(sub, &OkGl::default())).await.unwrap_err() {
         PaymentError::NotReversible(s) => assert_eq!(s, "rejected"),
         e => panic!("expected NotReversible, got {e:?}"),
     }
@@ -483,7 +496,7 @@ async fn default_probe_refuses_on_unknown_bank_account() {
         .await
         .unwrap();
     let gl = OkGl::default();
-    match w.post_payment(id, &gl).await.unwrap_err() {
+    match in_org_scope(&pool, w.post_payment(id, &gl)).await.unwrap_err() {
         PaymentError::ReconcilableProbeRefused(_) => {}
         e => panic!("expected ReconcilableProbeRefused, got {e:?}"),
     }
@@ -520,7 +533,7 @@ async fn mark_failed_cannot_overwrite_a_committed_post() {
         ))
         .await
         .unwrap();
-    w.post_payment(id, &OkGl::default()).await.unwrap();
+    in_org_scope(&pool, w.post_payment(id, &OkGl::default())).await.unwrap();
     assert_eq!(
         status_of(&pool, id).await,
         ("in_flight".into(), "posted".into())
@@ -542,7 +555,7 @@ async fn mark_failed_cannot_overwrite_a_committed_post() {
     // guard prevented (failed-over-posted) is the only one that could have stranded it.
     let rec = Recorder::default();
     let w2 = svc(&pool, true, rec.clone());
-    w2.reverse_payment(id, &OkGl::default()).await.unwrap();
+    in_org_scope(&pool, w2.reverse_payment(id, &OkGl::default())).await.unwrap();
     assert_eq!(
         status_of(&pool, id).await,
         ("cancelled".into(), "posted".into())
@@ -615,7 +628,12 @@ async fn sink_error_after_commit_keeps_entry_reversible() {
     };
     // A second service handle over the same pool — two operators racing the same entry.
     let w2 = svc(&pool, true, Recorder::default());
-    let (a, b) = tokio::join!(w.post_payment(id, &sink), w2.post_payment(id, &sink),);
+    // Both racers run inside org request scopes — the settle path reads the legacy company
+    // twin off the ambient scope (ADR-0029).
+    let (a, b) = tokio::join!(
+        in_org_scope(&pool, w.post_payment(id, &sink)),
+        in_org_scope(&pool, w2.post_payment(id, &sink)),
+    );
     // Exactly one acked, exactly one got the spurious rejection (whichever won the race).
     assert!(a.is_err() != b.is_err(), "one winner, one spurious loser");
     assert_eq!(*invocations.lock().unwrap(), 2);
@@ -630,7 +648,7 @@ async fn sink_error_after_commit_keeps_entry_reversible() {
     // And the entry still exits cleanly, event and all.
     let rec3 = Recorder::default();
     let w3 = svc(&pool, true, rec3.clone());
-    w3.reverse_payment(id, &OkGl::default()).await.unwrap();
+    in_org_scope(&pool, w3.reverse_payment(id, &OkGl::default())).await.unwrap();
     assert_eq!(
         status_of(&pool, id).await,
         ("cancelled".into(), "posted".into())

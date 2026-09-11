@@ -24,7 +24,6 @@ impl TestDataGenerator for PaymentAllocationTestData {
         let now = Utc::now().to_rfc3339();
         json!({
             "id": Uuid::new_v4().to_string(),
-            "company_id": Uuid::new_v4().to_string(),
             "payment_id": Uuid::new_v4().to_string(),
             "invoice_ref": Uuid::new_v4().to_string(),
             "invoice_kind": "sales",
@@ -39,7 +38,6 @@ impl TestDataGenerator for PaymentAllocationTestData {
         let now = Utc::now().to_rfc3339();
         json!({
             "id": id,
-            "company_id": Uuid::new_v4().to_string(),
             "payment_id": Uuid::new_v4().to_string(),
             "invoice_ref": Uuid::new_v4().to_string(),
             "invoice_kind": "sales",
@@ -58,13 +56,7 @@ impl TestDataGenerator for PaymentAllocationTestData {
 
     async fn seed_dependencies(&self, api: &ApiTest) -> Vec<(String, String)> {
         let mut deps: Vec<(String, String)> = Vec::new();
-        if let Some(id) = super::crud_test_base::create_and_get_id(
-            api,
-            "/api/v1/payment_entries",
-            &super::payment_entry_api_test::PaymentEntryTestData,
-        )
-        .await
-        {
+        if let Some(id) = super::crud_test_base::create_and_get_id(api, "/api/v1/payment_entries", &super::payment_entry_api_test::PaymentEntryTestData).await {
             deps.push(("payment_id".to_string(), id));
         }
         deps

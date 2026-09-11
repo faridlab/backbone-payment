@@ -6,7 +6,6 @@
 
 -- INSERT INTO payment.dunning_runs (
 --     id,
---     company_id,
 --     as_of_date,
 --     direction,
 --     snapshot_id,

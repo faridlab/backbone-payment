@@ -5,8 +5,8 @@
 //! This trait defines the repository contract for the PaymentAllocation aggregate.
 //! Implementation is in the infrastructure layer.
 
-use anyhow::Result;
 use async_trait::async_trait;
+use anyhow::Result;
 use uuid::Uuid;
 
 use crate::domain::entity::{PaymentAllocation, SettlementKind};
@@ -44,7 +44,6 @@ pub struct PaymentAllocationPaginatedResult {
 /// Filter parameters for list queries
 #[derive(Debug, Clone, Default)]
 pub struct PaymentAllocationFilter {
-    pub company_id: Option<Uuid>,
     pub payment_id: Option<Uuid>,
     pub invoice_ref: Option<Uuid>,
     pub invoice_kind: Option<SettlementKind>,
@@ -54,11 +53,7 @@ pub struct PaymentAllocationFilter {
 impl PaymentAllocationFilter {
     /// Check if any filter is set
     pub fn has_filters(&self) -> bool {
-        self.company_id.is_some()
-            || self.payment_id.is_some()
-            || self.invoice_ref.is_some()
-            || self.invoice_kind.is_some()
-            || self.discount_account_id.is_some()
+        self.payment_id.is_some() || self.invoice_ref.is_some() || self.invoice_kind.is_some() || self.discount_account_id.is_some()
     }
 }
 
@@ -68,6 +63,7 @@ impl PaymentAllocationFilter {
 /// Implementations should be in the infrastructure layer.
 #[async_trait]
 pub trait PaymentAllocationRepository: Send + Sync {
+
     // =========================================================================
     // Core CRUD Operations
     // =========================================================================
@@ -82,11 +78,7 @@ pub trait PaymentAllocationRepository: Send + Sync {
     async fn find_all(&self) -> Result<Vec<PaymentAllocation>>;
 
     /// Update payment_allocation by ID
-    async fn update(
-        &self,
-        id: &str,
-        entity: &PaymentAllocation,
-    ) -> Result<Option<PaymentAllocation>>;
+    async fn update(&self, id: &str, entity: &PaymentAllocation) -> Result<Option<PaymentAllocation>>;
 
     /// Delete payment_allocation by ID
     async fn delete(&self, id: &str) -> Result<bool>;
@@ -96,17 +88,10 @@ pub trait PaymentAllocationRepository: Send + Sync {
     // =========================================================================
 
     /// List payment_allocation with pagination
-    async fn list(
-        &self,
-        params: PaymentAllocationPaginationParams,
-    ) -> Result<PaymentAllocationPaginatedResult>;
+    async fn list(&self, params: PaymentAllocationPaginationParams) -> Result<PaymentAllocationPaginatedResult>;
 
     /// List payment_allocation with pagination and filters
-    async fn list_with_filters(
-        &self,
-        params: PaymentAllocationPaginationParams,
-        filters: PaymentAllocationFilter,
-    ) -> Result<PaymentAllocationPaginatedResult>;
+    async fn list_with_filters(&self, params: PaymentAllocationPaginationParams, filters: PaymentAllocationFilter) -> Result<PaymentAllocationPaginatedResult>;
 
     /// Count all payment_allocation entities
     async fn count(&self) -> Result<u64>;
@@ -128,10 +113,7 @@ pub trait PaymentAllocationRepository: Send + Sync {
     async fn restore(&self, id: &str) -> Result<Option<PaymentAllocation>>;
 
     /// List soft-deleted payment_allocation entities
-    async fn list_deleted(
-        &self,
-        params: PaymentAllocationPaginationParams,
-    ) -> Result<PaymentAllocationPaginatedResult>;
+    async fn list_deleted(&self, params: PaymentAllocationPaginationParams) -> Result<PaymentAllocationPaginatedResult>;
 
     /// Empty trash (permanently delete all soft-deleted entities)
     async fn empty_trash(&self) -> Result<u64>;

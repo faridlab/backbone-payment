@@ -14,7 +14,6 @@ models:
     description: "One point-in-time pass over outstanding receivables, bucketed by days-past-due"
     fields:
       id: { type: uuid, attributes: ["@id", "@default(uuid)"] }
-      company_id: { type: uuid, attributes: ["@required", "@exclude_from_foreign_key_check"], description: "Books owner # logical FK to organization.Company.id" }
       as_of_date: { type: date, attributes: ["@required"], description: "The date aging is computed for" }
       direction: { type: string, attributes: ["@required", "@max(10)"], description: "receive (A/R) | pay (A/P)" }
       total_outstanding: { type: decimal, attributes: ["@default(0)", "@precision(18,2)", "@non_negative"] }
@@ -25,19 +24,20 @@ models:
       bucket_90p: { type: decimal, attributes: ["@default(0)", "@precision(18,2)", "@non_negative"] }
       status: { type: SnapshotStatus, attributes: ["@default(building)"] }
       metadata: { type: Metadata, attributes: ["@audit_metadata"] }
+    # The per-(unit, as_of_date, direction) snapshot uniqueness is a tenancy grain,
+    # not a module posture: the tenant-free (as_of_date, direction) form would forbid
+    # two companies of one tenant aging on the same date, so no unique is declared
+    # here — the composing service's tenancy decorator installs the org-scoped
+    # per-unit unique (ADR-0029).
     indexes:
-      - type: unique
-        fields: [company_id, as_of_date, direction]
-        where: "deleted_at IS NULL"
       - type: index
-        fields: [company_id, as_of_date]
+        fields: [as_of_date]
 
   - name: AgingBucket
     collection: aging_buckets
     description: "One (snapshot × invoice × party) row — the granular aging ledger"
     fields:
       id: { type: uuid, attributes: ["@id", "@default(uuid)"] }
-      company_id: { type: uuid, attributes: ["@required", "@exclude_from_foreign_key_check"] }
       snapshot_id: { type: uuid, attributes: ["@required", "@foreign_key(AgingSnapshot.id)"] }
       invoice_ref: { type: uuid, attributes: ["@required", "@exclude_from_foreign_key_check"], description: "The aged invoice # logical FK to billing" }
       invoice_kind: { type: string, attributes: ["@required", "@max(10)"], description: "sales | purchase" }
@@ -51,14 +51,13 @@ models:
       - type: index
         fields: [snapshot_id]
       - type: index
-        fields: [company_id, party_id, bucket]
+        fields: [party_id, bucket]
 
   - name: DunningRun
     collection: dunning_runs
     description: "One execution of the dunning escalation cycle against an aging snapshot"
     fields:
       id: { type: uuid, attributes: ["@id", "@default(uuid)"] }
-      company_id: { type: uuid, attributes: ["@required", "@exclude_from_foreign_key_check"] }
       as_of_date: { type: date, attributes: ["@required"] }
       direction: { type: string, attributes: ["@required", "@max(10)"] }
       snapshot_id: { type: uuid?, attributes: ["@exclude_from_foreign_key_check"], description: "Optional AgingSnapshot this run was based on" }
@@ -67,14 +66,13 @@ models:
       metadata: { type: Metadata, attributes: ["@audit_metadata"] }
     indexes:
       - type: index
-        fields: [company_id, as_of_date]
+        fields: [as_of_date]
 
   - name: DunningAction
     collection: dunning_actions
     description: "One emitted dunning step against one invoice (the unit the channel ACL consumes)"
     fields:
       id: { type: uuid, attributes: ["@id", "@default(uuid)"] }
-      company_id: { type: uuid, attributes: ["@required", "@exclude_from_foreign_key_check"] }
       run_id: { type: uuid, attributes: ["@required", "@foreign_key(DunningRun.id)"] }
       invoice_ref: { type: uuid, attributes: ["@required", "@exclude_from_foreign_key_check"] }
       invoice_kind: { type: string, attributes: ["@required", "@max(10)"] }
@@ -91,7 +89,7 @@ models:
       - type: index
         fields: [run_id]
       - type: index
-        fields: [company_id, party_id, status]
+        fields: [party_id, status]
       - type: unique
         fields: [invoice_ref, invoice_kind, level]
         where: "deleted_at IS NULL"

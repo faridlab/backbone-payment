@@ -54,28 +54,47 @@ pub struct AgingTotals {
 /// Dunning/aging snapshot SQL. Lives here (not in the service) per the module's 4-layer rule:
 /// services orchestrate and own the unit of work, repositories hold the SQL.
 impl AgingSnapshotRepository {
-    /// Idempotent snapshot upsert (unique `company + as_of + direction` fence).
+    /// Idempotent snapshot upsert (per-scope `as_of + direction` fence).
     ///
     /// Takes the CALLER'S connection so the snapshot and its buckets commit as one unit. The caller
-    /// has already bound the company on it (`bind_company_on`) — don't re-bind here. On conflict the
-    /// existing row is reused (status reset to `final`) and its id returned.
+    /// has already relayed the ambient org scope onto it (`org_scope::bind_org_scope_on`) — don't
+    /// re-bind here. A re-run for the same scope + date reuses the existing row (status reset to
+    /// `final`) and returns its id.
+    ///
+    /// No unique index is declared at module level in any form: the tenant-free global shape would
+    /// forbid two units of one tenant from aging on the same date, and the per-unit unique arrives
+    /// with the composing decorator's tenancy declaration. Idempotency is arbitrated here with the
+    /// fence-scoped SELECT below inside the caller's transaction.
     pub async fn upsert_snapshot(
         &self,
         conn: &mut PgConnection,
         id: Uuid,
-        company_id: Uuid,
         as_of: NaiveDate,
         direction: &str,
     ) -> Result<Uuid, sqlx::Error> {
+        let existing: Option<Uuid> = sqlx::query_scalar(
+            r#"SELECT id FROM payment.aging_snapshots
+               WHERE as_of_date = $1 AND direction = $2
+                 AND (metadata->>'deleted_at') IS NULL"#,
+        )
+        .bind(as_of)
+        .bind(direction)
+        .fetch_optional(&mut *conn)
+        .await?;
+        if let Some(snapshot_id) = existing {
+            sqlx::query("UPDATE payment.aging_snapshots SET status = 'final'::snapshot_status WHERE id = $1")
+                .bind(snapshot_id)
+                .execute(&mut *conn)
+                .await?;
+            return Ok(snapshot_id);
+        }
         let snapshot_id = sqlx::query_scalar(
-            r#"INSERT INTO payment.aging_snapshots (id, company_id, as_of_date, direction, status)
-               VALUES ($1, $2, $3, $4, 'final'::snapshot_status)
-               ON CONFLICT (company_id, as_of_date, direction) WHERE (metadata->>'deleted_at') IS NULL
-               DO UPDATE SET status = 'final'::snapshot_status
+            r#"INSERT INTO payment.aging_snapshots (id, as_of_date, direction, status)
+               VALUES ($1, $2, $3, 'final'::snapshot_status)
                RETURNING id"#,
         )
-        .bind(id).bind(company_id).bind(as_of).bind(direction)
-        .fetch_one(conn).await?;
+        .bind(id).bind(as_of).bind(direction)
+        .fetch_one(&mut *conn).await?;
         Ok(snapshot_id)
     }
 

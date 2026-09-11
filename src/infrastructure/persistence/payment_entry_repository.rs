@@ -12,7 +12,14 @@ use rust_decimal::Decimal;
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
-use backbone_orm::company_scope;
+use backbone_orm::org_scope;
+// The multi-row and scalar read twins live only in the legacy `company_scope` module. Their
+// connection discipline is what this repository needs — request-dedicated connection when the
+// composing service bound one, plain pool otherwise. The helper's legacy task-local branch is
+// never taken: this module sets no legacy scope of its own (ADR-0029).
+use backbone_orm::company_scope::{
+    fetch_one_row_scoped, fetch_one_scalar_scoped, fetch_optional_scoped,
+};
 
 use crate::domain::entity::PaymentEntry;
 
@@ -23,6 +30,13 @@ pub const TABLE_NAME: &str = "payment.payment_entries";
 ///
 /// All standard CRUD, soft-delete, pagination, and bulk methods are
 /// provided automatically via `Deref` to `backbone_orm::GenericCrudRepository`.
+///
+/// Tenancy (ADR-0029): the module carries no tenancy of its own — the composing service's
+/// tenancy decorator owns org scoping. No statement keys on a tenant column: reads and
+/// standalone writes ride the request-dedicated connection when the composing service bound
+/// one (carrying the decorator's fence variables), plainly on the pool otherwise; write
+/// transactions relay the caller's AMBIENT org scope (`org_scope::bind_org_scope_on`) in the
+/// service before any statement. An undecorated deployment gets an unfenced module.
 pub struct PaymentEntryRepository(
     backbone_orm::GenericCrudRepository<PaymentEntry, backbone_orm::SoftDelete>,
 );
@@ -50,7 +64,6 @@ impl PaymentEntryRepository {
 pub struct NewPaymentEntryRow<'a> {
     pub id: Uuid,
     pub payment_number: &'a str,
-    pub company_id: Uuid,
     pub branch_id: Option<Uuid>,
     pub payment_type: &'a str,
     pub party_type: Option<&'a str>,
@@ -74,7 +87,6 @@ pub struct NewPaymentEntryRow<'a> {
 /// Everything the settlement-post builder needs about a payment entry.
 pub struct PostSourceRow {
     pub payment_number: String,
-    pub company_id: Uuid,
     pub branch_id: Option<Uuid>,
     pub payment_type: String,
     pub party_type: Option<String>,
@@ -121,7 +133,7 @@ impl PaymentEntryRepository {
     ///
     /// Takes the CALLER'S connection so the entry and its allocations commit as one unit — a payment is
     /// never persisted without the allocations that satisfy `Σ allocations ≤ paid_amount`. The caller has
-    /// already bound the company on it (`bind_company_on`) — don't re-bind here.
+    /// already relayed the ambient org scope onto it (`org_scope::bind_org_scope_on`) — don't re-bind here.
     ///
     /// Returns the raw `sqlx::Error` deliberately: the caller inspects it for a unique violation to turn
     /// a re-used payment number into a domain error.
@@ -132,15 +144,15 @@ impl PaymentEntryRepository {
     ) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"INSERT INTO payment.payment_entries
-                (id, payment_number, company_id, branch_id, payment_type, party_type, party_id,
+                (id, payment_number, branch_id, payment_type, party_type, party_id,
                  posting_date, currency, mode_of_payment_id, method, provider_txn_id, paid_amount,
                  allocated_amount, unallocated_amount, bank_account_id, party_account_id, status,
                  posting_state, reference_no, withholding_amount, withholding_account_id, withholding_tax_type)
-               VALUES ($1,$2,$3,$4,$5::payment_type,$6::payment_party_type,$7,$8,$9,$10,$11::payment_method,$12,
-                       $13,$14,$15,$16,$17,
-                       'draft'::payment_status,'pending'::gl_posting_state,$18,$19,$20,$21::withholding_tax_type)"#,
+               VALUES ($1,$2,$3,$4::payment_type,$5::payment_party_type,$6,$7,$8,$9,$10::payment_method,$11,
+                       $12,$13,$14,$15,$16,
+                       'draft'::payment_status,'pending'::gl_posting_state,$17,$18,$19,$20::withholding_tax_type)"#,
         )
-        .bind(p.id).bind(p.payment_number).bind(p.company_id).bind(p.branch_id).bind(p.payment_type)
+        .bind(p.id).bind(p.payment_number).bind(p.branch_id).bind(p.payment_type)
         .bind(p.party_type).bind(p.party_id).bind(p.posting_date).bind(p.currency).bind(p.mode_of_payment_id)
         .bind(p.method).bind(p.provider_txn_id)
         .bind(p.paid_amount).bind(p.allocated_amount).bind(p.unallocated_amount).bind(p.bank_account_id)
@@ -153,19 +165,19 @@ impl PaymentEntryRepository {
 
     /// Read the payment the settlement post is built from.
     ///
-    /// ID-only: no company argument. `fetch_optional_row_scoped` means it rides a connection carrying
-    /// the caller's `app.company_id`, so another company's payment simply is not found. A non-request
-    /// caller (a posting job / an event-driven sink) MUST wrap this in
-    /// `with_company_scope(Some(company_id))` — otherwise it fails closed and returns `Ok(None)`.
+    /// ID-only: no tenant argument. `fetch_optional_row_scoped` rides the request-dedicated
+    /// connection when the composing service bound one — carrying the decorator's fence
+    /// variables, so another unit's payment simply is not found — and runs plainly on the pool
+    /// otherwise (an undecorated deployment is unfenced by design).
     pub async fn fetch_post_source(
         &self,
         pool: &PgPool,
         payment_id: Uuid,
     ) -> Result<Option<PostSourceRow>, sqlx::Error> {
-        let row = company_scope::fetch_optional_row_scoped(
+        let row = org_scope::fetch_optional_row_scoped(
             pool,
             sqlx::query(
-                r#"SELECT payment_number, company_id, branch_id, payment_type::text AS pt, party_type::text AS party_t,
+                r#"SELECT payment_number, branch_id, payment_type::text AS pt, party_type::text AS party_t,
                           party_id, posting_date, currency, method::text AS m, status::text AS st,
                           paid_amount, bank_account_id, party_account_id, withholding_amount, withholding_account_id
                    FROM payment.payment_entries WHERE id=$1 AND (metadata->>'deleted_at') IS NULL"#,
@@ -175,7 +187,6 @@ impl PaymentEntryRepository {
         .await?;
         Ok(row.map(|p| PostSourceRow {
             payment_number: p.get("payment_number"),
-            company_id: p.get("company_id"),
             branch_id: p.get("branch_id"),
             payment_type: p.get("pt"),
             party_type: p.get("party_t"),
@@ -199,7 +210,7 @@ impl PaymentEntryRepository {
         pool: &PgPool,
         payment_id: Uuid,
     ) -> Result<Option<Uuid>, sqlx::Error> {
-        company_scope::fetch_one_scalar_scoped(
+        fetch_one_scalar_scoped(
             pool,
             sqlx::query_scalar(
                 "SELECT accounting_post_id FROM payment.payment_entries WHERE id=$1",
@@ -216,7 +227,7 @@ impl PaymentEntryRepository {
         pool: &PgPool,
         payment_id: Uuid,
     ) -> Result<Option<PostedStateRow>, sqlx::Error> {
-        let row = company_scope::fetch_optional_row_scoped(
+        let row = org_scope::fetch_optional_row_scoped(
             pool,
             sqlx::query(
                 "SELECT posting_state::text AS ps, journal_id, accounting_post_id FROM payment.payment_entries WHERE id=$1 AND (metadata->>'deleted_at') IS NULL",
@@ -239,7 +250,7 @@ impl PaymentEntryRepository {
         pool: &PgPool,
         payment_id: Uuid,
     ) -> Result<Option<(String, String)>, sqlx::Error> {
-        company_scope::fetch_optional_scoped(
+        fetch_optional_scoped(
             pool,
             sqlx::query_as::<_, (String, String)>(
                 "SELECT status::text, posting_state::text FROM payment.payment_entries WHERE id=$1 AND (metadata->>'deleted_at') IS NULL",
@@ -258,8 +269,8 @@ impl PaymentEntryRepository {
     /// matches zero rows.
     ///
     /// Takes the CALLER'S connection so this transition and the durable outbox stage commit as ONE unit;
-    /// a crash after the transition can then never lose the event. The caller has already bound the
-    /// company on it (`bind_company_on`) — don't re-bind here.
+    /// a crash after the transition can then never lose the event. The caller has already relayed the
+    /// ambient org scope onto it (`org_scope::bind_org_scope_on`) — don't re-bind here.
     pub async fn mark_posted(
         &self,
         conn: &mut sqlx::PgConnection,
@@ -281,13 +292,13 @@ impl PaymentEntryRepository {
     }
 
     /// Perform the draft→submitted transition (the `submit` verb). Returns the rows affected: 0 means
-    /// the CAS refused (already submitted, landed, or terminal). Caller supplies the company scope.
+    /// the CAS refused (already submitted, landed, or terminal). Fenced by the ambient org scope.
     pub async fn mark_submitted(
         &self,
         pool: &PgPool,
         payment_id: Uuid,
     ) -> Result<u64, sqlx::Error> {
-        let res = company_scope::execute_scoped(
+        let res = org_scope::execute_scoped(
             pool,
             sqlx::query("UPDATE payment.payment_entries SET status='submitted'::payment_status WHERE id=$1 AND status='draft'::payment_status")
                 .bind(payment_id),
@@ -301,9 +312,9 @@ impl PaymentEntryRepository {
     /// HAS a committed journal and a billing knock-off; its exit is `reverse_payment` (which unwinds
     /// the GL and restores the invoices), never reject — a rejected-from-in_flight entry would
     /// strand its journal with no verb left that could remove it. Returns the rows affected: 0 means
-    /// the CAS refused (draft, landed, or terminal). Caller supplies the company scope.
+    /// the CAS refused (draft, landed, or terminal). Fenced by the ambient org scope.
     pub async fn mark_rejected(&self, pool: &PgPool, payment_id: Uuid) -> Result<u64, sqlx::Error> {
-        let res = company_scope::execute_scoped(
+        let res = org_scope::execute_scoped(
             pool,
             sqlx::query("UPDATE payment.payment_entries SET status='rejected'::payment_status WHERE id=$1 AND status='submitted'::payment_status")
                 .bind(payment_id),
@@ -335,11 +346,11 @@ impl PaymentEntryRepository {
     /// may only land on a pending-or-failed entry — never over a committed `posted`. Without the
     /// guard, a spurious sink error (transport timeout AFTER the GL committed) in a concurrent
     /// retry would overwrite the live `posted` truth, and the entry would enter a state no verb can
-    /// exit (reverse's journal would post while `mark_cancelled` matches zero rows). Caller supplies
-    /// the company scope; the caller also deliberately IGNORES the result — the GL rejection is the
+    /// exit (reverse's journal would post while `mark_cancelled` matches zero rows). Fenced by the
+    /// ambient org scope. The caller also deliberately IGNORES the result — the GL rejection is the
     /// error being reported, and failing to mark it must not mask that.
     pub async fn mark_failed(&self, pool: &PgPool, payment_id: Uuid) -> Result<(), sqlx::Error> {
-        company_scope::execute_scoped(
+        org_scope::execute_scoped(
             pool,
             sqlx::query("UPDATE payment.payment_entries SET posting_state='failed'::gl_posting_state WHERE id=$1 AND posting_state IN ('pending'::gl_posting_state, 'failed'::gl_posting_state)")
                 .bind(payment_id),
@@ -352,13 +363,13 @@ impl PaymentEntryRepository {
     /// `PaymentCancelled` emission on this being 1, so the reverse-seam restores each invoice exactly
     /// once even under a repeat/concurrent reverse. The CAS keys on `posting_state` (the GL-sync
     /// truth): only an entry whose post actually committed can be cancelled — a draft/submitted/
-    /// rejected payment matches zero rows. Caller supplies the company scope.
+    /// rejected payment matches zero rows. Fenced by the ambient org scope.
     pub async fn mark_cancelled(
         &self,
         pool: &PgPool,
         payment_id: Uuid,
     ) -> Result<u64, sqlx::Error> {
-        let res = company_scope::execute_scoped(
+        let res = org_scope::execute_scoped(
             pool,
             sqlx::query("UPDATE payment.payment_entries SET status='cancelled'::payment_status WHERE id=$1 AND posting_state='posted'::gl_posting_state AND status IN ('in_flight'::payment_status, 'paid'::payment_status)")
                 .bind(payment_id),
@@ -367,13 +378,14 @@ impl PaymentEntryRepository {
         Ok(res.rows_affected())
     }
 
-    /// Read the header the `PaymentSettled` emission needs. Caller supplies the company scope.
+    /// Read the header the `PaymentSettled` emission needs. Same ID-only scope contract as
+    /// [`Self::fetch_post_source`].
     pub async fn fetch_settled_header(
         &self,
         pool: &PgPool,
         payment_id: Uuid,
     ) -> Result<SettledHeaderRow, sqlx::Error> {
-        let hdr = company_scope::fetch_one_row_scoped(
+        let hdr = fetch_one_row_scoped(
             pool,
             sqlx::query("SELECT payment_type::text AS pt, party_id, paid_amount, unallocated_amount FROM payment.payment_entries WHERE id=$1")
                 .bind(payment_id),
@@ -387,13 +399,14 @@ impl PaymentEntryRepository {
         })
     }
 
-    /// Read the minimal header the `PaymentCancelled` emission needs. Caller supplies the company scope.
+    /// Read the minimal header the `PaymentCancelled` emission needs. Same ID-only scope contract as
+    /// [`Self::fetch_post_source`].
     pub async fn fetch_type_and_amount(
         &self,
         pool: &PgPool,
         payment_id: Uuid,
     ) -> Result<PaymentTypeAmountRow, sqlx::Error> {
-        let hdr = company_scope::fetch_one_row_scoped(
+        let hdr = fetch_one_row_scoped(
             pool,
             sqlx::query("SELECT payment_type::text AS pt, paid_amount FROM payment.payment_entries WHERE id=$1")
                 .bind(payment_id),

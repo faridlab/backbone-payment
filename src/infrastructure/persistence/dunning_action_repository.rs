@@ -44,7 +44,6 @@ impl DunningActionRepository {
 /// and `action_type` binding as `&str` and DB-side casts (`$7::dunning_level`, `$8::dunning_action_type`).
 pub struct NewDunningActionRow<'a> {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub run_id: Uuid,
     pub invoice_ref: Uuid,
     pub invoice_kind: &'a str,
@@ -61,9 +60,9 @@ impl DunningActionRepository {
     /// Idempotent action upsert (unique `invoice_ref + invoice_kind + level` fence).
     ///
     /// Takes the CALLER'S connection so each action commits with the run it belongs to. The caller
-    /// has already bound the company on it (`bind_company_on`) — don't re-bind here. Returns the
-    /// rows affected: the caller gates its `emitted` counter on this being > 0, so a re-run for the
-    /// same invoice does not double-count.
+    /// has already relayed the ambient org scope onto it (`org_scope::bind_org_scope_on`) — don't
+    /// re-bind here. Returns the rows affected: the caller gates its `emitted` counter on this
+    /// being > 0, so a re-run for the same invoice does not double-count.
     pub async fn upsert_action(
         &self,
         conn: &mut PgConnection,
@@ -71,13 +70,13 @@ impl DunningActionRepository {
     ) -> Result<u64, sqlx::Error> {
         let res = sqlx::query(
             r#"INSERT INTO payment.dunning_actions
-                 (id, company_id, run_id, invoice_ref, invoice_kind, party_id,
+                 (id, run_id, invoice_ref, invoice_kind, party_id,
                   level, action_type, days_past_due, outstanding_amount)
-               VALUES ($1, $2, $3, $4, $5, $6, $7::dunning_level, $8::dunning_action_type, $9, $10)
+               VALUES ($1, $2, $3, $4, $5, $6::dunning_level, $7::dunning_action_type, $8, $9)
                ON CONFLICT (invoice_ref, invoice_kind, level) WHERE (metadata->>'deleted_at') IS NULL
                DO NOTHING"#,
         )
-        .bind(a.id).bind(a.company_id).bind(a.run_id)
+        .bind(a.id).bind(a.run_id)
         .bind(a.invoice_ref).bind(a.invoice_kind).bind(a.party_id)
         .bind(a.level).bind(a.action_type).bind(a.days_past_due).bind(a.outstanding_amount)
         .execute(conn)

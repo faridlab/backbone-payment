@@ -11,6 +11,20 @@ use rust_decimal::Decimal;
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use std::future::Future;
+
+/// Drive a settlement/reversal verb inside the org request scope the composition layer always
+/// binds (ADR-0029) — those verbs read the legacy company twin off the ambient scope.
+async fn in_org_scope<R>(pool: &PgPool, f: impl Future<Output = R>) -> R {
+    backbone_orm::org_scope::with_org_request_scope(
+        pool,
+        backbone_orm::org_scope::OrgScope::for_company_unit(Uuid::new_v4()),
+        f,
+    )
+    .await
+    .expect("bind org request scope")
+}
+
 use backbone_payment::application::service::payment_discount::{
     discount_for, EarlyPayDecision, SettlementDiscountPort,
 };
@@ -122,7 +136,7 @@ fn svc(
 }
 
 fn receive(
-    company: Uuid,
+    _company: Uuid,
     bank: Uuid,
     ar: Uuid,
     customer: Uuid,
@@ -131,7 +145,6 @@ fn receive(
 ) -> NewPayment {
     NewPayment {
         payment_number: uq("PE"),
-        company_id: company,
         branch_id: None,
         payment_type: "receive".into(),
         party_type: Some("customer".into()),
@@ -233,8 +246,8 @@ async fn three_leg_receive_discount_golden() {
         .unwrap();
 
     // Build the envelope the post will send (pure read of the committed decision path).
-    w.post_payment(id, &OkGl).await.unwrap();
-    let env = w.build_settlement_post(id).await.unwrap();
+    in_org_scope(&pool, w.post_payment(id, &OkGl)).await.unwrap();
+    let env = in_org_scope(&pool, w.build_settlement_post(id)).await.unwrap();
     assert_eq!(
         env.totals(),
         (d("1000000.00"), d("1000000.00")),
@@ -327,9 +340,9 @@ async fn partial_payment_discounts_on_the_allocated_amount() {
         ))
         .await
         .unwrap();
-    w.post_payment(id, &OkGl).await.unwrap();
+    in_org_scope(&pool, w.post_payment(id, &OkGl)).await.unwrap();
 
-    let env = w.build_settlement_post(id).await.unwrap();
+    let env = in_org_scope(&pool, w.build_settlement_post(id)).await.unwrap();
     assert_eq!(leg(&env, bank).debit, d("98000.00"));
     assert_eq!(leg(&env, discount_acct).debit, d("2000.00"));
     assert_eq!(leg(&env, ar).credit, d("100000.00"));
@@ -410,9 +423,9 @@ async fn distinct_discount_accounts_stay_distinct_legs() {
         ))
         .await
         .unwrap();
-    w.post_payment(id, &OkGl).await.unwrap();
+    in_org_scope(&pool, w.post_payment(id, &OkGl)).await.unwrap();
 
-    let env = w.build_settlement_post(id).await.unwrap();
+    let env = in_org_scope(&pool, w.build_settlement_post(id)).await.unwrap();
     assert_eq!(env.totals(), (d("1000000.00"), d("1000000.00")));
     assert_eq!(leg(&env, acct_a).debit, d("8000.00"));
     assert_eq!(leg(&env, acct_b).debit, d("15000.00"));
@@ -463,9 +476,9 @@ async fn no_discount_is_the_two_leg_classic() {
         ))
         .await
         .unwrap();
-    w.post_payment(id, &OkGl).await.unwrap();
+    in_org_scope(&pool, w.post_payment(id, &OkGl)).await.unwrap();
 
-    let env = w.build_settlement_post(id).await.unwrap();
+    let env = in_org_scope(&pool, w.build_settlement_post(id)).await.unwrap();
     assert_eq!(env.lines.len(), 2, "no discount ⇒ no third leg");
     assert_eq!(leg(&env, bank).debit, d("500000.00"));
     assert_eq!(leg(&env, ar).credit, d("500000.00"));
@@ -517,7 +530,7 @@ async fn reversal_mirrors_the_discount_legs_from_the_stamps() {
         ))
         .await
         .unwrap();
-    w.post_payment(id, &OkGl).await.unwrap();
+    in_org_scope(&pool, w.post_payment(id, &OkGl)).await.unwrap();
     let resolved_after_post = *calls.lock().unwrap();
     assert_eq!(
         resolved_after_post, 1,
@@ -526,7 +539,7 @@ async fn reversal_mirrors_the_discount_legs_from_the_stamps() {
 
     // Rebuild the settlement envelope from committed state — the resolver must NOT run again.
     let before = *calls.lock().unwrap();
-    let _ = w.build_settlement_post(id).await.unwrap();
+    let _ = in_org_scope(&pool, w.build_settlement_post(id)).await.unwrap();
     assert_eq!(
         *calls.lock().unwrap(),
         before,
@@ -534,8 +547,8 @@ async fn reversal_mirrors_the_discount_legs_from_the_stamps() {
     );
 
     // The reversal: sign-flipped mirror, stamps as the source.
-    w.reverse_payment(id, &OkGl).await.unwrap();
-    let rev = w.build_reversal_post(id).await.unwrap();
+    in_org_scope(&pool, w.reverse_payment(id, &OkGl)).await.unwrap();
+    let rev = in_org_scope(&pool, w.build_reversal_post(id)).await.unwrap();
     assert_eq!(rev.posting_type, "reversal");
     assert_eq!(rev.totals(), (d("1000000.00"), d("1000000.00")));
     assert_eq!(leg(&rev, bank).credit, d("980000.00"));
@@ -612,7 +625,9 @@ async fn refused_then_retry_assembles_the_identical_envelope() {
 
     // First attempt: the ledger refuses; no stamp, no landing.
     assert!(matches!(
-        w.post_payment(id, &RejectingGl).await.unwrap_err(),
+        in_org_scope(&pool, w.post_payment(id, &RejectingGl))
+            .await
+            .unwrap_err(),
         PaymentError::GlRejected { .. }
     ));
     assert_eq!(
@@ -622,8 +637,8 @@ async fn refused_then_retry_assembles_the_identical_envelope() {
     );
 
     // Retry: same decision, same three legs, committed.
-    w.post_payment(id, &OkGl).await.unwrap();
-    let env = w.build_settlement_post(id).await.unwrap();
+    in_org_scope(&pool, w.post_payment(id, &OkGl)).await.unwrap();
+    let env = in_org_scope(&pool, w.build_settlement_post(id)).await.unwrap();
     assert_eq!(leg(&env, bank).debit, d("980000.00"));
     assert_eq!(leg(&env, discount_acct).debit, d("20000.00"));
     assert_eq!(leg(&env, ar).credit, d("1000000.00"));
@@ -676,9 +691,9 @@ async fn clamped_discount_keeps_the_post_balanced() {
         ))
         .await
         .unwrap();
-    w.post_payment(id, &OkGl).await.unwrap();
+    in_org_scope(&pool, w.post_payment(id, &OkGl)).await.unwrap();
 
-    let env = w.build_settlement_post(id).await.unwrap();
+    let env = in_org_scope(&pool, w.build_settlement_post(id)).await.unwrap();
     assert_eq!(env.totals(), (d("100000.00"), d("100000.00")));
     assert_eq!(
         leg(&env, discount_acct).debit,
@@ -739,14 +754,14 @@ async fn over_allocated_payment_discount_clamps_to_invoice_outstanding() {
         ))
         .await
         .unwrap();
-    w.post_payment(id, &OkGl).await.unwrap();
+    in_org_scope(&pool, w.post_payment(id, &OkGl)).await.unwrap();
     let (stamped, stamped_acct) = stamp_of(&pool, id, inv).await;
     assert_eq!(stamped, d("20000.00"), "clamped to the invoice basis");
     assert_eq!(stamped_acct, Some(discount_acct));
 
     // The assembled post stays balanced with the clamped leg:
     //   Dr Bank 1,180,000 · Dr Discount 20,000 · Cr A/R 1,200,000 (the gross allocation).
-    let env = w.build_settlement_post(id).await.unwrap();
+    let env = in_org_scope(&pool, w.build_settlement_post(id)).await.unwrap();
     assert_eq!(env.totals(), (d("1200000.00"), d("1200000.00")));
     assert_eq!(leg(&env, discount_acct).debit, d("20000.00"));
     assert_eq!(leg(&env, bank).debit, d("1180000.00"));
@@ -784,7 +799,7 @@ async fn over_allocated_payment_discount_clamps_to_invoice_outstanding() {
         ))
         .await
         .unwrap();
-    w1.post_payment(first, &OkGl).await.unwrap();
+    in_org_scope(&pool, w1.post_payment(first, &OkGl)).await.unwrap();
     let (s1, _) = stamp_of(&pool, first, inv2).await;
     assert_eq!(s1, d("8000.00"), "first partial discounts its allocation");
 
@@ -816,7 +831,7 @@ async fn over_allocated_payment_discount_clamps_to_invoice_outstanding() {
         ))
         .await
         .unwrap();
-    w2.post_payment(second, &OkGl).await.unwrap();
+    in_org_scope(&pool, w2.post_payment(second, &OkGl)).await.unwrap();
     let (s2, _) = stamp_of(&pool, second, inv2).await;
     assert_eq!(
         s2,

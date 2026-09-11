@@ -8,7 +8,7 @@
 //! `PaymentEntryRepository` / `PaymentAllocationRepository`, whose insert methods take THIS service's
 //! transaction so a payment is never half-written.
 
-use backbone_orm::company_scope;
+use backbone_orm::org_scope;
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
@@ -47,10 +47,15 @@ impl PaymentWriteService {
             return Err(PaymentError::UnknownPaymentMethod(method));
         }
 
-        // RLS scope (ADR-0008): company on the DTO — bind it onto the transaction so the entry +
-        // allocations insert fenced (WITH CHECK sees the caller's company).
+        // Tenancy posture (ADR-0029): the module owns no scoping column — the composing
+        // service's tenancy decorator does. Relay the AMBIENT request scope onto this
+        // transaction when the caller bound one: the fence accepts the writes as the app
+        // role and new rows land on the acting unit. An undecorated deployment has no
+        // ambient scope and skips this entirely (unfenced by design).
         let mut tx = self.db_pool.begin().await?;
-        company_scope::bind_company_on(&mut tx, p.company_id).await?;
+        if let Some(scope) = org_scope::current_org_scope() {
+            org_scope::bind_org_scope_on(&mut tx, &scope).await?;
+        }
         let r = self
             .entries
             .insert_entry(
@@ -58,7 +63,6 @@ impl PaymentWriteService {
                 &NewPaymentEntryRow {
                     id,
                     payment_number: &p.payment_number,
-                    company_id: p.company_id,
                     branch_id: p.branch_id,
                     payment_type: &p.payment_type,
                     party_type: p.party_type.as_deref(),
@@ -93,7 +97,6 @@ impl PaymentWriteService {
                     &mut tx,
                     &NewAllocationRow {
                         id: Uuid::new_v4(),
-                        company_id: p.company_id,
                         payment_id: id,
                         invoice_ref: a.invoice_ref,
                         invoice_kind: &a.invoice_kind,

@@ -5,10 +5,10 @@
 //! DTOs provide a clean separation between domain entities and API
 //! representations, with validation and OpenAPI documentation support.
 
-use chrono::{DateTime, Utc};
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use chrono::{DateTime, Utc};
+use rust_decimal::Decimal;
 
 #[cfg(feature = "openapi")]
 #[cfg(feature = "openapi")]
@@ -17,8 +17,8 @@ use utoipa::ToSchema;
 #[cfg(feature = "validation")]
 use validator::Validate;
 
-use crate::domain::entity::AuditMetadata;
 use crate::domain::entity::PaymentAllocation;
+use crate::domain::entity::AuditMetadata;
 use crate::domain::entity::SettlementKind;
 
 // =============================================================================
@@ -34,22 +34,10 @@ use crate::domain::entity::SettlementKind;
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct CreatePaymentAllocationDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(alias = "company_id")]
-    pub company_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "payment_id")]
     pub payment_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "invoice_ref")]
     pub invoice_ref: Uuid,
     #[serde(alias = "invoice_kind")]
@@ -58,11 +46,7 @@ pub struct CreatePaymentAllocationDto {
     pub allocated_amount: Decimal,
     #[serde(alias = "discount_amount")]
     pub discount_amount: Decimal,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "discount_account_id"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "discount_account_id")]
     pub discount_account_id: Option<Uuid>,
 }
 
@@ -79,22 +63,10 @@ pub struct CreatePaymentAllocationDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct UpdatePaymentAllocationDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(alias = "company_id")]
-    pub company_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "payment_id")]
     pub payment_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "invoice_ref")]
     pub invoice_ref: Uuid,
     #[serde(alias = "invoice_kind")]
@@ -103,11 +75,7 @@ pub struct UpdatePaymentAllocationDto {
     pub allocated_amount: Decimal,
     #[serde(alias = "discount_amount")]
     pub discount_amount: Decimal,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "discount_account_id"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "discount_account_id")]
     pub discount_account_id: Option<Uuid>,
 }
 
@@ -124,22 +92,10 @@ pub struct UpdatePaymentAllocationDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct PatchPaymentAllocationDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(skip_serializing_if = "Option::is_none", alias = "company_id")]
-    pub company_id: Option<Uuid>,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "payment_id")]
     pub payment_id: Option<Uuid>,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "invoice_ref")]
     pub invoice_ref: Option<Uuid>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "invoice_kind")]
@@ -155,13 +111,7 @@ pub struct PatchPaymentAllocationDto {
 impl PatchPaymentAllocationDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.company_id.is_some()
-            || self.payment_id.is_some()
-            || self.invoice_ref.is_some()
-            || self.invoice_kind.is_some()
-            || self.allocated_amount.is_some()
-            || self.discount_amount.is_some()
-            || self.discount_account_id.is_some()
+        self.payment_id.is_some() || self.invoice_ref.is_some() || self.invoice_kind.is_some() || self.allocated_amount.is_some() || self.discount_amount.is_some() || self.discount_account_id.is_some()
     }
 }
 
@@ -177,25 +127,11 @@ impl PatchPaymentAllocationDto {
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentAllocationResponseDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    pub company_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub payment_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub invoice_ref: Uuid,
     pub invoice_kind: SettlementKind,
     pub allocated_amount: Decimal,
@@ -234,12 +170,7 @@ pub struct PaymentAllocationListResponseDto {
 
 impl PaymentAllocationListResponseDto {
     /// Create a new list response from items and pagination info
-    pub fn new(
-        items: Vec<PaymentAllocationResponseDto>,
-        total: u64,
-        page: u32,
-        per_page: u32,
-    ) -> Self {
+    pub fn new(items: Vec<PaymentAllocationResponseDto>, total: u64, page: u32, per_page: u32) -> Self {
         let total_pages = if per_page > 0 {
             ((total as f64) / (per_page as f64)).ceil() as u32
         } else {
@@ -263,9 +194,9 @@ impl PaymentAllocationListResponseDto {
 #[serde(rename_all = "camelCase")]
 pub struct PaymentAllocationSummaryDto {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub payment_id: Uuid,
     pub invoice_ref: Uuid,
+    pub invoice_kind: SettlementKind,
     pub created_at: Option<DateTime<Utc>>,
 }
 
@@ -277,7 +208,6 @@ impl From<PaymentAllocation> for PaymentAllocationResponseDto {
     fn from(entity: PaymentAllocation) -> Self {
         Self {
             id: entity.id,
-            company_id: entity.company_id,
             payment_id: entity.payment_id,
             invoice_ref: entity.invoice_ref,
             invoice_kind: entity.invoice_kind,
@@ -294,9 +224,9 @@ impl From<PaymentAllocation> for PaymentAllocationSummaryDto {
         let created_at = backbone_core::PersistentEntity::created_at(&entity);
         Self {
             id: entity.id,
-            company_id: entity.company_id,
             payment_id: entity.payment_id,
             invoice_ref: entity.invoice_ref,
+            invoice_kind: entity.invoice_kind,
             created_at,
         }
     }
@@ -306,7 +236,6 @@ impl From<CreatePaymentAllocationDto> for PaymentAllocation {
     fn from(dto: CreatePaymentAllocationDto) -> Self {
         Self {
             id: Uuid::new_v4(),
-            company_id: dto.company_id,
             payment_id: dto.payment_id,
             invoice_ref: dto.invoice_ref,
             invoice_kind: dto.invoice_kind,
@@ -322,7 +251,6 @@ impl From<&PaymentAllocation> for PaymentAllocationResponseDto {
     fn from(entity: &PaymentAllocation) -> Self {
         Self {
             id: entity.id.clone(),
-            company_id: entity.company_id.clone(),
             payment_id: entity.payment_id.clone(),
             invoice_ref: entity.invoice_ref.clone(),
             invoice_kind: entity.invoice_kind.clone(),
@@ -341,11 +269,7 @@ impl backbone_core::FromCreateDto<CreatePaymentAllocationDto> for PaymentAllocat
 }
 
 impl backbone_core::ApplyUpdateDto<UpdatePaymentAllocationDto> for PaymentAllocation {
-    fn apply_update(
-        mut self,
-        dto: UpdatePaymentAllocationDto,
-    ) -> backbone_core::ServiceResult<Self> {
-        self.company_id = dto.company_id;
+    fn apply_update(mut self, dto: UpdatePaymentAllocationDto) -> backbone_core::ServiceResult<Self> {
         self.payment_id = dto.payment_id;
         self.invoice_ref = dto.invoice_ref;
         self.invoice_kind = dto.invoice_kind;

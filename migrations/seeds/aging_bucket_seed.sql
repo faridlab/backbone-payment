@@ -6,7 +6,6 @@
 
 -- INSERT INTO payment.aging_buckets (
 --     id,
---     company_id,
 --     snapshot_id,
 --     invoice_ref,
 --     invoice_kind,

@@ -5,9 +5,9 @@
 //! Returns an `EntityValidator<ModeOfPayment>` pre-loaded with schema-derived
 //! field rules. Extend in the `// <<< CUSTOM` zone.
 
+use backbone_core::{EntityValidator, ValidationErrors, ValidationError};
+use backbone_core::{RequiredString};
 use crate::domain::entity::ModeOfPayment;
-use backbone_core::RequiredString;
-use backbone_core::{EntityValidator, ValidationError, ValidationErrors};
 
 /// Validator type alias for ModeOfPayment entities.
 pub type ModeOfPaymentValidator = EntityValidator<ModeOfPayment>;

@@ -5,6 +5,14 @@
 //! payment that over-allocates or bypass the settlement path. `PaymentWriteService` is built from
 //! the pool (regen-safe). Posting (`post_payment`) needs a `GlPostSink` composition layer, so it is
 //! service/job-driven, not an HTTP route.
+//!
+//! Tenancy (ADR-0029): the module carries no tenancy of its own. `org_auth` verifies the Bearer
+//! token, resolves the session's org scope against the request's tenant tree, and runs every
+//! handler inside that scope — the module's statements ride the request-dedicated connection it
+//! binds, and the composing service's tenancy decorator does the actual row-level fencing. The
+//! guard reads the tenant database from the `backbone_orm::PgPool` request extension, so this
+//! surface must be mounted inside the composing service's tenant router (the same wiring every
+//! org-guarded module requires).
 
 use std::sync::Arc;
 
@@ -12,7 +20,7 @@ use axum::{
     extract::State, http::StatusCode, middleware::from_fn_with_state, response::IntoResponse,
     routing::post, Json, Router,
 };
-use backbone_auth::company::{company_auth, CompanyContext, CompanyVerifier};
+use backbone_auth::org::{org_auth, OrgVerifier};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -67,9 +75,12 @@ impl From<AllocationBody> for NewAllocation {
 #[serde(rename_all = "camelCase")]
 struct CreatePaymentBody {
     payment_number: String,
-    // No `company_id` / `branch_id`: the tenant is derived from the signed token via `CompanyContext`,
-    // never from the request body — a client must not be able to name the company whose bank/party
-    // accounts it moves money against.
+    // No tenancy field: the session scope is the one `org_auth` resolved and bound for the request,
+    // never a body value — a client must not be able to name the tenant whose bank/party accounts
+    // it moves money against. `branch_id` is a plain organizational label the caller names
+    // explicitly, not a tenancy key.
+    #[serde(default)]
+    branch_id: Option<Uuid>,
     payment_type: String,
     #[serde(default)]
     party_type: Option<String>,
@@ -96,13 +107,11 @@ struct CreatePaymentBody {
 }
 async fn create_payment(
     State(svc): State<Arc<PaymentWriteService>>,
-    tenant: CompanyContext,
     Json(b): Json<CreatePaymentBody>,
 ) -> axum::response::Response {
     let p = NewPayment {
         payment_number: b.payment_number,
-        company_id: tenant.company_id,
-        branch_id: tenant.branch_id,
+        branch_id: b.branch_id,
         payment_type: b.payment_type,
         party_type: b.party_type,
         party_id: b.party_id,
@@ -129,64 +138,67 @@ async fn create_payment(
 // The hand lifecycle verbs. There is deliberately NO route that writes `status` directly — the
 // fused state machine's writers are exactly: submit, post (computes the landing), reject, reverse,
 // and the bank-confirmation consumer. A PATCH-status route would hand callers a fifth writer and
-// undo that contract.
+// undo that contract. All of them are ID-only: the scope is the one `org_auth` resolved and bound
+// for the request, never a body or path value — a client must not be able to name the tenant it
+// writes into.
 async fn submit_payment(
     State(svc): State<Arc<PaymentWriteService>>,
-    tenant: CompanyContext,
     axum::extract::Path(payment_id): axum::extract::Path<Uuid>,
 ) -> axum::response::Response {
-    match svc.submit_payment(tenant.company_id, payment_id).await {
+    match svc.submit_payment(payment_id).await {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(e) => err(e),
     }
 }
 async fn reject_payment(
     State(svc): State<Arc<PaymentWriteService>>,
-    tenant: CompanyContext,
     axum::extract::Path(payment_id): axum::extract::Path<Uuid>,
 ) -> axum::response::Response {
-    match svc.reject_payment(tenant.company_id, payment_id).await {
+    match svc.reject_payment(payment_id).await {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(e) => err(e),
     }
 }
 
-fn write_routes(svc: Arc<PaymentWriteService>, verifier: CompanyVerifier) -> Router {
+fn write_routes(svc: Arc<PaymentWriteService>, verifier: OrgVerifier) -> Router {
     Router::new()
         .route("/payment-entries", post(create_payment))
         .route("/payment-entries/:id/submit", post(submit_payment))
         .route("/payment-entries/:id/reject", post(reject_payment))
-        // Every write above is tenant-scoped: `company_auth` rejects a request whose token is absent,
-        // invalid, or carries no `company_id`, so a handler only ever runs with a proven tenant.
+        // Every write above is scope-bound: `org_auth` rejects a request whose token is absent,
+        // invalid, or names a unit outside this tenant's tree, and runs the handler inside the
+        // resolved org scope — a handler only ever executes with a proven, fenced session.
         //
         // `route_layer`, not `layer`: `layer` would also wrap this router's fallback, so once merged
         // every *unmatched* path (e.g. the generic CRUD paths this surface deliberately does not
         // mount) would answer 401 instead of 404 — leaking "auth required" for routes that do not
         // exist, and masking the CRUD-bypass probes.
-        .route_layer(from_fn_with_state(verifier, company_auth))
+        .route_layer(from_fn_with_state(verifier, org_auth))
         .with_state(svc)
 }
 
-/// Mount the payment module: read documents + validated, tenant-scoped creates. Generic mutation is
+/// Mount the payment module: read documents + validated, scope-fenced creates. Generic mutation is
 /// not mounted. **Prefer this over `PaymentModule::all_crud_routes()` for any real deployment.**
 ///
-/// The composing service builds one [`CompanyVerifier`] from its JWT secret and passes it here; the
-/// write surface derives `company_id` from the token, so no tenant crosses the wire in a body.
+/// The composing service builds one [`OrgVerifier`] from its JWT secret and passes it here; the
+/// surface derives its session from the token, so no tenant crosses the wire in a body. Mount
+/// inside the tenant router with the `backbone_orm::PgPool` request extension attached — `org_auth`
+/// resolves the scope against that pool.
 pub fn create_guarded_payment_routes(
     m: &PaymentModule,
     pool: PgPool,
-    verifier: CompanyVerifier,
+    verifier: OrgVerifier,
 ) -> Router {
     let write = Arc::new(PaymentWriteService::new(pool));
-    // payment_entry is company-fenced → its read route is tenant-scoped by the same `company_auth`
-    // layer as the writes (establishes the request scope; the generic list/get path runs through
-    // `company_scope::fetch_*_scoped`, which rides it, so RLS returns only the caller's rows). mode_of_
-    // payment is GLOBAL reference data (no company_id, no RLS) — it stays public, unwrapped.
+    // payment_entries carry per-unit data → their read route is scope-bound by the same `org_auth`
+    // layer as the writes (it resolves and binds the session's org scope; the composing service's
+    // tenancy decorator fences the rows). mode_of_payment is GLOBAL reference data (no org axis, no
+    // RLS) — it stays public, unwrapped.
     let entity_reads = Router::new()
         .merge(create_payment_entry_read_routes(
             m.payment_entry_service.clone(),
         ))
-        .route_layer(from_fn_with_state(verifier.clone(), company_auth));
+        .route_layer(from_fn_with_state(verifier.clone(), org_auth));
     Router::new()
         .merge(create_mode_of_payment_read_routes(
             m.mode_of_payment_service.clone(),

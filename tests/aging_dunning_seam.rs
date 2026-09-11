@@ -48,17 +48,18 @@ struct BillingReceivablesAdapter {
 impl BillingReceivablesPort for BillingReceivablesAdapter {
     async fn outstanding_for(
         &self,
-        company_id: Uuid,
         kind: &str,
         _as_of: NaiveDate,
     ) -> Result<Vec<ReceivableRow>, String> {
+        // Scope-only read (ADR-0029): billing carries no tenancy key, so the adapter does not
+        // filter by one — the composition fences this read with its tenancy decorator, and this
+        // suite stays isolated by being the first test binary on a freshly migrated DB.
         let rows = sqlx::query(
             r#"SELECT id, customer_id, due_date, outstanding_amount
                FROM billing.sales_invoices
-               WHERE company_id = $1 AND posting_state = 'posted' AND outstanding_amount > 0
+               WHERE posting_state = 'posted' AND outstanding_amount > 0
                  AND (metadata->>'deleted_at') IS NULL"#,
         )
-        .bind(company_id)
         .fetch_all(&self.pool)
         .await
         .map_err(|e| e.to_string())?;
@@ -85,12 +86,24 @@ async fn pool() -> PgPool {
 #[tokio::test]
 async fn aging_buckets_and_dunning_escalate_across_seam() {
     let pool = pool().await;
+    // This suite is the only aging/dunning consumer and reads billing UNFENCED (scope-only
+    // port; the scratch DB has no decorator RLS), so it clears its seam's tables first — a
+    // re-run on a used DB must not see the previous run's invoices.
+    for table in [
+        "DELETE FROM payment.dunning_actions",
+        "DELETE FROM payment.dunning_runs",
+        "DELETE FROM payment.aging_buckets",
+        "DELETE FROM payment.aging_snapshots",
+        "DELETE FROM billing.sales_invoice_lines", "DELETE FROM billing.sales_invoices",
+    ] {
+        sqlx::query(table).execute(&pool).await.unwrap();
+    }
     let today = chrono::Utc::now().date_naive();
     let due_45d_ago = today.checked_sub_days(chrono::Days::new(45)).unwrap();
 
     // 1) Billing: create + post an invoice due 45 days ago → outstanding 1,000,000.
     let billing = BillingWriteService::new(pool.clone());
-    let (company, customer, ar, revenue, item) = (
+    let (_company, customer, ar, revenue, item) = (
         Uuid::new_v4(),
         Uuid::new_v4(),
         Uuid::new_v4(),
@@ -100,7 +113,6 @@ async fn aging_buckets_and_dunning_escalate_across_seam() {
     let inv = billing
         .create_sales_invoice(NewSalesInvoice {
             invoice_number: uq("SI"),
-            company_id: company,
             branch_id: None,
             customer_id: customer,
             source_so_id: None,
@@ -127,7 +139,7 @@ async fn aging_buckets_and_dunning_escalate_across_seam() {
     let port = Arc::new(BillingReceivablesAdapter { pool: pool.clone() });
     let dunning = PaymentDunningService::new(pool.clone(), port);
     let snapshot_id = dunning
-        .run_aging_snapshot(company, "receive", today)
+        .run_aging_snapshot("receive", today)
         .await
         .unwrap();
 
@@ -142,7 +154,7 @@ async fn aging_buckets_and_dunning_escalate_across_seam() {
 
     // 4) Run dunning.
     let (_run_id, emitted) = dunning
-        .run_dunning(company, "receive", today)
+        .run_dunning("receive", today)
         .await
         .unwrap();
     assert_eq!(emitted, 1, "one dunning action emitted");
@@ -159,14 +171,14 @@ async fn aging_buckets_and_dunning_escalate_across_seam() {
 
     // 6) Idempotency: re-run aging → same snapshot id.
     let snapshot2 = dunning
-        .run_aging_snapshot(company, "receive", today)
+        .run_aging_snapshot("receive", today)
         .await
         .unwrap();
     assert_eq!(snapshot_id, snapshot2, "re-run reuses the snapshot");
 
     // 7) Idempotency: re-run dunning → no new actions.
     let (_, emitted2) = dunning
-        .run_dunning(company, "receive", today)
+        .run_dunning("receive", today)
         .await
         .unwrap();
     assert_eq!(emitted2, 0, "re-run emits no new actions (unique fence)");

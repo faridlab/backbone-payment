@@ -5,18 +5,17 @@
 //! Returns an `EntityValidator<AgingSnapshot>` pre-loaded with schema-derived
 //! field rules. Extend in the `// <<< CUSTOM` zone.
 
-use crate::domain::entity::AgingSnapshot;
-use backbone_core::{EntityValidator, ValidationError, ValidationErrors};
+use backbone_core::{EntityValidator, ValidationErrors, ValidationError};
 use backbone_core::{NonNegative, RequiredString};
+use crate::domain::entity::AgingSnapshot;
 
 /// Validator type alias for AgingSnapshot entities.
 pub type AgingSnapshotValidator = EntityValidator<AgingSnapshot>;
 
 /// Build a validator for AgingSnapshot with all schema-defined field rules.
 pub fn aging_snapshot_validator() -> AgingSnapshotValidator {
-    EntityValidator::new().rule(RequiredString::new("direction", |e: &AgingSnapshot| {
-        &e.direction
-    }))
+    EntityValidator::new()
+        .rule(RequiredString::new("direction", |e: &AgingSnapshot| &e.direction))
     // <<< CUSTOM RULES
     // END CUSTOM RULES
 }

@@ -7,10 +7,9 @@
 //!
 //! Per the module's 4-layer rule this file holds no SQL — the statements live on
 //! `PaymentEntryRepository` / `PaymentAllocationRepository`. The reverse-seam emit is gated on the
-//! `posted→cancelled` transition (exactly-once); accounting dedups the reversal post itself on
-//! `(company, source_type, source_id, posting_type)`.
+//! `posted→cancelled` transition (exactly-once); accounting dedups the reversal post itself on the
+//! envelope's idempotency key.
 
-use backbone_orm::company_scope;
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
@@ -21,8 +20,8 @@ use super::payment_write_service::{PaymentError, PaymentWriteService, SettleOutc
 impl PaymentWriteService {
     /// Build the REVERSAL post — the sign-flipped mirror of the settlement post, `posting_type =
     /// "reversal"`, linked to the original via `reverses_post_id`. Accounting keys idempotency on
-    /// `(company, source_type, source_id, posting_type)`, so a reversal (same `source_id`, distinct
-    /// `posting_type`) is a separate post from the original AND a re-reversal dedups to one.
+    /// the envelope's idempotency key, so a reversal (its own key, distinct `posting_type`) is a
+    /// separate post from the original AND a re-reversal dedups to one.
     pub async fn build_reversal_post(
         &self,
         payment_id: Uuid,
@@ -71,7 +70,7 @@ impl PaymentWriteService {
         payment_id: Uuid,
         sink: &dyn GlPostSink,
     ) -> Result<SettleOutcome, PaymentError> {
-        // RLS scope (ADR-0008), ID-only: fenced by the request/inherited scope.
+        // ID-only read: fenced by the ambient org scope the composing service bound.
         let (status, posting_state): (String, String) = self
             .entries
             .fetch_status(&self.db_pool, payment_id)
@@ -92,11 +91,10 @@ impl PaymentWriteService {
         let env = self.build_reversal_post(payment_id).await?;
         match sink.post(&env).await {
             Ok(ack) => {
-                let rows_affected = company_scope::with_company_scope(
-                    Some(env.company_id),
-                    self.entries.mark_cancelled(&self.db_pool, payment_id),
-                )
-                .await?;
+                let rows_affected = self
+                    .entries
+                    .mark_cancelled(&self.db_pool, payment_id)
+                    .await?;
                 // Only the invocation that flipped posted→cancelled emits — so the reverse-seam restores
                 // each invoice exactly once even under a repeat/concurrent reverse.
                 if rows_affected == 1 {
@@ -122,20 +120,16 @@ impl PaymentWriteService {
         env: &AccountingPostEnvelope,
         ack: &super::payment_gl::GlPostAck,
     ) -> Result<(), PaymentError> {
-        let hdr = company_scope::with_company_scope(
-            Some(env.company_id),
-            self.entries
-                .fetch_type_and_amount(&self.db_pool, payment_id),
-        )
-        .await?;
+        let hdr = self
+            .entries
+            .fetch_type_and_amount(&self.db_pool, payment_id)
+            .await?;
         let payment_type: String = hdr.payment_type;
         let paid_amount: Decimal = hdr.paid_amount;
-        let alloc_rows = company_scope::with_company_scope(
-            Some(env.company_id),
-            self.allocations
-                .fetch_for_payment(&self.db_pool, payment_id),
-        )
-        .await?;
+        let alloc_rows = self
+            .allocations
+            .fetch_for_payment(&self.db_pool, payment_id)
+            .await?;
         let allocations: Vec<SettledInvoice> = alloc_rows
             .into_iter()
             .map(|r| SettledInvoice {

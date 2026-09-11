@@ -24,7 +24,6 @@ impl TestDataGenerator for AgingSnapshotTestData {
         let now = Utc::now().to_rfc3339();
         json!({
             "id": Uuid::new_v4().to_string(),
-            "company_id": Uuid::new_v4().to_string(),
             "as_of_date": Utc::now().format("%Y-%m-%d").to_string(),
             "direction": format!("Test {}", Uuid::new_v4().to_string().split('-').next().unwrap()),
             "total_outstanding": 0,
@@ -42,7 +41,6 @@ impl TestDataGenerator for AgingSnapshotTestData {
         let now = Utc::now().to_rfc3339();
         json!({
             "id": id,
-            "company_id": Uuid::new_v4().to_string(),
             "as_of_date": Utc::now().format("%Y-%m-%d").to_string(),
             "direction": format!("Test {}", Uuid::new_v4().to_string().split('-').next().unwrap()),
             "total_outstanding": 0,

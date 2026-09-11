@@ -1,10 +1,10 @@
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{DateTime, Utc, NaiveDate};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-use super::AuditMetadata;
 use super::DunningRunStatus;
+use super::AuditMetadata;
 
 /// Strongly-typed ID for DunningRun
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -12,15 +12,9 @@ use super::DunningRunStatus;
 pub struct DunningRunId(pub Uuid);
 
 impl DunningRunId {
-    pub fn new(id: Uuid) -> Self {
-        Self(id)
-    }
-    pub fn generate() -> Self {
-        Self(Uuid::new_v4())
-    }
-    pub fn into_inner(self) -> Uuid {
-        self.0
-    }
+    pub fn new(id: Uuid) -> Self { Self(id) }
+    pub fn generate() -> Self { Self(Uuid::new_v4()) }
+    pub fn into_inner(self) -> Uuid { self.0 }
 }
 
 impl std::fmt::Display for DunningRunId {
@@ -37,34 +31,25 @@ impl std::str::FromStr for DunningRunId {
 }
 
 impl From<Uuid> for DunningRunId {
-    fn from(id: Uuid) -> Self {
-        Self(id)
-    }
+    fn from(id: Uuid) -> Self { Self(id) }
 }
 
 impl From<DunningRunId> for Uuid {
-    fn from(id: DunningRunId) -> Self {
-        id.0
-    }
+    fn from(id: DunningRunId) -> Self { id.0 }
 }
 
 impl AsRef<Uuid> for DunningRunId {
-    fn as_ref(&self) -> &Uuid {
-        &self.0
-    }
+    fn as_ref(&self) -> &Uuid { &self.0 }
 }
 
 impl std::ops::Deref for DunningRunId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct DunningRun {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub as_of_date: NaiveDate,
     pub direction: String,
     pub snapshot_id: Option<Uuid>,
@@ -82,16 +67,9 @@ impl DunningRun {
     }
 
     /// Create a new DunningRun with required fields
-    pub fn new(
-        company_id: Uuid,
-        as_of_date: NaiveDate,
-        direction: String,
-        actions_emitted: i32,
-        status: DunningRunStatus,
-    ) -> Self {
+    pub fn new(as_of_date: NaiveDate, direction: String, actions_emitted: i32, status: DunningRunStatus) -> Self {
         Self {
             id: Uuid::new_v4(),
-            company_id,
             as_of_date,
             direction,
             snapshot_id: None,
@@ -156,6 +134,7 @@ impl DunningRun {
         &self.status
     }
 
+
     // ==========================================================
     // Fluent Setters (with_* for optional fields)
     // ==========================================================
@@ -174,35 +153,20 @@ impl DunningRun {
     pub fn apply_patch(&mut self, fields: std::collections::HashMap<String, serde_json::Value>) {
         for (key, value) in fields {
             match key.as_str() {
-                "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.company_id = v;
-                    }
-                }
                 "as_of_date" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.as_of_date = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.as_of_date = v; }
                 }
                 "direction" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.direction = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.direction = v; }
                 }
                 "snapshot_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.snapshot_id = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.snapshot_id = v; }
                 }
                 "actions_emitted" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.actions_emitted = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.actions_emitted = v; }
                 }
                 "status" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.status = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.status = v; }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -258,16 +222,12 @@ impl backbone_orm::EntityRepoMeta for DunningRun {
     fn column_types() -> std::collections::HashMap<String, String> {
         let mut m = std::collections::HashMap::new();
         m.insert("id".to_string(), "uuid".to_string());
-        m.insert("company_id".to_string(), "uuid".to_string());
         m.insert("snapshot_id".to_string(), "uuid".to_string());
         m.insert("status".to_string(), "dunning_run_status".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {
         &["direction"]
-    }
-    fn company_field() -> Option<&'static str> {
-        Some("company_id")
     }
 }
 
@@ -277,7 +237,6 @@ impl backbone_orm::EntityRepoMeta for DunningRun {
 /// System fields (id, metadata, timestamps) are auto-initialized.
 #[derive(Debug, Clone, Default)]
 pub struct DunningRunBuilder {
-    company_id: Option<Uuid>,
     as_of_date: Option<NaiveDate>,
     direction: Option<String>,
     snapshot_id: Option<Uuid>,
@@ -286,12 +245,6 @@ pub struct DunningRunBuilder {
 }
 
 impl DunningRunBuilder {
-    /// Set the company_id field (required)
-    pub fn company_id(mut self, value: Uuid) -> Self {
-        self.company_id = Some(value);
-        self
-    }
-
     /// Set the as_of_date field (required)
     pub fn as_of_date(mut self, value: NaiveDate) -> Self {
         self.as_of_date = Some(value);
@@ -326,19 +279,11 @@ impl DunningRunBuilder {
     ///
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<DunningRun, String> {
-        let company_id = self
-            .company_id
-            .ok_or_else(|| "company_id is required".to_string())?;
-        let as_of_date = self
-            .as_of_date
-            .ok_or_else(|| "as_of_date is required".to_string())?;
-        let direction = self
-            .direction
-            .ok_or_else(|| "direction is required".to_string())?;
+        let as_of_date = self.as_of_date.ok_or_else(|| "as_of_date is required".to_string())?;
+        let direction = self.direction.ok_or_else(|| "direction is required".to_string())?;
 
         Ok(DunningRun {
             id: Uuid::new_v4(),
-            company_id,
             as_of_date,
             direction,
             snapshot_id: self.snapshot_id,

@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-use super::AuditMetadata;
-use super::ModeOfPaymentStatus;
 use super::ModeType;
+use super::ModeOfPaymentStatus;
+use super::AuditMetadata;
 
 /// Strongly-typed ID for ModeOfPayment
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -13,15 +13,9 @@ use super::ModeType;
 pub struct ModeOfPaymentId(pub Uuid);
 
 impl ModeOfPaymentId {
-    pub fn new(id: Uuid) -> Self {
-        Self(id)
-    }
-    pub fn generate() -> Self {
-        Self(Uuid::new_v4())
-    }
-    pub fn into_inner(self) -> Uuid {
-        self.0
-    }
+    pub fn new(id: Uuid) -> Self { Self(id) }
+    pub fn generate() -> Self { Self(Uuid::new_v4()) }
+    pub fn into_inner(self) -> Uuid { self.0 }
 }
 
 impl std::fmt::Display for ModeOfPaymentId {
@@ -38,28 +32,20 @@ impl std::str::FromStr for ModeOfPaymentId {
 }
 
 impl From<Uuid> for ModeOfPaymentId {
-    fn from(id: Uuid) -> Self {
-        Self(id)
-    }
+    fn from(id: Uuid) -> Self { Self(id) }
 }
 
 impl From<ModeOfPaymentId> for Uuid {
-    fn from(id: ModeOfPaymentId) -> Self {
-        id.0
-    }
+    fn from(id: ModeOfPaymentId) -> Self { id.0 }
 }
 
 impl AsRef<Uuid> for ModeOfPaymentId {
-    fn as_ref(&self) -> &Uuid {
-        &self.0
-    }
+    fn as_ref(&self) -> &Uuid { &self.0 }
 }
 
 impl std::ops::Deref for ModeOfPaymentId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -82,12 +68,7 @@ impl ModeOfPayment {
     }
 
     /// Create a new ModeOfPayment with required fields
-    pub fn new(
-        code: String,
-        name: String,
-        mode_type: ModeType,
-        status: ModeOfPaymentStatus,
-    ) -> Self {
+    pub fn new(code: String, name: String, mode_type: ModeType, status: ModeOfPaymentStatus) -> Self {
         Self {
             id: Uuid::new_v4(),
             code,
@@ -154,6 +135,7 @@ impl ModeOfPayment {
         &self.status
     }
 
+
     // ==========================================================
     // Fluent Setters (with_* for optional fields)
     // ==========================================================
@@ -173,29 +155,19 @@ impl ModeOfPayment {
         for (key, value) in fields {
             match key.as_str() {
                 "code" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.code = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.code = v; }
                 }
                 "name" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.name = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.name = v; }
                 }
                 "mode_type" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.mode_type = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.mode_type = v; }
                 }
                 "default_account_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.default_account_id = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.default_account_id = v; }
                 }
                 "status" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.status = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.status = v; }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -311,9 +283,7 @@ impl ModeOfPaymentBuilder {
     pub fn build(self) -> Result<ModeOfPayment, String> {
         let code = self.code.ok_or_else(|| "code is required".to_string())?;
         let name = self.name.ok_or_else(|| "name is required".to_string())?;
-        let mode_type = self
-            .mode_type
-            .ok_or_else(|| "mode_type is required".to_string())?;
+        let mode_type = self.mode_type.ok_or_else(|| "mode_type is required".to_string())?;
 
         Ok(ModeOfPayment {
             id: Uuid::new_v4(),

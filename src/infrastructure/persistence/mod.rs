@@ -4,13 +4,13 @@
 //!
 //! Uses backbone-orm's `DatabaseOperations<T>` trait.
 
-mod aging_bucket_repository;
 mod aging_snapshot_repository;
-mod dunning_action_repository;
+mod aging_bucket_repository;
 mod dunning_run_repository;
+mod dunning_action_repository;
 mod mode_of_payment_repository;
-mod payment_allocation_repository;
 mod payment_entry_repository;
+mod payment_allocation_repository;
 
 // Custom persistence modules
 // <<< CUSTOM
@@ -30,18 +30,19 @@ pub use dunning_action_repository::NewDunningActionRow;
 // END CUSTOM
 
 // Re-exports
-pub use aging_bucket_repository::AgingBucketRepository;
 pub use aging_snapshot_repository::AgingSnapshotRepository;
-pub use dunning_action_repository::DunningActionRepository;
+pub use aging_bucket_repository::AgingBucketRepository;
 pub use dunning_run_repository::DunningRunRepository;
+pub use dunning_action_repository::DunningActionRepository;
 pub use mode_of_payment_repository::ModeOfPaymentRepository;
-pub use payment_allocation_repository::PaymentAllocationRepository;
 pub use payment_entry_repository::PaymentEntryRepository;
+pub use payment_allocation_repository::PaymentAllocationRepository;
 
 // Re-export backbone-orm types
 pub use backbone_orm::repository::{
-    DatabaseOperations, FilterCondition, FilterParams, PaginatedResult, PaginationInfo,
-    PaginationParams, PostgresRepository, SortDirection, SortParams,
+    DatabaseOperations, PostgresRepository,
+    PaginationParams, PaginationInfo, PaginatedResult,
+    FilterParams, FilterCondition, SortParams, SortDirection,
 };
 
 // Re-export custom persistence types

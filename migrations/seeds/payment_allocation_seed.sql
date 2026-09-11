@@ -6,7 +6,6 @@
 
 -- INSERT INTO payment.payment_allocations (
 --     id,
---     company_id,
 --     payment_id,
 --     invoice_ref,
 --     invoice_kind,

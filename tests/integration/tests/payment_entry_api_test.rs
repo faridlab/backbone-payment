@@ -25,7 +25,6 @@ impl TestDataGenerator for PaymentEntryTestData {
         json!({
             "id": Uuid::new_v4().to_string(),
             "payment_number": format!("Test {}", Uuid::new_v4().to_string().split('-').next().unwrap()),
-            "company_id": Uuid::new_v4().to_string(),
             "branch_id": null,
             "payment_type": "receive",
             "party_type": null,
@@ -59,7 +58,6 @@ impl TestDataGenerator for PaymentEntryTestData {
         json!({
             "id": id,
             "payment_number": format!("Test {}", Uuid::new_v4().to_string().split('-').next().unwrap()),
-            "company_id": Uuid::new_v4().to_string(),
             "branch_id": null,
             "payment_type": "receive",
             "party_type": null,

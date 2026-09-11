@@ -12,7 +12,11 @@ use rust_decimal::Decimal;
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
-use backbone_orm::company_scope;
+// The multi-row read twin lives only in the legacy `company_scope` module. Its connection
+// discipline is what this repository needs — request-dedicated connection when the composing
+// service bound one, plain pool otherwise. The helper's legacy task-local branch is never
+// taken: this module sets no legacy scope of its own (ADR-0029).
+use backbone_orm::company_scope::fetch_all_rows_scoped;
 
 use crate::domain::entity::PaymentAllocation;
 
@@ -23,6 +27,13 @@ pub const TABLE_NAME: &str = "payment.payment_allocations";
 ///
 /// All standard CRUD, soft-delete, pagination, and bulk methods are
 /// provided automatically via `Deref` to `backbone_orm::GenericCrudRepository`.
+///
+/// Tenancy (ADR-0029): the module carries no tenancy of its own — the composing service's
+/// tenancy decorator owns org scoping. No statement keys on a tenant column: reads ride the
+/// request-dedicated connection when the composing service bound one (carrying the decorator's
+/// fence variables), plainly on the pool otherwise; write transactions relay the caller's
+/// AMBIENT org scope (`org_scope::bind_org_scope_on`) in the service before any statement. An
+/// undecorated deployment gets an unfenced module.
 pub struct PaymentAllocationRepository(
     backbone_orm::GenericCrudRepository<PaymentAllocation, backbone_orm::SoftDelete>,
 );
@@ -46,7 +57,6 @@ impl PaymentAllocationRepository {
 /// kind fails as a DB error rather than a deserialize panic.
 pub struct NewAllocationRow<'a> {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub payment_id: Uuid,
     pub invoice_ref: Uuid,
     pub invoice_kind: &'a str,
@@ -71,10 +81,8 @@ impl PaymentAllocationRepository {
     /// Insert one allocation line.
     ///
     /// Takes the CALLER'S connection so the allocations and their payment entry commit as one unit. The
-    /// caller has already bound the company on it (`bind_company_on`) — don't re-bind here. The row
-    /// carries its own `company_id` (ADR-0010 Decision A) so the FORCE RLS WITH CHECK policy on
-    /// `payment_allocations` sees a value that matches `app.company_id`; the bind on the tx is what
-    /// makes that match hold.
+    /// caller has already relayed the ambient org scope onto it (`org_scope::bind_org_scope_on`) —
+    /// don't re-bind here; the decorator's fence accepts the writes and the acting unit owns the rows.
     pub async fn insert_allocation(
         &self,
         conn: &mut sqlx::PgConnection,
@@ -82,11 +90,10 @@ impl PaymentAllocationRepository {
     ) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"INSERT INTO payment.payment_allocations
-                (id, company_id, payment_id, invoice_ref, invoice_kind, allocated_amount)
-               VALUES ($1,$2,$3,$4,$5::settlement_kind,$6)"#,
+                (id, payment_id, invoice_ref, invoice_kind, allocated_amount)
+               VALUES ($1,$2,$3,$4::settlement_kind,$5)"#,
         )
         .bind(a.id)
-        .bind(a.company_id)
         .bind(a.payment_id)
         .bind(a.invoice_ref)
         .bind(a.invoice_kind)
@@ -96,14 +103,14 @@ impl PaymentAllocationRepository {
         Ok(())
     }
 
-    /// Read a payment's allocations for the settled/cancelled seam events. Caller supplies the company
-    /// scope.
+    /// Read a payment's allocations for the settled/cancelled seam events. Same ID-only scope
+    /// contract as the entry repository's reads: fenced by the ambient org scope.
     pub async fn fetch_for_payment(
         &self,
         pool: &PgPool,
         payment_id: Uuid,
     ) -> Result<Vec<AllocationRow>, sqlx::Error> {
-        let rows = company_scope::fetch_all_rows_scoped(
+        let rows = fetch_all_rows_scoped(
             pool,
             sqlx::query("SELECT id, invoice_ref, invoice_kind::text AS kind, allocated_amount, discount_amount, discount_account_id FROM payment.payment_allocations WHERE payment_id=$1 AND (metadata->>'deleted_at') IS NULL")
                 .bind(payment_id),
@@ -123,9 +130,9 @@ impl PaymentAllocationRepository {
     }
 
     /// Read the same allocations on the CALLER'S transaction, so the outbox stage reads them on the SAME
-    /// tx as the posted-transition the staged event is atomic with. ADR-0010 turned on FORCE RLS on
-    /// `payment_allocations`, so this read is now genuinely fenced by the caller's `app.company_id`
-    /// bind (previously the table had no policy and this read trusted the payment_id predicate alone).
+    /// tx as the posted-transition the staged event is atomic with. The read rides whatever fence the
+    /// composing service's tenancy decorator installed, via the scope the caller relayed onto the
+    /// transaction.
     pub async fn fetch_for_payment_on(
         &self,
         conn: &mut sqlx::PgConnection,

@@ -44,21 +44,20 @@ impl DunningRunRepository {
     /// Insert one dunning run in `completed` status and return its id.
     ///
     /// Takes the CALLER'S connection so the run and its actions commit as one unit. The caller has
-    /// already bound the company on it (`bind_company_on`) — don't re-bind here.
+    /// already relayed the ambient org scope onto it (`org_scope::bind_org_scope_on`) — don't
+    /// re-bind here.
     pub async fn insert_run(
         &self,
         conn: &mut PgConnection,
         id: Uuid,
-        company_id: Uuid,
         as_of: NaiveDate,
         direction: &str,
     ) -> Result<Uuid, sqlx::Error> {
         let run_id = sqlx::query_scalar(
-            r#"INSERT INTO payment.dunning_runs (id, company_id, as_of_date, direction, status)
-               VALUES ($1, $2, $3, $4, 'completed'::dunning_run_status) RETURNING id"#,
+            r#"INSERT INTO payment.dunning_runs (id, as_of_date, direction, status)
+               VALUES ($1, $2, $3, 'completed'::dunning_run_status) RETURNING id"#,
         )
         .bind(id)
-        .bind(company_id)
         .bind(as_of)
         .bind(direction)
         .fetch_one(conn)

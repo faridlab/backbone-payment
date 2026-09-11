@@ -1,11 +1,11 @@
-use chrono::{DateTime, NaiveDate, Utc};
-use rust_decimal::Decimal;
+use chrono::{DateTime, Utc, NaiveDate};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use rust_decimal::Decimal;
 
-use super::AuditMetadata;
 use super::SnapshotStatus;
+use super::AuditMetadata;
 
 /// Strongly-typed ID for AgingSnapshot
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -13,15 +13,9 @@ use super::SnapshotStatus;
 pub struct AgingSnapshotId(pub Uuid);
 
 impl AgingSnapshotId {
-    pub fn new(id: Uuid) -> Self {
-        Self(id)
-    }
-    pub fn generate() -> Self {
-        Self(Uuid::new_v4())
-    }
-    pub fn into_inner(self) -> Uuid {
-        self.0
-    }
+    pub fn new(id: Uuid) -> Self { Self(id) }
+    pub fn generate() -> Self { Self(Uuid::new_v4()) }
+    pub fn into_inner(self) -> Uuid { self.0 }
 }
 
 impl std::fmt::Display for AgingSnapshotId {
@@ -38,34 +32,25 @@ impl std::str::FromStr for AgingSnapshotId {
 }
 
 impl From<Uuid> for AgingSnapshotId {
-    fn from(id: Uuid) -> Self {
-        Self(id)
-    }
+    fn from(id: Uuid) -> Self { Self(id) }
 }
 
 impl From<AgingSnapshotId> for Uuid {
-    fn from(id: AgingSnapshotId) -> Self {
-        id.0
-    }
+    fn from(id: AgingSnapshotId) -> Self { id.0 }
 }
 
 impl AsRef<Uuid> for AgingSnapshotId {
-    fn as_ref(&self) -> &Uuid {
-        &self.0
-    }
+    fn as_ref(&self) -> &Uuid { &self.0 }
 }
 
 impl std::ops::Deref for AgingSnapshotId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct AgingSnapshot {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub as_of_date: NaiveDate,
     pub direction: String,
     pub total_outstanding: Decimal,
@@ -87,21 +72,9 @@ impl AgingSnapshot {
     }
 
     /// Create a new AgingSnapshot with required fields
-    pub fn new(
-        company_id: Uuid,
-        as_of_date: NaiveDate,
-        direction: String,
-        total_outstanding: Decimal,
-        bucket_current: Decimal,
-        bucket_1_30: Decimal,
-        bucket_31_60: Decimal,
-        bucket_61_90: Decimal,
-        bucket_90p: Decimal,
-        status: SnapshotStatus,
-    ) -> Self {
+    pub fn new(as_of_date: NaiveDate, direction: String, total_outstanding: Decimal, bucket_current: Decimal, bucket_1_30: Decimal, bucket_31_60: Decimal, bucket_61_90: Decimal, bucket_90p: Decimal, status: SnapshotStatus) -> Self {
         Self {
             id: Uuid::new_v4(),
-            company_id,
             as_of_date,
             direction,
             total_outstanding,
@@ -170,6 +143,7 @@ impl AgingSnapshot {
         &self.status
     }
 
+
     // ==========================================================
     // Partial Update
     // ==========================================================
@@ -178,55 +152,32 @@ impl AgingSnapshot {
     pub fn apply_patch(&mut self, fields: std::collections::HashMap<String, serde_json::Value>) {
         for (key, value) in fields {
             match key.as_str() {
-                "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.company_id = v;
-                    }
-                }
                 "as_of_date" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.as_of_date = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.as_of_date = v; }
                 }
                 "direction" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.direction = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.direction = v; }
                 }
                 "total_outstanding" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.total_outstanding = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.total_outstanding = v; }
                 }
                 "bucket_current" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.bucket_current = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.bucket_current = v; }
                 }
                 "bucket_1_30" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.bucket_1_30 = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.bucket_1_30 = v; }
                 }
                 "bucket_31_60" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.bucket_31_60 = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.bucket_31_60 = v; }
                 }
                 "bucket_61_90" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.bucket_61_90 = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.bucket_61_90 = v; }
                 }
                 "bucket_90p" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.bucket_90p = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.bucket_90p = v; }
                 }
                 "status" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.status = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.status = v; }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -282,15 +233,11 @@ impl backbone_orm::EntityRepoMeta for AgingSnapshot {
     fn column_types() -> std::collections::HashMap<String, String> {
         let mut m = std::collections::HashMap::new();
         m.insert("id".to_string(), "uuid".to_string());
-        m.insert("company_id".to_string(), "uuid".to_string());
         m.insert("status".to_string(), "snapshot_status".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {
         &["direction"]
-    }
-    fn company_field() -> Option<&'static str> {
-        Some("company_id")
     }
 }
 
@@ -300,7 +247,6 @@ impl backbone_orm::EntityRepoMeta for AgingSnapshot {
 /// System fields (id, metadata, timestamps) are auto-initialized.
 #[derive(Debug, Clone, Default)]
 pub struct AgingSnapshotBuilder {
-    company_id: Option<Uuid>,
     as_of_date: Option<NaiveDate>,
     direction: Option<String>,
     total_outstanding: Option<Decimal>,
@@ -313,12 +259,6 @@ pub struct AgingSnapshotBuilder {
 }
 
 impl AgingSnapshotBuilder {
-    /// Set the company_id field (required)
-    pub fn company_id(mut self, value: Uuid) -> Self {
-        self.company_id = Some(value);
-        self
-    }
-
     /// Set the as_of_date field (required)
     pub fn as_of_date(mut self, value: NaiveDate) -> Self {
         self.as_of_date = Some(value);
@@ -377,19 +317,11 @@ impl AgingSnapshotBuilder {
     ///
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<AgingSnapshot, String> {
-        let company_id = self
-            .company_id
-            .ok_or_else(|| "company_id is required".to_string())?;
-        let as_of_date = self
-            .as_of_date
-            .ok_or_else(|| "as_of_date is required".to_string())?;
-        let direction = self
-            .direction
-            .ok_or_else(|| "direction is required".to_string())?;
+        let as_of_date = self.as_of_date.ok_or_else(|| "as_of_date is required".to_string())?;
+        let direction = self.direction.ok_or_else(|| "direction is required".to_string())?;
 
         Ok(AgingSnapshot {
             id: Uuid::new_v4(),
-            company_id,
             as_of_date,
             direction,
             total_outstanding: self.total_outstanding.unwrap_or(Decimal::from(0)),

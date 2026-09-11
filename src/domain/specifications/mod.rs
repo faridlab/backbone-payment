@@ -4,15 +4,15 @@
 //!
 //! Combinators (AND/OR/NOT) come from `backbone_core::Specification`.
 
-pub use backbone_core::{AndSpecification, NotSpecification, OrSpecification, Specification};
+pub use backbone_core::{Specification, AndSpecification, OrSpecification, NotSpecification};
 
-pub mod aging_bucket_specification;
 pub mod aging_snapshot_specification;
-pub mod dunning_action_specification;
+pub mod aging_bucket_specification;
 pub mod dunning_run_specification;
+pub mod dunning_action_specification;
 pub mod mode_of_payment_specification;
-pub mod payment_allocation_specification;
 pub mod payment_entry_specification;
+pub mod payment_allocation_specification;
 
 // <<< CUSTOM
 // END CUSTOM

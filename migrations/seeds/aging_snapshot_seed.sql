@@ -6,7 +6,6 @@
 
 -- INSERT INTO payment.aging_snapshots (
 --     id,
---     company_id,
 --     as_of_date,
 --     direction,
 --     total_outstanding,

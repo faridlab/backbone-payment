@@ -1,13 +1,13 @@
 use chrono::{DateTime, Utc};
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use rust_decimal::Decimal;
 
-use super::AuditMetadata;
-use super::DunningActionStatus;
-use super::DunningActionType;
 use super::DunningLevel;
+use super::DunningActionType;
+use super::DunningActionStatus;
+use super::AuditMetadata;
 
 /// Strongly-typed ID for DunningAction
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -15,15 +15,9 @@ use super::DunningLevel;
 pub struct DunningActionId(pub Uuid);
 
 impl DunningActionId {
-    pub fn new(id: Uuid) -> Self {
-        Self(id)
-    }
-    pub fn generate() -> Self {
-        Self(Uuid::new_v4())
-    }
-    pub fn into_inner(self) -> Uuid {
-        self.0
-    }
+    pub fn new(id: Uuid) -> Self { Self(id) }
+    pub fn generate() -> Self { Self(Uuid::new_v4()) }
+    pub fn into_inner(self) -> Uuid { self.0 }
 }
 
 impl std::fmt::Display for DunningActionId {
@@ -40,34 +34,25 @@ impl std::str::FromStr for DunningActionId {
 }
 
 impl From<Uuid> for DunningActionId {
-    fn from(id: Uuid) -> Self {
-        Self(id)
-    }
+    fn from(id: Uuid) -> Self { Self(id) }
 }
 
 impl From<DunningActionId> for Uuid {
-    fn from(id: DunningActionId) -> Self {
-        id.0
-    }
+    fn from(id: DunningActionId) -> Self { id.0 }
 }
 
 impl AsRef<Uuid> for DunningActionId {
-    fn as_ref(&self) -> &Uuid {
-        &self.0
-    }
+    fn as_ref(&self) -> &Uuid { &self.0 }
 }
 
 impl std::ops::Deref for DunningActionId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct DunningAction {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub run_id: Uuid,
     pub invoice_ref: Uuid,
     pub invoice_kind: String,
@@ -91,20 +76,9 @@ impl DunningAction {
     }
 
     /// Create a new DunningAction with required fields
-    pub fn new(
-        company_id: Uuid,
-        run_id: Uuid,
-        invoice_ref: Uuid,
-        invoice_kind: String,
-        level: DunningLevel,
-        action_type: DunningActionType,
-        days_past_due: i32,
-        outstanding_amount: Decimal,
-        status: DunningActionStatus,
-    ) -> Self {
+    pub fn new(run_id: Uuid, invoice_ref: Uuid, invoice_kind: String, level: DunningLevel, action_type: DunningActionType, days_past_due: i32, outstanding_amount: Decimal, status: DunningActionStatus) -> Self {
         Self {
             id: Uuid::new_v4(),
-            company_id,
             run_id,
             invoice_ref,
             invoice_kind,
@@ -175,6 +149,7 @@ impl DunningAction {
         &self.status
     }
 
+
     // ==========================================================
     // Fluent Setters (with_* for optional fields)
     // ==========================================================
@@ -205,65 +180,38 @@ impl DunningAction {
     pub fn apply_patch(&mut self, fields: std::collections::HashMap<String, serde_json::Value>) {
         for (key, value) in fields {
             match key.as_str() {
-                "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.company_id = v;
-                    }
-                }
                 "run_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.run_id = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.run_id = v; }
                 }
                 "invoice_ref" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.invoice_ref = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.invoice_ref = v; }
                 }
                 "invoice_kind" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.invoice_kind = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.invoice_kind = v; }
                 }
                 "party_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.party_id = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.party_id = v; }
                 }
                 "level" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.level = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.level = v; }
                 }
                 "action_type" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.action_type = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.action_type = v; }
                 }
                 "days_past_due" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.days_past_due = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.days_past_due = v; }
                 }
                 "outstanding_amount" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.outstanding_amount = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.outstanding_amount = v; }
                 }
                 "status" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.status = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.status = v; }
                 }
                 "processed_at" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.processed_at = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.processed_at = v; }
                 }
                 "result_ref" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.result_ref = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.result_ref = v; }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -319,7 +267,6 @@ impl backbone_orm::EntityRepoMeta for DunningAction {
     fn column_types() -> std::collections::HashMap<String, String> {
         let mut m = std::collections::HashMap::new();
         m.insert("id".to_string(), "uuid".to_string());
-        m.insert("company_id".to_string(), "uuid".to_string());
         m.insert("run_id".to_string(), "uuid".to_string());
         m.insert("party_id".to_string(), "uuid".to_string());
         m.insert("level".to_string(), "dunning_level".to_string());
@@ -330,9 +277,6 @@ impl backbone_orm::EntityRepoMeta for DunningAction {
     fn search_fields() -> &'static [&'static str] {
         &["invoice_kind"]
     }
-    fn company_field() -> Option<&'static str> {
-        Some("company_id")
-    }
 }
 
 /// Builder for DunningAction entity
@@ -341,7 +285,6 @@ impl backbone_orm::EntityRepoMeta for DunningAction {
 /// System fields (id, metadata, timestamps) are auto-initialized.
 #[derive(Debug, Clone, Default)]
 pub struct DunningActionBuilder {
-    company_id: Option<Uuid>,
     run_id: Option<Uuid>,
     invoice_ref: Option<Uuid>,
     invoice_kind: Option<String>,
@@ -356,12 +299,6 @@ pub struct DunningActionBuilder {
 }
 
 impl DunningActionBuilder {
-    /// Set the company_id field (required)
-    pub fn company_id(mut self, value: Uuid) -> Self {
-        self.company_id = Some(value);
-        self
-    }
-
     /// Set the run_id field (required)
     pub fn run_id(mut self, value: Uuid) -> Self {
         self.run_id = Some(value);
@@ -432,32 +369,16 @@ impl DunningActionBuilder {
     ///
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<DunningAction, String> {
-        let company_id = self
-            .company_id
-            .ok_or_else(|| "company_id is required".to_string())?;
-        let run_id = self
-            .run_id
-            .ok_or_else(|| "run_id is required".to_string())?;
-        let invoice_ref = self
-            .invoice_ref
-            .ok_or_else(|| "invoice_ref is required".to_string())?;
-        let invoice_kind = self
-            .invoice_kind
-            .ok_or_else(|| "invoice_kind is required".to_string())?;
+        let run_id = self.run_id.ok_or_else(|| "run_id is required".to_string())?;
+        let invoice_ref = self.invoice_ref.ok_or_else(|| "invoice_ref is required".to_string())?;
+        let invoice_kind = self.invoice_kind.ok_or_else(|| "invoice_kind is required".to_string())?;
         let level = self.level.ok_or_else(|| "level is required".to_string())?;
-        let action_type = self
-            .action_type
-            .ok_or_else(|| "action_type is required".to_string())?;
-        let days_past_due = self
-            .days_past_due
-            .ok_or_else(|| "days_past_due is required".to_string())?;
-        let outstanding_amount = self
-            .outstanding_amount
-            .ok_or_else(|| "outstanding_amount is required".to_string())?;
+        let action_type = self.action_type.ok_or_else(|| "action_type is required".to_string())?;
+        let days_past_due = self.days_past_due.ok_or_else(|| "days_past_due is required".to_string())?;
+        let outstanding_amount = self.outstanding_amount.ok_or_else(|| "outstanding_amount is required".to_string())?;
 
         Ok(DunningAction {
             id: Uuid::new_v4(),
-            company_id,
             run_id,
             invoice_ref,
             invoice_kind,

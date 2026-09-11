@@ -9,11 +9,14 @@
 //! (`begin`/`commit`), and decides what to emit. It holds no SQL: every statement lives on
 //! `AgingSnapshotRepository` / `AgingBucketRepository` / `DunningRunRepository` /
 //! `DunningActionRepository`, whose custom methods take the caller's transaction so a snapshot +
-//! its buckets (and a run + its actions) commit as one unit. The RLS scope wrappers (ADR-0008)
-//! stay HERE, in the service, because the service is what knows the company; tx-taking repo
-//! methods ride the bind this service already made.
+//! its buckets (and a run + its actions) commit as one unit.
+//!
+//! Tenancy (ADR-0029): the module carries no tenancy of its own — the composing service's tenancy
+//! decorator owns org scoping. Each write transaction relays the AMBIENT org request scope when
+//! the caller bound one; the receivables read still receives the legacy company twin it names,
+//! because billing's tables are still company-fenced.
 
-use backbone_orm::company_scope;
+use backbone_orm::org_scope;
 use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use sqlx::PgPool;
@@ -62,29 +65,34 @@ impl PaymentDunningService {
     }
 
     /// Run one aging snapshot: read outstanding, bucket by days-past-due, persist.
-    /// Idempotent: the unique (company, as_of, direction) fence means a re-run for the same date
-    /// reuses the snapshot.
+    /// Idempotent: the fence-scoped (as_of, direction) arbitration in the upsert means a re-run
+    /// for the same scope and date reuses the snapshot.
     pub async fn run_aging_snapshot(
         &self,
-        company_id: Uuid,
         direction: &str,
         as_of: NaiveDate,
     ) -> Result<Uuid, PaymentDunningError> {
         let recs = self
             .receivables
-            .outstanding_for(company_id, direction, as_of)
+            .outstanding_for(direction, as_of)
             .await
             .map_err(PaymentDunningError::Port)?;
 
+        // Tenancy posture (ADR-0029): the module owns no scoping column — the composing
+        // service's tenancy decorator does. Relay the AMBIENT request scope onto this
+        // transaction when the caller bound one; an undecorated deployment has no ambient
+        // scope and skips this entirely (unfenced by design).
         let mut tx = self.db_pool.begin().await?;
-        company_scope::bind_company_on(&mut tx, company_id).await?;
+        if let Some(scope) = org_scope::current_org_scope() {
+            org_scope::bind_org_scope_on(&mut tx, &scope).await?;
+        }
 
         let snapshots = AgingSnapshotRepository::new(self.db_pool.clone());
         let buckets = AgingBucketRepository::new(self.db_pool.clone());
 
-        // Idempotent snapshot insert (unique company + as_of + direction).
+        // Idempotent snapshot upsert (fence-scoped as_of + direction).
         let snapshot_id = snapshots
-            .upsert_snapshot(&mut *tx, Uuid::new_v4(), company_id, as_of, direction)
+            .upsert_snapshot(&mut *tx, Uuid::new_v4(), as_of, direction)
             .await?;
 
         let mut totals = [Decimal::ZERO; 5]; // current, 1_30, 31_60, 61_90, 90p
@@ -101,7 +109,6 @@ impl PaymentDunningService {
                     &NewAgingBucketRow {
                         id: Uuid::new_v4(),
                         snapshot_id,
-                        company_id,
                         invoice_ref: r.invoice_ref,
                         invoice_kind: &r.invoice_kind,
                         party_id: r.party_id,
@@ -137,24 +144,27 @@ impl PaymentDunningService {
     /// emit actions (unique on invoice_ref + level → idempotent).
     pub async fn run_dunning(
         &self,
-        company_id: Uuid,
         direction: &str,
         as_of: NaiveDate,
     ) -> Result<(Uuid, i32), PaymentDunningError> {
         let recs = self
             .receivables
-            .outstanding_for(company_id, direction, as_of)
+            .outstanding_for(direction, as_of)
             .await
             .map_err(PaymentDunningError::Port)?;
 
+        // Tenancy posture (ADR-0029): relay the AMBIENT request scope when the caller bound one
+        // (see `run_aging_snapshot`).
         let mut tx = self.db_pool.begin().await?;
-        company_scope::bind_company_on(&mut tx, company_id).await?;
+        if let Some(scope) = org_scope::current_org_scope() {
+            org_scope::bind_org_scope_on(&mut tx, &scope).await?;
+        }
 
         let runs = DunningRunRepository::new(self.db_pool.clone());
         let actions = DunningActionRepository::new(self.db_pool.clone());
 
         let run_id = runs
-            .insert_run(&mut *tx, Uuid::new_v4(), company_id, as_of, direction)
+            .insert_run(&mut *tx, Uuid::new_v4(), as_of, direction)
             .await?;
 
         let mut emitted = 0i32;
@@ -171,7 +181,6 @@ impl PaymentDunningService {
                     &mut *tx,
                     &NewDunningActionRow {
                         id: Uuid::new_v4(),
-                        company_id,
                         run_id,
                         invoice_ref: r.invoice_ref,
                         invoice_kind: &r.invoice_kind,

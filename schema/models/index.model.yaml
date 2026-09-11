@@ -14,10 +14,13 @@ version: 2
 schema: payment
 description: "payment domain module"
 
-# ADR-0014 company fence: every entity here is company-scoped and fenced strict.
-# mode_of_payments is a global reference master with no company_id — implicitly
-# excluded from the declaration and unfenced.
-company_fence: strict
+# Tenancy: none, by design (ADR-0029). The module is tenant-agnostic and reusable —
+# it ships no scoping column and no fence declaration. A composing backend-service
+# that wants these tables org-scoped declares them in its tenancy.yaml; the
+# decorator installs org_unit_id, the RLS policy, and the org-scoped per-unit
+# uniques (the aging-snapshot per-date grain and any per-unit payment numbering)
+# at composition time. mode_of_payments is a global reference master — it stays
+# unfenced and outside the declaration entirely.
 
 config:
   database: postgresql

@@ -11,6 +11,20 @@ use rust_decimal::Decimal;
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use std::future::Future;
+
+/// Drive a settlement/reversal verb inside the org request scope the composition layer always
+/// binds (ADR-0029) — those verbs read the legacy company twin off the ambient scope.
+async fn in_org_scope<R>(pool: &PgPool, f: impl Future<Output = R>) -> R {
+    backbone_orm::org_scope::with_org_request_scope(
+        pool,
+        backbone_orm::org_scope::OrgScope::for_company_unit(Uuid::new_v4()),
+        f,
+    )
+    .await
+    .expect("bind org request scope")
+}
+
 use backbone_payment::application::service::payment_events::{PaymentEvent, PaymentEventSink};
 use backbone_payment::application::service::payment_gl::{
     AccountingPostEnvelope, GlPostAck, GlPostRejected, GlPostSink,
@@ -92,11 +106,10 @@ fn svc(pool: &PgPool, rec: Recorder) -> PaymentWriteService {
         .with_reconcilable_port(Arc::new(AlwaysReconcilable))
 }
 
-async fn new_in_flight_payment(pool: &PgPool, company: Uuid, w: &PaymentWriteService) -> Uuid {
+async fn new_in_flight_payment(pool: &PgPool, _company: Uuid, w: &PaymentWriteService) -> Uuid {
     let id = w
         .create_payment(NewPayment {
             payment_number: uq("PE"),
-            company_id: company,
             branch_id: None,
             payment_type: "receive".into(),
             party_type: Some("customer".into()),
@@ -121,7 +134,7 @@ async fn new_in_flight_payment(pool: &PgPool, company: Uuid, w: &PaymentWriteSer
         })
         .await
         .unwrap();
-    w.post_payment(id, &OkGl).await.unwrap();
+    in_org_scope(&pool, w.post_payment(id, &OkGl)).await.unwrap();
     id
 }
 
@@ -185,7 +198,6 @@ async fn non_applicable_state_consumes_without_drift() {
     let id = w
         .create_payment(NewPayment {
             payment_number: uq("PE"),
-            company_id: company,
             branch_id: None,
             payment_type: "receive".into(),
             party_type: Some("customer".into()),

@@ -5,10 +5,10 @@
 //! DTOs provide a clean separation between domain entities and API
 //! representations, with validation and OpenAPI documentation support.
 
-use chrono::{DateTime, NaiveDate, Utc};
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use chrono::{DateTime, Utc, NaiveDate};
+use rust_decimal::Decimal;
 
 #[cfg(feature = "openapi")]
 #[cfg(feature = "openapi")]
@@ -34,12 +34,6 @@ use crate::domain::entity::SnapshotStatus;
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct CreateAgingSnapshotDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(alias = "company_id")]
-    pub company_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01"))]
     #[serde(alias = "as_of_date")]
     pub as_of_date: NaiveDate,
@@ -74,12 +68,6 @@ pub struct CreateAgingSnapshotDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateAgingSnapshotDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(alias = "company_id")]
-    pub company_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01"))]
     #[serde(alias = "as_of_date")]
     pub as_of_date: NaiveDate,
@@ -114,12 +102,6 @@ pub struct UpdateAgingSnapshotDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct PatchAgingSnapshotDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(skip_serializing_if = "Option::is_none", alias = "company_id")]
-    pub company_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "as_of_date")]
     pub as_of_date: Option<NaiveDate>,
@@ -146,16 +128,7 @@ pub struct PatchAgingSnapshotDto {
 impl PatchAgingSnapshotDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.company_id.is_some()
-            || self.as_of_date.is_some()
-            || self.direction.is_some()
-            || self.total_outstanding.is_some()
-            || self.bucket_current.is_some()
-            || self.bucket_1_30.is_some()
-            || self.bucket_31_60.is_some()
-            || self.bucket_61_90.is_some()
-            || self.bucket_90p.is_some()
-            || self.status.is_some()
+        self.as_of_date.is_some() || self.direction.is_some() || self.total_outstanding.is_some() || self.bucket_current.is_some() || self.bucket_1_30.is_some() || self.bucket_31_60.is_some() || self.bucket_61_90.is_some() || self.bucket_90p.is_some() || self.status.is_some()
     }
 }
 
@@ -171,16 +144,8 @@ impl PatchAgingSnapshotDto {
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct AgingSnapshotResponseDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    pub company_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01"))]
     pub as_of_date: NaiveDate,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
@@ -249,9 +214,9 @@ impl AgingSnapshotListResponseDto {
 #[serde(rename_all = "camelCase")]
 pub struct AgingSnapshotSummaryDto {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub as_of_date: NaiveDate,
     pub direction: String,
+    pub total_outstanding: Decimal,
     pub created_at: Option<DateTime<Utc>>,
 }
 
@@ -263,7 +228,6 @@ impl From<AgingSnapshot> for AgingSnapshotResponseDto {
     fn from(entity: AgingSnapshot) -> Self {
         Self {
             id: entity.id,
-            company_id: entity.company_id,
             as_of_date: entity.as_of_date,
             direction: entity.direction,
             total_outstanding: entity.total_outstanding,
@@ -283,9 +247,9 @@ impl From<AgingSnapshot> for AgingSnapshotSummaryDto {
         let created_at = backbone_core::PersistentEntity::created_at(&entity);
         Self {
             id: entity.id,
-            company_id: entity.company_id,
             as_of_date: entity.as_of_date,
             direction: entity.direction,
+            total_outstanding: entity.total_outstanding,
             created_at,
         }
     }
@@ -295,7 +259,6 @@ impl From<CreateAgingSnapshotDto> for AgingSnapshot {
     fn from(dto: CreateAgingSnapshotDto) -> Self {
         Self {
             id: Uuid::new_v4(),
-            company_id: dto.company_id,
             as_of_date: dto.as_of_date,
             direction: dto.direction,
             total_outstanding: dto.total_outstanding,
@@ -314,7 +277,6 @@ impl From<&AgingSnapshot> for AgingSnapshotResponseDto {
     fn from(entity: &AgingSnapshot) -> Self {
         Self {
             id: entity.id.clone(),
-            company_id: entity.company_id.clone(),
             as_of_date: entity.as_of_date.clone(),
             direction: entity.direction.clone(),
             total_outstanding: entity.total_outstanding.clone(),
@@ -337,7 +299,6 @@ impl backbone_core::FromCreateDto<CreateAgingSnapshotDto> for AgingSnapshot {
 
 impl backbone_core::ApplyUpdateDto<UpdateAgingSnapshotDto> for AgingSnapshot {
     fn apply_update(mut self, dto: UpdateAgingSnapshotDto) -> backbone_core::ServiceResult<Self> {
-        self.company_id = dto.company_id;
         self.as_of_date = dto.as_of_date;
         self.direction = dto.direction;
         self.total_outstanding = dto.total_outstanding;

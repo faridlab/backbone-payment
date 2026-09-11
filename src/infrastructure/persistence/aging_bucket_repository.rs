@@ -46,7 +46,6 @@ impl AgingBucketRepository {
 pub struct NewAgingBucketRow<'a> {
     pub id: Uuid,
     pub snapshot_id: Uuid,
-    pub company_id: Uuid,
     pub invoice_ref: Uuid,
     pub invoice_kind: &'a str,
     pub party_id: Option<Uuid>,
@@ -62,7 +61,8 @@ impl AgingBucketRepository {
     /// Insert one per-invoice aging-bucket row.
     ///
     /// Takes the CALLER'S connection so each bucket commits with the snapshot it belongs to. The
-    /// caller has already bound the company on it (`bind_company_on`) — don't re-bind here.
+    /// caller has already relayed the ambient org scope onto it (`org_scope::bind_org_scope_on`) —
+    /// don't re-bind here.
     pub async fn insert_bucket(
         &self,
         conn: &mut PgConnection,
@@ -70,13 +70,12 @@ impl AgingBucketRepository {
     ) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"INSERT INTO payment.aging_buckets
-                 (id, snapshot_id, company_id, invoice_ref, invoice_kind, party_id,
+                 (id, snapshot_id, invoice_ref, invoice_kind, party_id,
                   due_date, days_past_due, outstanding_amount, bucket)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::aging_bucket_name)"#,
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::aging_bucket_name)"#,
         )
         .bind(b.id)
         .bind(b.snapshot_id)
-        .bind(b.company_id)
         .bind(b.invoice_ref)
         .bind(b.invoice_kind)
         .bind(b.party_id)

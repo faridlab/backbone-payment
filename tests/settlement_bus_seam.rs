@@ -21,6 +21,20 @@ use rust_decimal::Decimal;
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use std::future::Future;
+
+/// Drive a settlement/reversal verb inside the org request scope the composition layer always
+/// binds (ADR-0029) — those verbs read the legacy company twin off the ambient scope.
+async fn in_org_scope<R>(pool: &PgPool, f: impl Future<Output = R>) -> R {
+    backbone_orm::org_scope::with_org_request_scope(
+        pool,
+        backbone_orm::org_scope::OrgScope::for_company_unit(Uuid::new_v4()),
+        f,
+    )
+    .await
+    .expect("bind org request scope")
+}
+
 use backbone_accounting::application::service::posting_service::{
     PostingLine, PostingRequest, PostingService,
 };
@@ -308,7 +322,7 @@ async fn settlement_through_outbox_is_exactly_once() {
     let pool = pool().await;
     outbox::migrate(&pool, "payment").await.unwrap(); // producer outbox
     outbox::migrate(&pool, "billing").await.unwrap(); // consumer inbox
-    let (company, coa) = seed_coa(&pool).await;
+    let (_company, coa) = seed_coa(&pool).await;
     let (customer, item) = (Uuid::new_v4(), Uuid::new_v4());
 
     let billing = BillingWriteService::new(pool.clone());
@@ -323,7 +337,6 @@ async fn settlement_through_outbox_is_exactly_once() {
     let inv = billing
         .create_sales_invoice(NewSalesInvoice {
             invoice_number: uq("SI"),
-            company_id: company,
             branch_id: None,
             customer_id: customer,
             source_so_id: None,
@@ -351,7 +364,6 @@ async fn settlement_through_outbox_is_exactly_once() {
     let pay = payment
         .create_payment(NewPayment {
             payment_number: uq("PE"),
-            company_id: company,
             branch_id: None,
             payment_type: "receive".into(),
             party_type: Some("customer".into()),
@@ -376,7 +388,7 @@ async fn settlement_through_outbox_is_exactly_once() {
         })
         .await
         .unwrap();
-    payment.post_payment(pay, &gl).await.unwrap();
+    in_org_scope(&pool, payment.post_payment(pay, &gl)).await.unwrap();
     let _ = &recorder; // the legacy in-proc sink still fires; the durable path is the outbox below.
 
     // PRODUCER (shipped path): post_payment already staged `PaymentSettled` into payment.outbox_events,

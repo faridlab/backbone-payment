@@ -4,6 +4,12 @@
 //! `backbone-billing::apply_settlement` — drawing down each invoice's `outstanding_amount` and
 //! payment schedules, and flipping its status to `partially_paid`/`paid`. This is the seam that
 //! closes the cash loop (order-to-cash-to-bank, procure-to-pay-to-bank).
+//!
+//! Tenancy (ADR-0029): payment's own tables carry no tenant column — the composing service's
+//! tenancy decorator owns org scoping. The events' `company_id` fields are the documented legacy
+//! company twin: they carry the caller's company to consumers whose tables are still
+//! company-fenced (billing first among them), resolved from the ambient org request scope at
+//! emit time and absent-meaning-refuse for statements that must carry one.
 
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -29,6 +35,8 @@ pub struct SettledInvoice {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PaymentSettled {
     pub payment_id: Uuid,
+    /// The legacy company twin (ADR-0029) for still-company-fenced consumers; payment stores no
+    /// tenancy key of its own — this resolves from the ambient org request scope at emit time.
     pub company_id: Uuid,
     pub journal_id: Uuid,
     pub post_id: Uuid,
@@ -52,6 +60,7 @@ pub struct PaymentSettled {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PaymentReceivedOnAccount {
     pub payment_id: Uuid,
+    /// The legacy company twin (ADR-0029) — see `PaymentSettled`.
     pub company_id: Uuid,
     pub party_id: Option<Uuid>,
     pub unallocated_amount: Decimal,
@@ -64,6 +73,7 @@ pub struct PaymentReceivedOnAccount {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PaymentCancelled {
     pub payment_id: Uuid,
+    /// The legacy company twin (ADR-0029) — see `PaymentSettled`.
     pub company_id: Uuid,
     pub journal_id: Uuid,
     pub post_id: Uuid,

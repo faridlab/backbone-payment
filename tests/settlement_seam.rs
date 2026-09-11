@@ -18,6 +18,20 @@ use rust_decimal::Decimal;
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
+use std::future::Future;
+
+/// Drive a settlement/reversal verb inside the org request scope the composition layer always
+/// binds (ADR-0029) — those verbs read the legacy company twin off the ambient scope.
+async fn in_org_scope<R>(pool: &PgPool, f: impl Future<Output = R>) -> R {
+    backbone_orm::org_scope::with_org_request_scope(
+        pool,
+        backbone_orm::org_scope::OrgScope::for_company_unit(Uuid::new_v4()),
+        f,
+    )
+    .await
+    .expect("bind org request scope")
+}
+
 use backbone_billing::application::service::billing_gl::{
     ReconcileEdgeAck, ReconcileLine, ReconcileOrigin, ReconcilePairRequest, ReconcileRejected,
     ReconcileSink, UnreconcilePairRequest,
@@ -390,7 +404,6 @@ async fn settlement_across_three_modules() {
     let inv = billing
         .create_sales_invoice(NewSalesInvoice {
             invoice_number: uq("SI"),
-            company_id: company,
             branch_id: None,
             customer_id: customer,
             source_so_id: None,
@@ -440,7 +453,6 @@ async fn settlement_across_three_modules() {
     let pay_a = payment
         .create_payment(NewPayment {
             payment_number: uq("PE"),
-            company_id: company,
             branch_id: None,
             payment_type: "receive".into(),
             party_type: Some("customer".into()),
@@ -465,7 +477,7 @@ async fn settlement_across_three_modules() {
         })
         .await
         .unwrap();
-    let pa = payment.post_payment(pay_a, &gl).await.unwrap();
+    let pa = in_org_scope(&pool, payment.post_payment(pay_a, &gl)).await.unwrap();
     assert_eq!(
         journal_totals(&pool, pa.journal_id).await,
         (d("600000"), d("600000"))
@@ -506,7 +518,6 @@ async fn settlement_across_three_modules() {
     let pay_b = payment
         .create_payment(NewPayment {
             payment_number: uq("PE"),
-            company_id: company,
             branch_id: None,
             payment_type: "receive".into(),
             party_type: Some("customer".into()),
@@ -531,7 +542,7 @@ async fn settlement_across_three_modules() {
         })
         .await
         .unwrap();
-    payment.post_payment(pay_b, &gl).await.unwrap();
+    in_org_scope(&pool, payment.post_payment(pay_b, &gl)).await.unwrap();
     apply_settlements(&billing, &sink, &recorder, pay_b).await;
 
     assert_eq!(
@@ -670,7 +681,6 @@ async fn reverse_payment_restores_invoice_and_is_idempotent() {
     let inv = billing
         .create_sales_invoice(NewSalesInvoice {
             invoice_number: uq("SI"),
-            company_id: company,
             branch_id: None,
             customer_id: customer,
             source_so_id: None,
@@ -695,7 +705,6 @@ async fn reverse_payment_restores_invoice_and_is_idempotent() {
     let pay = payment
         .create_payment(NewPayment {
             payment_number: uq("PE"),
-            company_id: company,
             branch_id: None,
             payment_type: "receive".into(),
             party_type: Some("customer".into()),
@@ -720,7 +729,7 @@ async fn reverse_payment_restores_invoice_and_is_idempotent() {
         })
         .await
         .unwrap();
-    payment.post_payment(pay, &gl).await.unwrap();
+    in_org_scope(&pool, payment.post_payment(pay, &gl)).await.unwrap();
     apply_settlements(&billing, &sink, &recorder, pay).await;
     assert_eq!(
         invoice_row(&pool, inv).await,
@@ -736,7 +745,7 @@ async fn reverse_payment_restores_invoice_and_is_idempotent() {
     );
 
     // Reverse the payment → reversal journal + PaymentCancelled → reverse_settlement.
-    payment.reverse_payment(pay, &gl).await.unwrap();
+    in_org_scope(&pool, payment.reverse_payment(pay, &gl)).await.unwrap();
     reverse_settlements(&billing, &sink, &recorder, pay).await;
 
     // Payment cancelled; invoice re-owed; the reversal journal is a real `reversal` post.
@@ -796,7 +805,7 @@ async fn reverse_payment_restores_invoice_and_is_idempotent() {
 
     // Re-reverse: single reversal post (accounting dedups), PaymentCancelled emitted once (gate),
     // outstanding NOT double-restored — and the graph is untouched by the no-op.
-    payment.reverse_payment(pay, &gl).await.unwrap();
+    in_org_scope(&pool, payment.reverse_payment(pay, &gl)).await.unwrap();
     let cancelled_events = recorder
         .events
         .lock()
@@ -849,7 +858,6 @@ async fn racing_payments_reconcile_via_clamp_and_on_account() {
     let inv = billing
         .create_sales_invoice(NewSalesInvoice {
             invoice_number: uq("SI"),
-            company_id: company,
             branch_id: None,
             customer_id: customer,
             source_so_id: None,
@@ -879,7 +887,6 @@ async fn racing_payments_reconcile_via_clamp_and_on_account() {
         let pay = payment
             .create_payment(NewPayment {
                 payment_number: uq("PE"),
-                company_id: company,
                 branch_id: None,
                 payment_type: "receive".into(),
                 party_type: Some("customer".into()),
@@ -904,7 +911,7 @@ async fn racing_payments_reconcile_via_clamp_and_on_account() {
             })
             .await
             .unwrap();
-        payment.post_payment(pay, &gl).await.unwrap();
+        in_org_scope(&pool, payment.post_payment(pay, &gl)).await.unwrap();
         // apply directly (each payment settled 600k) — capture the second's clamped return.
         let a = billing
             .apply_settlement(company, inv, "sales", d("600000"), pay, &sink)
@@ -986,7 +993,6 @@ async fn two_allocations_write_two_edges_and_reverse_unwinds_both() {
 
     let new_invoice = |amount: Decimal| NewSalesInvoice {
         invoice_number: uq("SI"),
-        company_id: company,
         branch_id: None,
         customer_id: customer,
         source_so_id: None,
@@ -1020,7 +1026,6 @@ async fn two_allocations_write_two_edges_and_reverse_unwinds_both() {
     let pay = payment
         .create_payment(NewPayment {
             payment_number: uq("PE"),
-            company_id: company,
             branch_id: None,
             payment_type: "receive".into(),
             party_type: Some("customer".into()),
@@ -1052,7 +1057,7 @@ async fn two_allocations_write_two_edges_and_reverse_unwinds_both() {
         })
         .await
         .unwrap();
-    payment.post_payment(pay, &gl).await.unwrap();
+    in_org_scope(&pool, payment.post_payment(pay, &gl)).await.unwrap();
     let on_account = apply_settlements(&billing, &sink, &recorder, pay).await;
     assert_eq!(
         on_account,
@@ -1098,7 +1103,7 @@ async fn two_allocations_write_two_edges_and_reverse_unwinds_both() {
     // Cancel the payment: the reversal journal hits the ledger, PaymentCancelled unwinds BOTH
     // allocations — both edges unlinked, both outstandings restored, both groups gone (the only
     // surviving group pairs the payment's own credit with its reversal debit).
-    payment.reverse_payment(pay, &gl).await.unwrap();
+    in_org_scope(&pool, payment.reverse_payment(pay, &gl)).await.unwrap();
     reverse_settlements(&billing, &sink, &recorder, pay).await;
     assert_eq!(
         invoice_row(&pool, inv_a).await,

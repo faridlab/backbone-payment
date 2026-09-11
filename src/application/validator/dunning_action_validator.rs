@@ -5,9 +5,9 @@
 //! Returns an `EntityValidator<DunningAction>` pre-loaded with schema-derived
 //! field rules. Extend in the `// <<< CUSTOM` zone.
 
-use crate::domain::entity::DunningAction;
-use backbone_core::{EntityValidator, ValidationError, ValidationErrors};
+use backbone_core::{EntityValidator, ValidationErrors, ValidationError};
 use backbone_core::{NonNegative, OptionalNotBlank, RequiredString};
+use crate::domain::entity::DunningAction;
 
 /// Validator type alias for DunningAction entities.
 pub type DunningActionValidator = EntityValidator<DunningAction>;
@@ -15,12 +15,8 @@ pub type DunningActionValidator = EntityValidator<DunningAction>;
 /// Build a validator for DunningAction with all schema-defined field rules.
 pub fn dunning_action_validator() -> DunningActionValidator {
     EntityValidator::new()
-        .rule(RequiredString::new("invoice_kind", |e: &DunningAction| {
-            &e.invoice_kind
-        }))
-        .rule(OptionalNotBlank::new("result_ref", |e: &DunningAction| {
-            e.result_ref.as_deref()
-        }))
+        .rule(RequiredString::new("invoice_kind", |e: &DunningAction| &e.invoice_kind))
+        .rule(OptionalNotBlank::new("result_ref", |e: &DunningAction| e.result_ref.as_deref()))
     // <<< CUSTOM RULES
     // END CUSTOM RULES
 }

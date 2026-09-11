@@ -9,6 +9,20 @@ use rust_decimal::Decimal;
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
+use std::future::Future;
+
+/// Drive a settlement/reversal verb inside the org request scope the composition layer always
+/// binds (ADR-0029) — those verbs read the legacy company twin off the ambient scope.
+async fn in_org_scope<R>(pool: &PgPool, f: impl Future<Output = R>) -> R {
+    backbone_orm::org_scope::with_org_request_scope(
+        pool,
+        backbone_orm::org_scope::OrgScope::for_company_unit(Uuid::new_v4()),
+        f,
+    )
+    .await
+    .expect("bind org request scope")
+}
+
 use backbone_payment::application::service::payment_events::{PaymentEvent, PaymentEventSink};
 use backbone_payment::application::service::payment_gl::{
     AccountingPostEnvelope, GlPostAck, GlPostRejected, GlPostSink,
@@ -104,7 +118,7 @@ fn alloc(inv: Uuid, kind: &str, amt: &str) -> NewAllocation {
     }
 }
 fn receive(
-    company: Uuid,
+    _company: Uuid,
     bank: Uuid,
     ar: Uuid,
     customer: Uuid,
@@ -113,7 +127,6 @@ fn receive(
 ) -> NewPayment {
     NewPayment {
         payment_number: uq("PE"),
-        company_id: company,
         branch_id: None,
         payment_type: "receive".into(),
         party_type: Some("customer".into()),
@@ -169,7 +182,7 @@ async fn receive_math_and_post() {
     assert_eq!(r.get::<String, _>("st"), "draft");
 
     let gl = FakeGl::new();
-    w.post_payment(id, &gl).await.unwrap();
+    in_org_scope(&pool, w.post_payment(id, &gl)).await.unwrap();
     let env = gl.last();
     assert_eq!(env.totals(), (d("1000000.00"), d("1000000.00")));
     let ar_line = env.lines.iter().find(|l| l.account_id == ar).unwrap();
@@ -199,7 +212,7 @@ async fn pay_supplier_post() {
     let pool = pool().await;
     let w = PaymentWriteService::new(pool.clone())
         .with_reconcilable_port(std::sync::Arc::new(AlwaysReconcilable));
-    let (company, bank, ap, supplier, inv) = (
+    let (_company, bank, ap, supplier, inv) = (
         Uuid::new_v4(),
         Uuid::new_v4(),
         Uuid::new_v4(),
@@ -208,7 +221,6 @@ async fn pay_supplier_post() {
     );
     let p = NewPayment {
         payment_number: uq("PE"),
-        company_id: company,
         branch_id: None,
         payment_type: "pay".into(),
         party_type: Some("supplier".into()),
@@ -229,7 +241,7 @@ async fn pay_supplier_post() {
     };
     let id = w.create_payment(p).await.unwrap();
     let gl = FakeGl::new();
-    w.post_payment(id, &gl).await.unwrap();
+    in_org_scope(&pool, w.post_payment(id, &gl)).await.unwrap();
     let env = gl.last();
     assert_eq!(env.totals(), (d("500000.00"), d("500000.00")));
     let ap_line = env.lines.iter().find(|l| l.account_id == ap).unwrap();
@@ -271,9 +283,9 @@ async fn posting_is_idempotent() {
         .await
         .unwrap();
     let gl = FakeGl::new();
-    let first = w.post_payment(id, &gl).await.unwrap();
+    let first = in_org_scope(&pool, w.post_payment(id, &gl)).await.unwrap();
     assert!(!first.idempotent_reuse);
-    let second = w.post_payment(id, &gl).await.unwrap();
+    let second = in_org_scope(&pool, w.post_payment(id, &gl)).await.unwrap();
     assert!(second.idempotent_reuse);
     assert_eq!(first.journal_id, second.journal_id);
     assert_eq!(
@@ -370,7 +382,7 @@ async fn fully_allocated_no_on_account() {
             .await
             .unwrap();
     assert_eq!(un, d("0.00"));
-    w.post_payment(id, &FakeGl::new()).await.unwrap();
+    in_org_scope(&pool, w.post_payment(id, &FakeGl::new())).await.unwrap();
     assert!(
         !rec.events
             .lock()

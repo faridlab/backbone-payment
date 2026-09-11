@@ -24,7 +24,6 @@
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
-use backbone_orm::company_scope;
 use backbone_orm::org_scope::{self, OrgScope};
 
 use super::payment_write_service::{PaymentError, PaymentWriteService};
@@ -114,12 +113,9 @@ impl BankReconcilablePort for AccountingReconcilableRead {
 
 impl PaymentWriteService {
     /// Submit a draft payment — the hand verb that marks it ready to post. CAS on draft: a payment
-    /// that already moved (submitted, landed, terminal) refuses with its actual state.
-    pub async fn submit_payment(
-        &self,
-        company_id: Uuid,
-        payment_id: Uuid,
-    ) -> Result<(), PaymentError> {
+    /// that already moved (submitted, landed, terminal) refuses with its actual state. ID-only: the
+    /// scope is the one the composing service's org guard resolved and bound for the request.
+    pub async fn submit_payment(&self, payment_id: Uuid) -> Result<(), PaymentError> {
         let affected = self
             .entries
             .mark_submitted(&self.db_pool, payment_id)
@@ -127,7 +123,7 @@ impl PaymentWriteService {
         if affected == 0 {
             // Distinguish "not yours / not there" from "refused in a non-draft state" — the operator
             // needs to know which. The status read is fence-correct: unscoped ⇒ not found.
-            let status = self.fetch_status_scoped(company_id, payment_id).await?;
+            let status = self.fetch_status_scoped(payment_id).await?;
             return Err(PaymentError::NotSubmittable(status));
         }
         Ok(())
@@ -137,18 +133,15 @@ impl PaymentWriteService {
     /// countermand). CAS from submitted ONLY: rejecting is a pure label flip, legitimate only while
     /// nothing has committed. A draft must be discarded rather than rejected (nothing settled); an
     /// in_flight or paid entry has a committed journal and is exited by `reverse_payment`, which
-    /// unwinds the GL — reject would strand the journal with no remaining exit.
-    pub async fn reject_payment(
-        &self,
-        company_id: Uuid,
-        payment_id: Uuid,
-    ) -> Result<(), PaymentError> {
+    /// unwinds the GL — reject would strand the journal with no remaining exit. ID-only, like
+    /// [`Self::submit_payment`].
+    pub async fn reject_payment(&self, payment_id: Uuid) -> Result<(), PaymentError> {
         let affected = self
             .entries
             .mark_rejected(&self.db_pool, payment_id)
             .await?;
         if affected == 0 {
-            let status = self.fetch_status_scoped(company_id, payment_id).await?;
+            let status = self.fetch_status_scoped(payment_id).await?;
             return Err(PaymentError::NotRejectable(status));
         }
         Ok(())
@@ -160,6 +153,10 @@ impl PaymentWriteService {
     /// Returns whether THIS invocation performed the drift (false = redelivery or non-applicable
     /// state — never an error; the event may legitimately name an already-paid or never-in-flight
     /// payment). Requires `backbone_outbox::outbox::migrate` to have created `payment.inbox_consumed`.
+    ///
+    /// `company_id` is the legacy company twin the event carries (ADR-0029): this consumer runs
+    /// outside any request scope, so the transaction binds a single-company org scope derived from
+    /// it — fail-narrow, and correct under both the org fence and a legacy company fence.
     pub async fn confirm_cash_once(
         &self,
         event_id: Uuid,
@@ -168,9 +165,7 @@ impl PaymentWriteService {
         payment_id: Uuid,
     ) -> Result<bool, PaymentError> {
         let mut tx = self.db_pool.begin().await?;
-        // RLS scope: explicit company — the relay/ACL passes the event's company (the billing
-        // consumer's precedent), never an ambient scope.
-        company_scope::bind_company_on(&mut tx, company_id).await?;
+        org_scope::bind_org_scope_on(&mut tx, &OrgScope::for_company_unit(company_id)).await?;
         let first = backbone_outbox::inbox::once(&mut *tx, "payment", consumer, event_id)
             .await
             .map_err(|e| PaymentError::Db(sqlx::Error::Protocol(e.to_string())))?;
@@ -183,18 +178,12 @@ impl PaymentWriteService {
         Ok(drifted == 1)
     }
 
-    /// Status read under an explicit company scope (the verbs' refusal diagnostics).
-    async fn fetch_status_scoped(
-        &self,
-        company_id: Uuid,
-        payment_id: Uuid,
-    ) -> Result<String, PaymentError> {
-        company_scope::with_company_scope(
-            Some(company_id),
-            self.entries.fetch_status(&self.db_pool, payment_id),
-        )
-        .await?
-        .map(|(status, _posting_state)| status)
-        .ok_or(PaymentError::PaymentNotFound(payment_id))
+    /// Status read under the ambient org scope (the verbs' refusal diagnostics).
+    async fn fetch_status_scoped(&self, payment_id: Uuid) -> Result<String, PaymentError> {
+        self.entries
+            .fetch_status(&self.db_pool, payment_id)
+            .await?
+            .map(|(status, _posting_state)| status)
+            .ok_or(PaymentError::PaymentNotFound(payment_id))
     }
 }

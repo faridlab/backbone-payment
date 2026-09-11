@@ -1,8 +1,8 @@
-use chrono::{DateTime, NaiveDate, Utc};
-use rust_decimal::Decimal;
+use chrono::{DateTime, Utc, NaiveDate};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use rust_decimal::Decimal;
 
 use super::AgingBucketName;
 use super::AuditMetadata;
@@ -13,15 +13,9 @@ use super::AuditMetadata;
 pub struct AgingBucketId(pub Uuid);
 
 impl AgingBucketId {
-    pub fn new(id: Uuid) -> Self {
-        Self(id)
-    }
-    pub fn generate() -> Self {
-        Self(Uuid::new_v4())
-    }
-    pub fn into_inner(self) -> Uuid {
-        self.0
-    }
+    pub fn new(id: Uuid) -> Self { Self(id) }
+    pub fn generate() -> Self { Self(Uuid::new_v4()) }
+    pub fn into_inner(self) -> Uuid { self.0 }
 }
 
 impl std::fmt::Display for AgingBucketId {
@@ -38,34 +32,25 @@ impl std::str::FromStr for AgingBucketId {
 }
 
 impl From<Uuid> for AgingBucketId {
-    fn from(id: Uuid) -> Self {
-        Self(id)
-    }
+    fn from(id: Uuid) -> Self { Self(id) }
 }
 
 impl From<AgingBucketId> for Uuid {
-    fn from(id: AgingBucketId) -> Self {
-        id.0
-    }
+    fn from(id: AgingBucketId) -> Self { id.0 }
 }
 
 impl AsRef<Uuid> for AgingBucketId {
-    fn as_ref(&self) -> &Uuid {
-        &self.0
-    }
+    fn as_ref(&self) -> &Uuid { &self.0 }
 }
 
 impl std::ops::Deref for AgingBucketId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct AgingBucket {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub snapshot_id: Uuid,
     pub invoice_ref: Uuid,
     pub invoice_kind: String,
@@ -86,19 +71,9 @@ impl AgingBucket {
     }
 
     /// Create a new AgingBucket with required fields
-    pub fn new(
-        company_id: Uuid,
-        snapshot_id: Uuid,
-        invoice_ref: Uuid,
-        invoice_kind: String,
-        due_date: NaiveDate,
-        days_past_due: i32,
-        outstanding_amount: Decimal,
-        bucket: AgingBucketName,
-    ) -> Self {
+    pub fn new(snapshot_id: Uuid, invoice_ref: Uuid, invoice_kind: String, due_date: NaiveDate, days_past_due: i32, outstanding_amount: Decimal, bucket: AgingBucketName) -> Self {
         Self {
             id: Uuid::new_v4(),
-            company_id,
             snapshot_id,
             invoice_ref,
             invoice_kind,
@@ -161,6 +136,7 @@ impl AgingBucket {
         self.metadata.deleted_by.as_ref()
     }
 
+
     // ==========================================================
     // Fluent Setters (with_* for optional fields)
     // ==========================================================
@@ -179,50 +155,29 @@ impl AgingBucket {
     pub fn apply_patch(&mut self, fields: std::collections::HashMap<String, serde_json::Value>) {
         for (key, value) in fields {
             match key.as_str() {
-                "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.company_id = v;
-                    }
-                }
                 "snapshot_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.snapshot_id = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.snapshot_id = v; }
                 }
                 "invoice_ref" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.invoice_ref = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.invoice_ref = v; }
                 }
                 "invoice_kind" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.invoice_kind = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.invoice_kind = v; }
                 }
                 "party_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.party_id = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.party_id = v; }
                 }
                 "due_date" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.due_date = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.due_date = v; }
                 }
                 "days_past_due" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.days_past_due = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.days_past_due = v; }
                 }
                 "outstanding_amount" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.outstanding_amount = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.outstanding_amount = v; }
                 }
                 "bucket" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.bucket = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.bucket = v; }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -278,7 +233,6 @@ impl backbone_orm::EntityRepoMeta for AgingBucket {
     fn column_types() -> std::collections::HashMap<String, String> {
         let mut m = std::collections::HashMap::new();
         m.insert("id".to_string(), "uuid".to_string());
-        m.insert("company_id".to_string(), "uuid".to_string());
         m.insert("snapshot_id".to_string(), "uuid".to_string());
         m.insert("party_id".to_string(), "uuid".to_string());
         m.insert("bucket".to_string(), "aging_bucket_name".to_string());
@@ -286,9 +240,6 @@ impl backbone_orm::EntityRepoMeta for AgingBucket {
     }
     fn search_fields() -> &'static [&'static str] {
         &["invoice_kind"]
-    }
-    fn company_field() -> Option<&'static str> {
-        Some("company_id")
     }
 }
 
@@ -298,7 +249,6 @@ impl backbone_orm::EntityRepoMeta for AgingBucket {
 /// System fields (id, metadata, timestamps) are auto-initialized.
 #[derive(Debug, Clone, Default)]
 pub struct AgingBucketBuilder {
-    company_id: Option<Uuid>,
     snapshot_id: Option<Uuid>,
     invoice_ref: Option<Uuid>,
     invoice_kind: Option<String>,
@@ -310,12 +260,6 @@ pub struct AgingBucketBuilder {
 }
 
 impl AgingBucketBuilder {
-    /// Set the company_id field (required)
-    pub fn company_id(mut self, value: Uuid) -> Self {
-        self.company_id = Some(value);
-        self
-    }
-
     /// Set the snapshot_id field (required)
     pub fn snapshot_id(mut self, value: Uuid) -> Self {
         self.snapshot_id = Some(value);
@@ -368,34 +312,16 @@ impl AgingBucketBuilder {
     ///
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<AgingBucket, String> {
-        let company_id = self
-            .company_id
-            .ok_or_else(|| "company_id is required".to_string())?;
-        let snapshot_id = self
-            .snapshot_id
-            .ok_or_else(|| "snapshot_id is required".to_string())?;
-        let invoice_ref = self
-            .invoice_ref
-            .ok_or_else(|| "invoice_ref is required".to_string())?;
-        let invoice_kind = self
-            .invoice_kind
-            .ok_or_else(|| "invoice_kind is required".to_string())?;
-        let due_date = self
-            .due_date
-            .ok_or_else(|| "due_date is required".to_string())?;
-        let days_past_due = self
-            .days_past_due
-            .ok_or_else(|| "days_past_due is required".to_string())?;
-        let outstanding_amount = self
-            .outstanding_amount
-            .ok_or_else(|| "outstanding_amount is required".to_string())?;
-        let bucket = self
-            .bucket
-            .ok_or_else(|| "bucket is required".to_string())?;
+        let snapshot_id = self.snapshot_id.ok_or_else(|| "snapshot_id is required".to_string())?;
+        let invoice_ref = self.invoice_ref.ok_or_else(|| "invoice_ref is required".to_string())?;
+        let invoice_kind = self.invoice_kind.ok_or_else(|| "invoice_kind is required".to_string())?;
+        let due_date = self.due_date.ok_or_else(|| "due_date is required".to_string())?;
+        let days_past_due = self.days_past_due.ok_or_else(|| "days_past_due is required".to_string())?;
+        let outstanding_amount = self.outstanding_amount.ok_or_else(|| "outstanding_amount is required".to_string())?;
+        let bucket = self.bucket.ok_or_else(|| "bucket is required".to_string())?;
 
         Ok(AgingBucket {
             id: Uuid::new_v4(),
-            company_id,
             snapshot_id,
             invoice_ref,
             invoice_kind,

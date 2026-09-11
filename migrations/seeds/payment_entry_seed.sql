@@ -7,7 +7,6 @@
 -- INSERT INTO payment.payment_entries (
 --     id,
 --     payment_number,
---     company_id,
 --     branch_id,
 --     payment_type,
 --     party_type,

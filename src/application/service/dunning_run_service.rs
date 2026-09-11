@@ -7,9 +7,9 @@
 
 use backbone_core::GenericCrudService;
 
+use crate::presentation::dto::{CreateDunningRunDto, UpdateDunningRunDto};
 use crate::domain::entity::DunningRun;
 use crate::infrastructure::persistence::DunningRunRepository;
-use crate::presentation::dto::{CreateDunningRunDto, UpdateDunningRunDto};
 
 /// Application service for DunningRun entities.
 ///
@@ -25,8 +25,12 @@ use crate::presentation::dto::{CreateDunningRunDto, UpdateDunningRunDto};
 ///     // add domain-specific dependencies here
 /// }
 /// ```
-pub type DunningRunService =
-    GenericCrudService<DunningRun, CreateDunningRunDto, UpdateDunningRunDto, DunningRunRepository>;
+pub type DunningRunService = GenericCrudService<
+    DunningRun,
+    CreateDunningRunDto,
+    UpdateDunningRunDto,
+    DunningRunRepository,
+>;
 
 // <<< CUSTOM
 // END CUSTOM

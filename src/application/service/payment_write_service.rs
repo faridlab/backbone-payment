@@ -17,8 +17,10 @@
 //! publishes events. It holds no SQL: every statement lives on `PaymentEntryRepository` /
 //! `PaymentAllocationRepository`, whose custom methods take the caller's transaction so a cross-entity
 //! write (the entry + its allocations; the posted-transition + the outbox stage) commits as one unit.
-//! The RLS scope wrappers (ADR-0008) stay HERE, in the service, because the service is what knows the
-//! company; tx-taking repo methods ride the bind this service already made.
+//! Tenancy (ADR-0029): the module owns no scoping column — the composing service's tenancy decorator
+//! does. Write transactions relay the AMBIENT org request scope when the caller bound one; the
+//! legacy company carried by that scope is what the GL envelope, the seam events, and the
+//! still-company-fenced downstream ports receive.
 //!
 //! **This file is the hub:** it holds the module's vocabulary (input structs, outcomes, errors) and
 //! the service constructor. The rest of the write surface is chunked into focused siblings, each an
@@ -44,6 +46,16 @@ pub(super) fn money(v: Decimal) -> Decimal {
     v.round_dp_with_strategy(2, RoundingStrategy::MidpointAwayFromZero)
 }
 
+/// The legacy company twin (ADR-0029) — the company value downstream statements still need
+/// (the GL envelope, the seam events billing consumes, the still-company-fenced port calls).
+/// The module stores no tenancy key, so the twin is read from the AMBIENT org request scope
+/// the composing service bound; `None` means the caller is outside any scope, and callers
+/// that must carry a company fail closed on it rather than guess.
+pub(super) fn legacy_company_twin() -> Option<Uuid> {
+    backbone_orm::org_scope::current_org_scope()
+        .and_then(|s| s.legacy_company_id())
+}
+
 // --- input structs -----------------------------------------------------------
 
 #[derive(Debug, Clone)]
@@ -57,7 +69,7 @@ pub struct NewAllocation {
 #[derive(Debug, Clone)]
 pub struct NewPayment {
     pub payment_number: String,
-    pub company_id: Uuid,
+    /// Optional organizational branch label (a plain business column, not a tenancy key).
     pub branch_id: Option<Uuid>,
     /// "receive" | "pay".
     pub payment_type: String,
@@ -115,6 +127,11 @@ pub enum PaymentError {
     /// is driven, so a rejected/cancelled payment can never leave a journal the entry then disowns.
     NotPostable(String),
     ReconcilableProbeRefused(String),
+    /// No legacy company twin is reachable for a statement that must carry one (the GL envelope,
+    /// the seam events, the still-company-fenced downstream ports). The module stores no tenancy
+    /// key (ADR-0029) — the twin comes from the ambient org request scope, so a caller outside
+    /// one cannot post.
+    TenancyContextMissing,
     GlRejected {
         code: String,
         message: String,
@@ -139,6 +156,7 @@ impl PaymentError {
             PaymentError::NotRejectable(_) => "not_rejectable".into(),
             PaymentError::NotPostable(_) => "not_postable".into(),
             PaymentError::ReconcilableProbeRefused(_) => "reconcilable_probe_refused".into(),
+            PaymentError::TenancyContextMissing => "tenancy_context_missing".into(),
             PaymentError::GlRejected { code, .. } => code.clone(),
             PaymentError::Db(_) => "internal_error".into(),
         }
@@ -147,6 +165,7 @@ impl PaymentError {
         match self {
             PaymentError::PaymentNotFound(_) => 404,
             PaymentError::ReconcilableProbeRefused(_) => 500,
+            PaymentError::TenancyContextMissing => 500,
             PaymentError::Db(_) => 500,
             _ => 422,
         }
@@ -165,6 +184,12 @@ impl std::fmt::Display for PaymentError {
             PaymentError::ReconcilableProbeRefused(m) => {
                 write!(f, "reconcilable_probe_refused: {m}")
             }
+            PaymentError::TenancyContextMissing => write!(
+                f,
+                "tenancy_context_missing: no legacy company twin in scope — the post's GL \
+                 envelope and seam events carry the caller's company; run under the composing \
+                 service's org request scope"
+            ),
             other => write!(f, "{}", other.code()),
         }
     }

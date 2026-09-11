@@ -5,10 +5,10 @@
 //! DTOs provide a clean separation between domain entities and API
 //! representations, with validation and OpenAPI documentation support.
 
-use chrono::{DateTime, Utc};
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use chrono::{DateTime, Utc};
+use rust_decimal::Decimal;
 
 #[cfg(feature = "openapi")]
 #[cfg(feature = "openapi")]
@@ -17,8 +17,8 @@ use utoipa::ToSchema;
 #[cfg(feature = "validation")]
 use validator::Validate;
 
-use crate::domain::entity::AuditMetadata;
 use crate::domain::entity::DunningAction;
+use crate::domain::entity::AuditMetadata;
 use crate::domain::entity::DunningActionStatus;
 use crate::domain::entity::DunningActionType;
 use crate::domain::entity::DunningLevel;
@@ -36,22 +36,10 @@ use crate::domain::entity::DunningLevel;
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct CreateDunningActionDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(alias = "company_id")]
-    pub company_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "run_id")]
     pub run_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "invoice_ref")]
     pub invoice_ref: Uuid,
     #[cfg_attr(feature = "validation", validate(length(max = 10)))]
@@ -69,11 +57,7 @@ pub struct CreateDunningActionDto {
     #[serde(alias = "outstanding_amount")]
     pub outstanding_amount: Decimal,
     pub status: DunningActionStatus,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "processed_at"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "processed_at")]
     pub processed_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "validation", validate(length(max = 140)))]
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "result_ref")]
@@ -93,22 +77,10 @@ pub struct CreateDunningActionDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateDunningActionDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(alias = "company_id")]
-    pub company_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "run_id")]
     pub run_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "invoice_ref")]
     pub invoice_ref: Uuid,
     #[cfg_attr(feature = "validation", validate(length(max = 10)))]
@@ -126,11 +98,7 @@ pub struct UpdateDunningActionDto {
     #[serde(alias = "outstanding_amount")]
     pub outstanding_amount: Decimal,
     pub status: DunningActionStatus,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "processed_at"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "processed_at")]
     pub processed_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "validation", validate(length(max = 140)))]
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "result_ref")]
@@ -150,22 +118,10 @@ pub struct UpdateDunningActionDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct PatchDunningActionDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(skip_serializing_if = "Option::is_none", alias = "company_id")]
-    pub company_id: Option<Uuid>,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "run_id")]
     pub run_id: Option<Uuid>,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "invoice_ref")]
     pub invoice_ref: Option<Uuid>,
     #[cfg_attr(feature = "validation", validate(length(max = 10)))]
@@ -195,18 +151,7 @@ pub struct PatchDunningActionDto {
 impl PatchDunningActionDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.company_id.is_some()
-            || self.run_id.is_some()
-            || self.invoice_ref.is_some()
-            || self.invoice_kind.is_some()
-            || self.party_id.is_some()
-            || self.level.is_some()
-            || self.action_type.is_some()
-            || self.days_past_due.is_some()
-            || self.outstanding_amount.is_some()
-            || self.status.is_some()
-            || self.processed_at.is_some()
-            || self.result_ref.is_some()
+        self.run_id.is_some() || self.invoice_ref.is_some() || self.invoice_kind.is_some() || self.party_id.is_some() || self.level.is_some() || self.action_type.is_some() || self.days_past_due.is_some() || self.outstanding_amount.is_some() || self.status.is_some() || self.processed_at.is_some() || self.result_ref.is_some()
     }
 }
 
@@ -222,25 +167,11 @@ impl PatchDunningActionDto {
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct DunningActionResponseDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    pub company_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub run_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub invoice_ref: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub invoice_kind: String,
@@ -310,9 +241,9 @@ impl DunningActionListResponseDto {
 #[serde(rename_all = "camelCase")]
 pub struct DunningActionSummaryDto {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub run_id: Uuid,
     pub invoice_ref: Uuid,
+    pub invoice_kind: String,
     pub created_at: Option<DateTime<Utc>>,
 }
 
@@ -324,7 +255,6 @@ impl From<DunningAction> for DunningActionResponseDto {
     fn from(entity: DunningAction) -> Self {
         Self {
             id: entity.id,
-            company_id: entity.company_id,
             run_id: entity.run_id,
             invoice_ref: entity.invoice_ref,
             invoice_kind: entity.invoice_kind,
@@ -346,9 +276,9 @@ impl From<DunningAction> for DunningActionSummaryDto {
         let created_at = backbone_core::PersistentEntity::created_at(&entity);
         Self {
             id: entity.id,
-            company_id: entity.company_id,
             run_id: entity.run_id,
             invoice_ref: entity.invoice_ref,
+            invoice_kind: entity.invoice_kind,
             created_at,
         }
     }
@@ -358,7 +288,6 @@ impl From<CreateDunningActionDto> for DunningAction {
     fn from(dto: CreateDunningActionDto) -> Self {
         Self {
             id: Uuid::new_v4(),
-            company_id: dto.company_id,
             run_id: dto.run_id,
             invoice_ref: dto.invoice_ref,
             invoice_kind: dto.invoice_kind,
@@ -379,7 +308,6 @@ impl From<&DunningAction> for DunningActionResponseDto {
     fn from(entity: &DunningAction) -> Self {
         Self {
             id: entity.id.clone(),
-            company_id: entity.company_id.clone(),
             run_id: entity.run_id.clone(),
             invoice_ref: entity.invoice_ref.clone(),
             invoice_kind: entity.invoice_kind.clone(),
@@ -404,7 +332,6 @@ impl backbone_core::FromCreateDto<CreateDunningActionDto> for DunningAction {
 
 impl backbone_core::ApplyUpdateDto<UpdateDunningActionDto> for DunningAction {
     fn apply_update(mut self, dto: UpdateDunningActionDto) -> backbone_core::ServiceResult<Self> {
-        self.company_id = dto.company_id;
         self.run_id = dto.run_id;
         self.invoice_ref = dto.invoice_ref;
         self.invoice_kind = dto.invoice_kind;

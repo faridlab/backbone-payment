@@ -6,7 +6,6 @@
 
 -- INSERT INTO payment.dunning_actions (
 --     id,
---     company_id,
 --     run_id,
 --     invoice_ref,
 --     invoice_kind,

@@ -5,10 +5,10 @@
 //! DTOs provide a clean separation between domain entities and API
 //! representations, with validation and OpenAPI documentation support.
 
-use chrono::{DateTime, NaiveDate, Utc};
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use chrono::{DateTime, Utc, NaiveDate};
+use rust_decimal::Decimal;
 
 #[cfg(feature = "openapi")]
 #[cfg(feature = "openapi")]
@@ -18,8 +18,8 @@ use utoipa::ToSchema;
 use validator::Validate;
 
 use crate::domain::entity::AgingBucket;
-use crate::domain::entity::AgingBucketName;
 use crate::domain::entity::AuditMetadata;
+use crate::domain::entity::AgingBucketName;
 
 // =============================================================================
 // Create DTO
@@ -34,22 +34,10 @@ use crate::domain::entity::AuditMetadata;
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct CreateAgingBucketDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(alias = "company_id")]
-    pub company_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "snapshot_id")]
     pub snapshot_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "invoice_ref")]
     pub invoice_ref: Uuid,
     #[cfg_attr(feature = "validation", validate(length(max = 10)))]
@@ -82,22 +70,10 @@ pub struct CreateAgingBucketDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateAgingBucketDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(alias = "company_id")]
-    pub company_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "snapshot_id")]
     pub snapshot_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "invoice_ref")]
     pub invoice_ref: Uuid,
     #[cfg_attr(feature = "validation", validate(length(max = 10)))]
@@ -130,22 +106,10 @@ pub struct UpdateAgingBucketDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct PatchAgingBucketDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(skip_serializing_if = "Option::is_none", alias = "company_id")]
-    pub company_id: Option<Uuid>,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "snapshot_id")]
     pub snapshot_id: Option<Uuid>,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "invoice_ref")]
     pub invoice_ref: Option<Uuid>,
     #[cfg_attr(feature = "validation", validate(length(max = 10)))]
@@ -169,15 +133,7 @@ pub struct PatchAgingBucketDto {
 impl PatchAgingBucketDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.company_id.is_some()
-            || self.snapshot_id.is_some()
-            || self.invoice_ref.is_some()
-            || self.invoice_kind.is_some()
-            || self.party_id.is_some()
-            || self.due_date.is_some()
-            || self.days_past_due.is_some()
-            || self.outstanding_amount.is_some()
-            || self.bucket.is_some()
+        self.snapshot_id.is_some() || self.invoice_ref.is_some() || self.invoice_kind.is_some() || self.party_id.is_some() || self.due_date.is_some() || self.days_past_due.is_some() || self.outstanding_amount.is_some() || self.bucket.is_some()
     }
 }
 
@@ -193,25 +149,11 @@ impl PatchAgingBucketDto {
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct AgingBucketResponseDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    pub company_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub snapshot_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub invoice_ref: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub invoice_kind: String,
@@ -279,9 +221,9 @@ impl AgingBucketListResponseDto {
 #[serde(rename_all = "camelCase")]
 pub struct AgingBucketSummaryDto {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub snapshot_id: Uuid,
     pub invoice_ref: Uuid,
+    pub invoice_kind: String,
     pub created_at: Option<DateTime<Utc>>,
 }
 
@@ -293,7 +235,6 @@ impl From<AgingBucket> for AgingBucketResponseDto {
     fn from(entity: AgingBucket) -> Self {
         Self {
             id: entity.id,
-            company_id: entity.company_id,
             snapshot_id: entity.snapshot_id,
             invoice_ref: entity.invoice_ref,
             invoice_kind: entity.invoice_kind,
@@ -312,9 +253,9 @@ impl From<AgingBucket> for AgingBucketSummaryDto {
         let created_at = backbone_core::PersistentEntity::created_at(&entity);
         Self {
             id: entity.id,
-            company_id: entity.company_id,
             snapshot_id: entity.snapshot_id,
             invoice_ref: entity.invoice_ref,
+            invoice_kind: entity.invoice_kind,
             created_at,
         }
     }
@@ -324,7 +265,6 @@ impl From<CreateAgingBucketDto> for AgingBucket {
     fn from(dto: CreateAgingBucketDto) -> Self {
         Self {
             id: Uuid::new_v4(),
-            company_id: dto.company_id,
             snapshot_id: dto.snapshot_id,
             invoice_ref: dto.invoice_ref,
             invoice_kind: dto.invoice_kind,
@@ -342,7 +282,6 @@ impl From<&AgingBucket> for AgingBucketResponseDto {
     fn from(entity: &AgingBucket) -> Self {
         Self {
             id: entity.id.clone(),
-            company_id: entity.company_id.clone(),
             snapshot_id: entity.snapshot_id.clone(),
             invoice_ref: entity.invoice_ref.clone(),
             invoice_kind: entity.invoice_kind.clone(),
@@ -364,7 +303,6 @@ impl backbone_core::FromCreateDto<CreateAgingBucketDto> for AgingBucket {
 
 impl backbone_core::ApplyUpdateDto<UpdateAgingBucketDto> for AgingBucket {
     fn apply_update(mut self, dto: UpdateAgingBucketDto) -> backbone_core::ServiceResult<Self> {
-        self.company_id = dto.company_id;
         self.snapshot_id = dto.snapshot_id;
         self.invoice_ref = dto.invoice_ref;
         self.invoice_kind = dto.invoice_kind;

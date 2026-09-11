@@ -5,11 +5,11 @@
 //! These DTOs are the ONLY types other modules should use.
 //! They are decoupled from internal domain entities.
 
-use crate::domain::entity::*;
-use chrono::{DateTime, NaiveDate, Utc};
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use chrono::{DateTime, Utc, NaiveDate};
+use rust_decimal::Decimal;
+use crate::domain::entity::*;
 
 // ============================================================================
 // AGINGSNAPSHOT TYPES
@@ -49,7 +49,6 @@ impl From<AgingSnapshotId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgingSnapshotDto {
     pub id: AgingSnapshotId,
-    pub company_id: Uuid,
     pub as_of_date: NaiveDate,
     pub direction: String,
     pub total_outstanding: Decimal,
@@ -113,7 +112,6 @@ impl From<AgingBucketId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgingBucketDto {
     pub id: AgingBucketId,
-    pub company_id: Uuid,
     pub snapshot_id: Uuid,
     pub invoice_ref: Uuid,
     pub invoice_kind: String,
@@ -175,7 +173,6 @@ impl From<DunningRunId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DunningRunDto {
     pub id: DunningRunId,
-    pub company_id: Uuid,
     pub as_of_date: NaiveDate,
     pub direction: String,
     pub snapshot_id: Option<Uuid>,
@@ -235,7 +232,6 @@ impl From<DunningActionId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DunningActionDto {
     pub id: DunningActionId,
-    pub company_id: Uuid,
     pub run_id: Uuid,
     pub invoice_ref: Uuid,
     pub invoice_kind: String,
@@ -362,7 +358,6 @@ impl From<PaymentEntryId> for Uuid {
 pub struct PaymentEntryDto {
     pub id: PaymentEntryId,
     pub payment_number: String,
-    pub company_id: Uuid,
     pub branch_id: Option<Uuid>,
     pub payment_type: PaymentType,
     pub party_type: Option<PaymentPartyType>,
@@ -441,7 +436,6 @@ impl From<PaymentAllocationId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaymentAllocationDto {
     pub id: PaymentAllocationId,
-    pub company_id: Uuid,
     pub payment_id: Uuid,
     pub invoice_ref: Uuid,
     pub invoice_kind: SettlementKind,

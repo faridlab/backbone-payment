@@ -20,13 +20,16 @@ pub struct ReceivableRow {
 
 /// Payment's view of billing's outstanding receivables — the aging/dunning READ port.
 /// Implemented in the composition layer by an ACL that calls billing's repository.
+///
+/// Scope-only (ADR-0029): billing carries no tenancy key of its own, so the port takes none —
+/// the composing service runs it inside an org request scope and the read is fenced by the
+/// composition's tenancy decorator, like every other cross-module read.
 #[async_trait::async_trait]
 pub trait BillingReceivablesPort: Send + Sync {
     /// Every live (non-deleted, posted) invoice of `kind` with non-zero outstanding,
-    /// scoped to `company_id`.
+    /// as visible to the ambient org scope.
     async fn outstanding_for(
         &self,
-        company_id: Uuid,
         kind: &str,
         as_of: NaiveDate,
     ) -> Result<Vec<ReceivableRow>, String>;

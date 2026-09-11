@@ -5,8 +5,8 @@
 //! This trait defines the repository contract for the DunningRun aggregate.
 //! Implementation is in the infrastructure layer.
 
-use anyhow::Result;
 use async_trait::async_trait;
+use anyhow::Result;
 use uuid::Uuid;
 
 use crate::domain::entity::{DunningRun, DunningRunStatus};
@@ -44,7 +44,6 @@ pub struct DunningRunPaginatedResult {
 /// Filter parameters for list queries
 #[derive(Debug, Clone, Default)]
 pub struct DunningRunFilter {
-    pub company_id: Option<Uuid>,
     pub direction: Option<String>,
     pub snapshot_id: Option<Uuid>,
     pub status: Option<DunningRunStatus>,
@@ -53,10 +52,7 @@ pub struct DunningRunFilter {
 impl DunningRunFilter {
     /// Check if any filter is set
     pub fn has_filters(&self) -> bool {
-        self.company_id.is_some()
-            || self.direction.is_some()
-            || self.snapshot_id.is_some()
-            || self.status.is_some()
+        self.direction.is_some() || self.snapshot_id.is_some() || self.status.is_some()
     }
 }
 
@@ -66,6 +62,7 @@ impl DunningRunFilter {
 /// Implementations should be in the infrastructure layer.
 #[async_trait]
 pub trait DunningRunRepository: Send + Sync {
+
     // =========================================================================
     // Core CRUD Operations
     // =========================================================================
@@ -93,11 +90,7 @@ pub trait DunningRunRepository: Send + Sync {
     async fn list(&self, params: DunningRunPaginationParams) -> Result<DunningRunPaginatedResult>;
 
     /// List dunning_run with pagination and filters
-    async fn list_with_filters(
-        &self,
-        params: DunningRunPaginationParams,
-        filters: DunningRunFilter,
-    ) -> Result<DunningRunPaginatedResult>;
+    async fn list_with_filters(&self, params: DunningRunPaginationParams, filters: DunningRunFilter) -> Result<DunningRunPaginatedResult>;
 
     /// Count all dunning_run entities
     async fn count(&self) -> Result<u64>;
@@ -119,10 +112,7 @@ pub trait DunningRunRepository: Send + Sync {
     async fn restore(&self, id: &str) -> Result<Option<DunningRun>>;
 
     /// List soft-deleted dunning_run entities
-    async fn list_deleted(
-        &self,
-        params: DunningRunPaginationParams,
-    ) -> Result<DunningRunPaginatedResult>;
+    async fn list_deleted(&self, params: DunningRunPaginationParams) -> Result<DunningRunPaginatedResult>;
 
     /// Empty trash (permanently delete all soft-deleted entities)
     async fn empty_trash(&self) -> Result<u64>;

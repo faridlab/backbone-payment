@@ -26,7 +26,7 @@
 //! outbox stage AND the discount stamps ride THIS service's transaction so a crash after the
 //! transition can never lose the `PaymentSettled` event nor split a discount from its journal.
 
-use backbone_orm::company_scope;
+use backbone_orm::org_scope;
 use rust_decimal::Decimal;
 use std::collections::BTreeMap;
 use uuid::Uuid;
@@ -36,7 +36,9 @@ use super::payment_events::{
 };
 use super::payment_gl::{AccountingPostEnvelope, GlPostLine, GlPostSink};
 use super::payment_lifecycle::landing_state;
-use super::payment_write_service::{PaymentError, PaymentWriteService, SettleOutcome};
+use super::payment_write_service::{
+    legacy_company_twin, PaymentError, PaymentWriteService, SettleOutcome,
+};
 
 use crate::infrastructure::persistence::PostSourceRow;
 
@@ -55,10 +57,15 @@ impl PaymentWriteService {
     /// already decided). Pure assembly — no I/O — so the original post path (decision in memory,
     /// stamps commit after the GL sink) and the reversal path (decision read from the stamps) build
     /// the IDENTICAL envelope for the same committed state.
+    ///
+    /// `company_id` is the legacy company twin (ADR-0029) the envelope carries for the GL seam;
+    /// the module stores no tenancy key, so the caller resolves it from the ambient org request
+    /// scope and fails closed without one.
     fn assemble_settlement_post(
         p: &PostSourceRow,
         payment_id: Uuid,
         allocs: &[AllocForPost],
+        company_id: Uuid,
     ) -> Result<AccountingPostEnvelope, PaymentError> {
         let paid: Decimal = p.paid_amount;
         let number: String = p.payment_number.clone();
@@ -151,7 +158,7 @@ impl PaymentWriteService {
 
         let env = AccountingPostEnvelope {
             idempotency_key: payment_id.to_string(),
-            company_id: p.company_id,
+            company_id,
             branch_id: p.branch_id,
             source_type: "payment".into(),
             source_id: payment_id,
@@ -175,7 +182,10 @@ impl PaymentWriteService {
         &self,
         payment_id: Uuid,
     ) -> Result<AccountingPostEnvelope, PaymentError> {
-        // RLS scope (ADR-0008), ID-only: fenced by the request/inherited scope.
+        // The GL envelope carries the legacy company twin (ADR-0029); the module stores no
+        // tenancy key, so a caller outside any org request scope cannot post.
+        let company_id = legacy_company_twin().ok_or(PaymentError::TenancyContextMissing)?;
+        // ID-only read: fenced by the ambient org scope the composing service bound.
         let p = self
             .entries
             .fetch_post_source(&self.db_pool, payment_id)
@@ -184,12 +194,10 @@ impl PaymentWriteService {
         if p.currency != "IDR" {
             return Err(PaymentError::UnsupportedCurrency(p.currency.clone()));
         }
-        let rows = company_scope::with_company_scope(
-            Some(p.company_id),
-            self.allocations
-                .fetch_for_payment(&self.db_pool, payment_id),
-        )
-        .await?;
+        let rows = self
+            .allocations
+            .fetch_for_payment(&self.db_pool, payment_id)
+            .await?;
         let allocs: Vec<AllocForPost> = rows
             .into_iter()
             .map(|r| AllocForPost {
@@ -200,7 +208,7 @@ impl PaymentWriteService {
                 discount_account_id: r.discount_account_id,
             })
             .collect();
-        Self::assemble_settlement_post(&p, payment_id, &allocs)
+        Self::assemble_settlement_post(&p, payment_id, &allocs, company_id)
     }
 
     pub async fn post_payment(
@@ -211,6 +219,11 @@ impl PaymentWriteService {
         if let Some(o) = self.short_circuit_posted(payment_id).await? {
             return Ok(o);
         }
+
+        // The GL envelope, the discount probe, and the reconcilability probe all carry the legacy
+        // company twin (ADR-0029); the module stores no tenancy key, so a caller outside any org
+        // request scope cannot post.
+        let company_id = legacy_company_twin().ok_or(PaymentError::TenancyContextMissing)?;
 
         // Source + allocations, once: the landing computation and the discount resolution both read
         // this same fetched state.
@@ -229,12 +242,10 @@ impl PaymentWriteService {
         if p.status != "draft" && p.status != "submitted" {
             return Err(PaymentError::NotPostable(p.status));
         }
-        let rows = company_scope::with_company_scope(
-            Some(p.company_id),
-            self.allocations
-                .fetch_for_payment(&self.db_pool, payment_id),
-        )
-        .await?;
+        let rows = self
+            .allocations
+            .fetch_for_payment(&self.db_pool, payment_id)
+            .await?;
 
         // Decide the discounts: a prior attempt's stamp is REUSED (idempotent retry after a GL
         // refusal must not re-open the window); an unstamped allocation resolves through the port —
@@ -246,7 +257,7 @@ impl PaymentWriteService {
                 (r.discount_amount, r.discount_account_id, false)
             } else if let Some(d) = self
                 .discount
-                .resolve(p.company_id, r.invoice_ref, &r.invoice_kind, p.posting_date)
+                .resolve(company_id, r.invoice_ref, &r.invoice_kind, p.posting_date)
                 .await?
             {
                 // The basis clamp: an allocation may exceed the invoice's outstanding (payment
@@ -279,19 +290,22 @@ impl PaymentWriteService {
         // The landing: reconcilability of the bank account × the channel dimension.
         let reconcilable = self
             .reconcilable
-            .bank_reconcilable(&self.db_pool, p.company_id, p.bank_account_id)
+            .bank_reconcilable(&self.db_pool, company_id, p.bank_account_id)
             .await?;
         let landing = landing_state(reconcilable, &p.method).to_string();
 
-        let env = Self::assemble_settlement_post(&p, payment_id, &allocs)?;
+        let env = Self::assemble_settlement_post(&p, payment_id, &allocs, company_id)?;
 
         match sink.post(&env).await {
             Ok(ack) => {
                 // The stamps, the posted-transition (to `landing`), and the durable outbox stage
                 // commit in ONE tx — a crash after the GL post cannot split the discount decision
-                // from its journal, nor lose the `PaymentSettled` event.
+                // from its journal, nor lose the `PaymentSettled` event. Tenancy posture
+                // (ADR-0029): relay the AMBIENT request scope when the caller bound one.
                 let mut tx = self.db_pool.begin().await?;
-                company_scope::bind_company_on(&mut tx, env.company_id).await?;
+                if let Some(scope) = org_scope::current_org_scope() {
+                    org_scope::bind_org_scope_on(&mut tx, &scope).await?;
+                }
                 for (allocation_id, discount, account) in &fresh {
                     self.allocations
                         .stamp_discount(&mut tx, *allocation_id, *discount, *account)
@@ -400,11 +414,10 @@ impl PaymentWriteService {
         status: &str,
         allocs: &[AllocForPost],
     ) -> Result<(), PaymentError> {
-        let hdr = company_scope::with_company_scope(
-            Some(env.company_id),
-            self.entries.fetch_settled_header(&self.db_pool, payment_id),
-        )
-        .await?;
+        let hdr = self
+            .entries
+            .fetch_settled_header(&self.db_pool, payment_id)
+            .await?;
         let payment_type: String = hdr.payment_type;
         let paid_amount: Decimal = hdr.paid_amount;
         let unallocated: Decimal = hdr.unallocated_amount;

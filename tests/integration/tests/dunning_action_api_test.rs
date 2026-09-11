@@ -24,7 +24,6 @@ impl TestDataGenerator for DunningActionTestData {
         let now = Utc::now().to_rfc3339();
         json!({
             "id": Uuid::new_v4().to_string(),
-            "company_id": Uuid::new_v4().to_string(),
             "run_id": Uuid::new_v4().to_string(),
             "invoice_ref": Uuid::new_v4().to_string(),
             "invoice_kind": format!("Test {}", Uuid::new_v4().to_string().split('-').next().unwrap()),
@@ -44,7 +43,6 @@ impl TestDataGenerator for DunningActionTestData {
         let now = Utc::now().to_rfc3339();
         json!({
             "id": id,
-            "company_id": Uuid::new_v4().to_string(),
             "run_id": Uuid::new_v4().to_string(),
             "invoice_ref": Uuid::new_v4().to_string(),
             "invoice_kind": format!("Test {}", Uuid::new_v4().to_string().split('-').next().unwrap()),
@@ -68,13 +66,7 @@ impl TestDataGenerator for DunningActionTestData {
 
     async fn seed_dependencies(&self, api: &ApiTest) -> Vec<(String, String)> {
         let mut deps: Vec<(String, String)> = Vec::new();
-        if let Some(id) = super::crud_test_base::create_and_get_id(
-            api,
-            "/api/v1/dunning_runs",
-            &super::dunning_run_api_test::DunningRunTestData,
-        )
-        .await
-        {
+        if let Some(id) = super::crud_test_base::create_and_get_id(api, "/api/v1/dunning_runs", &super::dunning_run_api_test::DunningRunTestData).await {
             deps.push(("run_id".to_string(), id));
         }
         deps

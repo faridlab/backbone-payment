@@ -5,10 +5,10 @@
 //! DTOs provide a clean separation between domain entities and API
 //! representations, with validation and OpenAPI documentation support.
 
-use chrono::{DateTime, NaiveDate, Utc};
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use chrono::{DateTime, Utc, NaiveDate};
+use rust_decimal::Decimal;
 
 #[cfg(feature = "openapi")]
 #[cfg(feature = "openapi")]
@@ -17,9 +17,9 @@ use utoipa::ToSchema;
 #[cfg(feature = "validation")]
 use validator::Validate;
 
+use crate::domain::entity::PaymentEntry;
 use crate::domain::entity::AuditMetadata;
 use crate::domain::entity::GlPostingState;
-use crate::domain::entity::PaymentEntry;
 use crate::domain::entity::PaymentMethod;
 use crate::domain::entity::PaymentPartyType;
 use crate::domain::entity::PaymentStatus;
@@ -43,12 +43,6 @@ pub struct CreatePaymentEntryDto {
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(alias = "payment_number")]
     pub payment_number: String,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(alias = "company_id")]
-    pub company_id: Uuid,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "branch_id")]
     pub branch_id: Option<Uuid>,
     #[serde(alias = "payment_type")]
@@ -63,18 +57,10 @@ pub struct CreatePaymentEntryDto {
     #[cfg_attr(feature = "validation", validate(length(max = 3)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub currency: String,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "mode_of_payment_id"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "mode_of_payment_id")]
     pub mode_of_payment_id: Option<Uuid>,
     pub method: PaymentMethod,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "provider_txn_id"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "provider_txn_id")]
     pub provider_txn_id: Option<Uuid>,
     #[serde(alias = "paid_amount")]
     pub paid_amount: Decimal,
@@ -82,25 +68,15 @@ pub struct CreatePaymentEntryDto {
     pub allocated_amount: Decimal,
     #[serde(alias = "unallocated_amount")]
     pub unallocated_amount: Decimal,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "bank_account_id")]
     pub bank_account_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "party_account_id")]
     pub party_account_id: Uuid,
     #[serde(alias = "withholding_amount")]
     pub withholding_amount: Decimal,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "withholding_account_id"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "withholding_account_id")]
     pub withholding_account_id: Option<Uuid>,
     #[serde(alias = "withholding_tax_type")]
     pub withholding_tax_type: WithholdingTaxType,
@@ -109,20 +85,12 @@ pub struct CreatePaymentEntryDto {
     pub posting_state: GlPostingState,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "journal_id")]
     pub journal_id: Option<Uuid>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "accounting_post_id"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "accounting_post_id")]
     pub accounting_post_id: Option<Uuid>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "posted_at")]
     pub posted_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "validation", validate(length(max = 140)))]
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "reference_no"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "reference_no")]
     pub reference_no: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 1000)))]
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -146,12 +114,6 @@ pub struct UpdatePaymentEntryDto {
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(alias = "payment_number")]
     pub payment_number: String,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(alias = "company_id")]
-    pub company_id: Uuid,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "branch_id")]
     pub branch_id: Option<Uuid>,
     #[serde(alias = "payment_type")]
@@ -166,18 +128,10 @@ pub struct UpdatePaymentEntryDto {
     #[cfg_attr(feature = "validation", validate(length(max = 3)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub currency: String,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "mode_of_payment_id"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "mode_of_payment_id")]
     pub mode_of_payment_id: Option<Uuid>,
     pub method: PaymentMethod,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "provider_txn_id"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "provider_txn_id")]
     pub provider_txn_id: Option<Uuid>,
     #[serde(alias = "paid_amount")]
     pub paid_amount: Decimal,
@@ -185,25 +139,15 @@ pub struct UpdatePaymentEntryDto {
     pub allocated_amount: Decimal,
     #[serde(alias = "unallocated_amount")]
     pub unallocated_amount: Decimal,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "bank_account_id")]
     pub bank_account_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "party_account_id")]
     pub party_account_id: Uuid,
     #[serde(alias = "withholding_amount")]
     pub withholding_amount: Decimal,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "withholding_account_id"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "withholding_account_id")]
     pub withholding_account_id: Option<Uuid>,
     #[serde(alias = "withholding_tax_type")]
     pub withholding_tax_type: WithholdingTaxType,
@@ -212,20 +156,12 @@ pub struct UpdatePaymentEntryDto {
     pub posting_state: GlPostingState,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "journal_id")]
     pub journal_id: Option<Uuid>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "accounting_post_id"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "accounting_post_id")]
     pub accounting_post_id: Option<Uuid>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "posted_at")]
     pub posted_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "validation", validate(length(max = 140)))]
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "reference_no"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "reference_no")]
     pub reference_no: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 1000)))]
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -249,12 +185,6 @@ pub struct PatchPaymentEntryDto {
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "payment_number")]
     pub payment_number: Option<String>,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(skip_serializing_if = "Option::is_none", alias = "company_id")]
-    pub company_id: Option<Uuid>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "branch_id")]
     pub branch_id: Option<Uuid>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "payment_type")]
@@ -282,29 +212,17 @@ pub struct PatchPaymentEntryDto {
     pub allocated_amount: Option<Decimal>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "unallocated_amount")]
     pub unallocated_amount: Option<Decimal>,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "bank_account_id")]
     pub bank_account_id: Option<Uuid>,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "party_account_id")]
     pub party_account_id: Option<Uuid>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "withholding_amount")]
     pub withholding_amount: Option<Decimal>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        alias = "withholding_account_id"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "withholding_account_id")]
     pub withholding_account_id: Option<Uuid>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        alias = "withholding_tax_type"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "withholding_tax_type")]
     pub withholding_tax_type: Option<WithholdingTaxType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<PaymentStatus>,
@@ -327,32 +245,7 @@ pub struct PatchPaymentEntryDto {
 impl PatchPaymentEntryDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.payment_number.is_some()
-            || self.company_id.is_some()
-            || self.branch_id.is_some()
-            || self.payment_type.is_some()
-            || self.party_type.is_some()
-            || self.party_id.is_some()
-            || self.posting_date.is_some()
-            || self.currency.is_some()
-            || self.mode_of_payment_id.is_some()
-            || self.method.is_some()
-            || self.provider_txn_id.is_some()
-            || self.paid_amount.is_some()
-            || self.allocated_amount.is_some()
-            || self.unallocated_amount.is_some()
-            || self.bank_account_id.is_some()
-            || self.party_account_id.is_some()
-            || self.withholding_amount.is_some()
-            || self.withholding_account_id.is_some()
-            || self.withholding_tax_type.is_some()
-            || self.status.is_some()
-            || self.posting_state.is_some()
-            || self.journal_id.is_some()
-            || self.accounting_post_id.is_some()
-            || self.posted_at.is_some()
-            || self.reference_no.is_some()
-            || self.notes.is_some()
+        self.payment_number.is_some() || self.branch_id.is_some() || self.payment_type.is_some() || self.party_type.is_some() || self.party_id.is_some() || self.posting_date.is_some() || self.currency.is_some() || self.mode_of_payment_id.is_some() || self.method.is_some() || self.provider_txn_id.is_some() || self.paid_amount.is_some() || self.allocated_amount.is_some() || self.unallocated_amount.is_some() || self.bank_account_id.is_some() || self.party_account_id.is_some() || self.withholding_amount.is_some() || self.withholding_account_id.is_some() || self.withholding_tax_type.is_some() || self.status.is_some() || self.posting_state.is_some() || self.journal_id.is_some() || self.accounting_post_id.is_some() || self.posted_at.is_some() || self.reference_no.is_some() || self.notes.is_some()
     }
 }
 
@@ -368,18 +261,10 @@ impl PatchPaymentEntryDto {
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentEntryResponseDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub payment_number: String,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    pub company_id: Uuid,
     pub branch_id: Option<Uuid>,
     pub payment_type: PaymentType,
     pub party_type: Option<PaymentPartyType>,
@@ -394,15 +279,9 @@ pub struct PaymentEntryResponseDto {
     pub paid_amount: Decimal,
     pub allocated_amount: Decimal,
     pub unallocated_amount: Decimal,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub bank_account_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub party_account_id: Uuid,
     pub withholding_amount: Decimal,
     pub withholding_account_id: Option<Uuid>,
@@ -472,8 +351,8 @@ impl PaymentEntryListResponseDto {
 pub struct PaymentEntrySummaryDto {
     pub id: Uuid,
     pub payment_number: String,
-    pub company_id: Uuid,
     pub branch_id: Option<Uuid>,
+    pub payment_type: PaymentType,
     pub created_at: Option<DateTime<Utc>>,
 }
 
@@ -486,7 +365,6 @@ impl From<PaymentEntry> for PaymentEntryResponseDto {
         Self {
             id: entity.id,
             payment_number: entity.payment_number,
-            company_id: entity.company_id,
             branch_id: entity.branch_id,
             payment_type: entity.payment_type,
             party_type: entity.party_type,
@@ -522,8 +400,8 @@ impl From<PaymentEntry> for PaymentEntrySummaryDto {
         Self {
             id: entity.id,
             payment_number: entity.payment_number,
-            company_id: entity.company_id,
             branch_id: entity.branch_id,
+            payment_type: entity.payment_type,
             created_at,
         }
     }
@@ -534,7 +412,6 @@ impl From<CreatePaymentEntryDto> for PaymentEntry {
         Self {
             id: Uuid::new_v4(),
             payment_number: dto.payment_number,
-            company_id: dto.company_id,
             branch_id: dto.branch_id,
             payment_type: dto.payment_type,
             party_type: dto.party_type,
@@ -569,7 +446,6 @@ impl From<&PaymentEntry> for PaymentEntryResponseDto {
         Self {
             id: entity.id.clone(),
             payment_number: entity.payment_number.clone(),
-            company_id: entity.company_id.clone(),
             branch_id: entity.branch_id.clone(),
             payment_type: entity.payment_type.clone(),
             party_type: entity.party_type.clone(),
@@ -608,7 +484,6 @@ impl backbone_core::FromCreateDto<CreatePaymentEntryDto> for PaymentEntry {
 impl backbone_core::ApplyUpdateDto<UpdatePaymentEntryDto> for PaymentEntry {
     fn apply_update(mut self, dto: UpdatePaymentEntryDto) -> backbone_core::ServiceResult<Self> {
         self.payment_number = dto.payment_number;
-        self.company_id = dto.company_id;
         self.branch_id = dto.branch_id;
         self.payment_type = dto.payment_type;
         self.party_type = dto.party_type;

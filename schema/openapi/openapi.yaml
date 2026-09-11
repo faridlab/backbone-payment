@@ -2595,7 +2595,6 @@ components:
       type: object
       required:
         - id
-        - company_id
         - as_of_date
         - direction
         - total_outstanding
@@ -2608,9 +2607,6 @@ components:
         - metadata
       properties:
         id:
-          type: string
-          format: uuid
-        company_id:
           type: string
           format: uuid
         as_of_date:
@@ -2652,7 +2648,6 @@ components:
     CreateAgingSnapshotRequest:
       type: object
       required:
-        - company_id
         - as_of_date
         - direction
         - total_outstanding
@@ -2664,9 +2659,6 @@ components:
         - status
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         as_of_date:
           type: string
           format: date
@@ -2693,7 +2685,6 @@ components:
     UpdateAgingSnapshotRequest:
       type: object
       required:
-        - company_id
         - as_of_date
         - direction
         - total_outstanding
@@ -2705,9 +2696,6 @@ components:
         - status
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         as_of_date:
           type: string
           format: date
@@ -2734,9 +2722,6 @@ components:
     PatchAgingSnapshotRequest:
       type: object
       properties:
-        company_id:
-          type: string
-          format: uuid
         as_of_date:
           type: string
           format: date
@@ -2774,7 +2759,6 @@ components:
       type: object
       required:
         - id
-        - company_id
         - snapshot_id
         - invoice_ref
         - invoice_kind
@@ -2785,9 +2769,6 @@ components:
         - metadata
       properties:
         id:
-          type: string
-          format: uuid
-        company_id:
           type: string
           format: uuid
         snapshot_id:
@@ -2832,7 +2813,6 @@ components:
     CreateAgingBucketRequest:
       type: object
       required:
-        - company_id
         - snapshot_id
         - invoice_ref
         - invoice_kind
@@ -2842,9 +2822,6 @@ components:
         - bucket
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         snapshot_id:
           type: string
           format: uuid
@@ -2874,7 +2851,6 @@ components:
     UpdateAgingBucketRequest:
       type: object
       required:
-        - company_id
         - snapshot_id
         - invoice_ref
         - invoice_kind
@@ -2884,9 +2860,6 @@ components:
         - bucket
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         snapshot_id:
           type: string
           format: uuid
@@ -2916,9 +2889,6 @@ components:
     PatchAgingBucketRequest:
       type: object
       properties:
-        company_id:
-          type: string
-          format: uuid
         snapshot_id:
           type: string
           format: uuid
@@ -2959,7 +2929,6 @@ components:
       type: object
       required:
         - id
-        - company_id
         - as_of_date
         - direction
         - actions_emitted
@@ -2967,9 +2936,6 @@ components:
         - metadata
       properties:
         id:
-          type: string
-          format: uuid
-        company_id:
           type: string
           format: uuid
         as_of_date:
@@ -3006,16 +2972,12 @@ components:
     CreateDunningRunRequest:
       type: object
       required:
-        - company_id
         - as_of_date
         - direction
         - actions_emitted
         - status
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         as_of_date:
           type: string
           format: date
@@ -3037,16 +2999,12 @@ components:
     UpdateDunningRunRequest:
       type: object
       required:
-        - company_id
         - as_of_date
         - direction
         - actions_emitted
         - status
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         as_of_date:
           type: string
           format: date
@@ -3068,9 +3026,6 @@ components:
     PatchDunningRunRequest:
       type: object
       properties:
-        company_id:
-          type: string
-          format: uuid
         as_of_date:
           type: string
           format: date
@@ -3103,7 +3058,6 @@ components:
       type: object
       required:
         - id
-        - company_id
         - run_id
         - invoice_ref
         - invoice_kind
@@ -3115,9 +3069,6 @@ components:
         - metadata
       properties:
         id:
-          type: string
-          format: uuid
-        company_id:
           type: string
           format: uuid
         run_id:
@@ -3171,7 +3122,6 @@ components:
     CreateDunningActionRequest:
       type: object
       required:
-        - company_id
         - run_id
         - invoice_ref
         - invoice_kind
@@ -3182,9 +3132,6 @@ components:
         - status
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         run_id:
           type: string
           format: uuid
@@ -3223,7 +3170,6 @@ components:
     UpdateDunningActionRequest:
       type: object
       required:
-        - company_id
         - run_id
         - invoice_ref
         - invoice_kind
@@ -3234,9 +3180,6 @@ components:
         - status
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         run_id:
           type: string
           format: uuid
@@ -3275,9 +3218,6 @@ components:
     PatchDunningActionRequest:
       type: object
       properties:
-        company_id:
-          type: string
-          format: uuid
         run_id:
           type: string
           format: uuid
@@ -3453,7 +3393,6 @@ components:
       required:
         - id
         - payment_number
-        - company_id
         - payment_type
         - posting_date
         - currency
@@ -3475,9 +3414,6 @@ components:
         payment_number:
           type: string
           maxLength: 40
-        company_id:
-          type: string
-          format: uuid
         branch_id:
           nullable: true
           type: string
@@ -3571,7 +3507,6 @@ components:
       type: object
       required:
         - payment_number
-        - company_id
         - payment_type
         - posting_date
         - currency
@@ -3590,9 +3525,6 @@ components:
         payment_number:
           type: string
           maxLength: 40
-        company_id:
-          type: string
-          format: uuid
         branch_id:
           nullable: true
           type: string
@@ -3673,7 +3605,6 @@ components:
       type: object
       required:
         - payment_number
-        - company_id
         - payment_type
         - posting_date
         - currency
@@ -3692,9 +3623,6 @@ components:
         payment_number:
           type: string
           maxLength: 40
-        company_id:
-          type: string
-          format: uuid
         branch_id:
           nullable: true
           type: string
@@ -3777,9 +3705,6 @@ components:
         payment_number:
           type: string
           maxLength: 40
-        company_id:
-          type: string
-          format: uuid
         branch_id:
           nullable: true
           type: string
@@ -3870,7 +3795,6 @@ components:
       type: object
       required:
         - id
-        - company_id
         - payment_id
         - invoice_ref
         - invoice_kind
@@ -3879,9 +3803,6 @@ components:
         - metadata
       properties:
         id:
-          type: string
-          format: uuid
-        company_id:
           type: string
           format: uuid
         payment_id:
@@ -3919,7 +3840,6 @@ components:
     CreatePaymentAllocationRequest:
       type: object
       required:
-        - company_id
         - payment_id
         - invoice_ref
         - invoice_kind
@@ -3927,9 +3847,6 @@ components:
         - discount_amount
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         payment_id:
           type: string
           format: uuid
@@ -3952,7 +3869,6 @@ components:
     UpdatePaymentAllocationRequest:
       type: object
       required:
-        - company_id
         - payment_id
         - invoice_ref
         - invoice_kind
@@ -3960,9 +3876,6 @@ components:
         - discount_amount
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         payment_id:
           type: string
           format: uuid
@@ -3985,9 +3898,6 @@ components:
     PatchPaymentAllocationRequest:
       type: object
       properties:
-        company_id:
-          type: string
-          format: uuid
         payment_id:
           type: string
           format: uuid

@@ -5,8 +5,8 @@
 //! This trait defines the repository contract for the DunningAction aggregate.
 //! Implementation is in the infrastructure layer.
 
-use anyhow::Result;
 use async_trait::async_trait;
+use anyhow::Result;
 use uuid::Uuid;
 
 use crate::domain::entity::{DunningAction, DunningActionStatus, DunningActionType, DunningLevel};
@@ -44,7 +44,6 @@ pub struct DunningActionPaginatedResult {
 /// Filter parameters for list queries
 #[derive(Debug, Clone, Default)]
 pub struct DunningActionFilter {
-    pub company_id: Option<Uuid>,
     pub run_id: Option<Uuid>,
     pub invoice_ref: Option<Uuid>,
     pub invoice_kind: Option<String>,
@@ -58,15 +57,7 @@ pub struct DunningActionFilter {
 impl DunningActionFilter {
     /// Check if any filter is set
     pub fn has_filters(&self) -> bool {
-        self.company_id.is_some()
-            || self.run_id.is_some()
-            || self.invoice_ref.is_some()
-            || self.invoice_kind.is_some()
-            || self.party_id.is_some()
-            || self.level.is_some()
-            || self.action_type.is_some()
-            || self.status.is_some()
-            || self.result_ref.is_some()
+        self.run_id.is_some() || self.invoice_ref.is_some() || self.invoice_kind.is_some() || self.party_id.is_some() || self.level.is_some() || self.action_type.is_some() || self.status.is_some() || self.result_ref.is_some()
     }
 }
 
@@ -76,6 +67,7 @@ impl DunningActionFilter {
 /// Implementations should be in the infrastructure layer.
 #[async_trait]
 pub trait DunningActionRepository: Send + Sync {
+
     // =========================================================================
     // Core CRUD Operations
     // =========================================================================
@@ -100,17 +92,10 @@ pub trait DunningActionRepository: Send + Sync {
     // =========================================================================
 
     /// List dunning_action with pagination
-    async fn list(
-        &self,
-        params: DunningActionPaginationParams,
-    ) -> Result<DunningActionPaginatedResult>;
+    async fn list(&self, params: DunningActionPaginationParams) -> Result<DunningActionPaginatedResult>;
 
     /// List dunning_action with pagination and filters
-    async fn list_with_filters(
-        &self,
-        params: DunningActionPaginationParams,
-        filters: DunningActionFilter,
-    ) -> Result<DunningActionPaginatedResult>;
+    async fn list_with_filters(&self, params: DunningActionPaginationParams, filters: DunningActionFilter) -> Result<DunningActionPaginatedResult>;
 
     /// Count all dunning_action entities
     async fn count(&self) -> Result<u64>;
@@ -132,10 +117,7 @@ pub trait DunningActionRepository: Send + Sync {
     async fn restore(&self, id: &str) -> Result<Option<DunningAction>>;
 
     /// List soft-deleted dunning_action entities
-    async fn list_deleted(
-        &self,
-        params: DunningActionPaginationParams,
-    ) -> Result<DunningActionPaginatedResult>;
+    async fn list_deleted(&self, params: DunningActionPaginationParams) -> Result<DunningActionPaginatedResult>;
 
     /// Empty trash (permanently delete all soft-deleted entities)
     async fn empty_trash(&self) -> Result<u64>;
