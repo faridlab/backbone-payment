@@ -45,7 +45,6 @@ impl BankReconcilablePort for AlwaysReconcilable {
     async fn bank_reconcilable(
         &self,
         _pool: &sqlx::PgPool,
-        _company_id: uuid::Uuid,
         _account_id: uuid::Uuid,
     ) -> Result<bool, PaymentError> {
         Ok(true)

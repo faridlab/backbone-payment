@@ -46,7 +46,6 @@ pub trait BankReconcilablePort: Send + Sync {
     async fn bank_reconcilable(
         &self,
         pool: &PgPool,
-        company_id: Uuid,
         account_id: Uuid,
     ) -> Result<bool, PaymentError>;
 }
@@ -55,6 +54,14 @@ pub trait BankReconcilablePort: Send + Sync {
 /// `to_regclass`. A missing accounting schema (standalone module database, mis-composed host) REFUSES
 /// the post rather than guessing a landing state — fail-closed, surfaced as
 /// `reconcilable_probe_refused`.
+/// The legacy company twin, taken from the request's own scope rather than from a caller who
+/// could name a different one.
+fn ambient_company() -> Uuid {
+    org_scope::current_org_scope()
+        .and_then(|s| s.legacy_company_id())
+        .unwrap_or_default()
+}
+
 pub struct AccountingReconcilableRead;
 
 #[async_trait::async_trait]
@@ -62,7 +69,6 @@ impl BankReconcilablePort for AccountingReconcilableRead {
     async fn bank_reconcilable(
         &self,
         pool: &PgPool,
-        company_id: Uuid,
         account_id: Uuid,
     ) -> Result<bool, PaymentError> {
         // Two-step probe: a bare `FROM accounting.accounts` against a missing schema is a plan-time
@@ -92,7 +98,7 @@ impl BankReconcilablePort for AccountingReconcilableRead {
         // too: the scope also binds the legacy variable, so the company fence arm still matches.
         let row = org_scope::with_org_request_scope(
             pool,
-            OrgScope::for_company_unit(company_id),
+            OrgScope::for_company_unit(ambient_company()),
             org_scope::fetch_optional_row_scoped(
                 pool,
                 sqlx::query("SELECT is_reconcilable FROM accounting.accounts WHERE id=$1")
@@ -161,11 +167,10 @@ impl PaymentWriteService {
         &self,
         event_id: Uuid,
         consumer: &str,
-        company_id: Uuid,
         payment_id: Uuid,
     ) -> Result<bool, PaymentError> {
         let mut tx = self.db_pool.begin().await?;
-        org_scope::bind_org_scope_on(&mut tx, &OrgScope::for_company_unit(company_id)).await?;
+        org_scope::bind_org_scope_on(&mut tx, &OrgScope::for_company_unit(ambient_company())).await?;
         let first = backbone_outbox::inbox::once(&mut *tx, "payment", consumer, event_id)
             .await
             .map_err(|e| PaymentError::Db(sqlx::Error::Protocol(e.to_string())))?;

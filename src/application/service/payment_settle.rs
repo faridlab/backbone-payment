@@ -290,7 +290,7 @@ impl PaymentWriteService {
         // The landing: reconcilability of the bank account × the channel dimension.
         let reconcilable = self
             .reconcilable
-            .bank_reconcilable(&self.db_pool, company_id, p.bank_account_id)
+            .bank_reconcilable(&self.db_pool, p.bank_account_id)
             .await?;
         let landing = landing_state(reconcilable, &p.method).to_string();
 

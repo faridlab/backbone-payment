@@ -53,7 +53,6 @@ impl backbone_payment::application::service::payment_lifecycle::BankReconcilable
     async fn bank_reconcilable(
         &self,
         _pool: &sqlx::PgPool,
-        _company_id: uuid::Uuid,
         _account_id: uuid::Uuid,
     ) -> Result<bool, backbone_payment::application::service::payment_write_service::PaymentError>
     {

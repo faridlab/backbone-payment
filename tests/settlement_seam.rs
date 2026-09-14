@@ -66,7 +66,6 @@ impl GlAdapter {
     #[allow(clippy::too_many_arguments)]
     async fn post_common(
         &self,
-        company_id: Uuid,
         source_type: &str,
         source_id: Uuid,
         source_reference: Option<String>,
@@ -75,7 +74,11 @@ impl GlAdapter {
         reverses_post_id: Option<Uuid>,
         lines: Vec<PostingLine>,
     ) -> Result<(Uuid, Uuid, bool), (String, String)> {
-        let mut r = PostingRequest::original(company_id, source_type, source_id, posting_date);
+        let mut r = PostingRequest::original(
+            backbone_orm::org_scope::current_org_scope()
+                .and_then(|sc| sc.legacy_company_id())
+                .unwrap_or_default(),
+            source_type, source_id, posting_date);
         r.source_reference = source_reference;
         r.posting_type = posting_type.to_string();
         r.reverses_post_id = reverses_post_id;
@@ -106,7 +109,6 @@ impl PaySink for GlAdapter {
             .collect();
         match self
             .post_common(
-                e.company_id,
                 &e.source_type,
                 e.source_id,
                 e.source_reference.clone(),
@@ -167,7 +169,6 @@ impl ReconcileSink for AccountingReconcileSink {
             .reconcile_pair_on(
                 conn,
                 &PairRequest {
-                    company_id: req.company_id,
                     debit: to_loc(&req.debit),
                     credit: to_loc(&req.credit),
                     amount: req.amount,
@@ -236,7 +237,6 @@ impl backbone_payment::application::service::payment_lifecycle::BankReconcilable
     async fn bank_reconcilable(
         &self,
         _pool: &sqlx::PgPool,
-        _company_id: uuid::Uuid,
         _account_id: uuid::Uuid,
     ) -> Result<bool, backbone_payment::application::service::payment_write_service::PaymentError>
     {
@@ -428,7 +428,6 @@ async fn settlement_across_three_modules() {
         .add_payment_schedule(
             inv,
             "sales",
-            company,
             &[(due(1), d("600000")), (due(15), d("400000"))],
         )
         .await
@@ -603,7 +602,6 @@ async fn apply_settlements(
     for a in &settled.allocations {
         let applied = billing
             .apply_settlement(
-                settled.company_id,
                 a.invoice_ref,
                 &a.invoice_kind,
                 a.amount,
@@ -639,7 +637,6 @@ async fn reverse_settlements(
     for a in &cancelled.allocations {
         billing
             .reverse_settlement(
-                cancelled.company_id,
                 a.invoice_ref,
                 &a.invoice_kind,
                 a.amount,
@@ -914,7 +911,7 @@ async fn racing_payments_reconcile_via_clamp_and_on_account() {
         in_org_scope(&pool, payment.post_payment(pay, &gl)).await.unwrap();
         // apply directly (each payment settled 600k) — capture the second's clamped return.
         let a = billing
-            .apply_settlement(company, inv, "sales", d("600000"), pay, &sink)
+            .apply_settlement(inv, "sales", d("600000"), pay, &sink)
             .await
             .unwrap()
             .applied;

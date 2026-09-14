@@ -69,7 +69,6 @@ impl GlAdapter {
     #[allow(clippy::too_many_arguments)]
     async fn post_common(
         &self,
-        company_id: Uuid,
         source_type: &str,
         source_id: Uuid,
         source_reference: Option<String>,
@@ -78,7 +77,11 @@ impl GlAdapter {
         reverses_post_id: Option<Uuid>,
         lines: Vec<PostingLine>,
     ) -> Result<(Uuid, Uuid, bool), (String, String)> {
-        let mut r = PostingRequest::original(company_id, source_type, source_id, posting_date);
+        let mut r = PostingRequest::original(
+            backbone_orm::org_scope::current_org_scope()
+                .and_then(|sc| sc.legacy_company_id())
+                .unwrap_or_default(),
+            source_type, source_id, posting_date);
         r.source_reference = source_reference;
         r.posting_type = posting_type.to_string();
         r.reverses_post_id = reverses_post_id;
@@ -109,7 +112,6 @@ impl PaySink for GlAdapter {
             .collect();
         match self
             .post_common(
-                e.company_id,
                 &e.source_type,
                 e.source_id,
                 e.source_reference.clone(),
@@ -181,7 +183,6 @@ impl ReconcileSink for AccountingReconcileSink {
             .reconcile_pair_on(
                 conn,
                 &PairRequest {
-                    company_id: req.company_id,
                     debit: to_loc(&req.debit),
                     credit: to_loc(&req.credit),
                     amount: req.amount,
@@ -239,7 +240,6 @@ impl backbone_payment::application::service::payment_lifecycle::BankReconcilable
     async fn bank_reconcilable(
         &self,
         _pool: &sqlx::PgPool,
-        _company_id: uuid::Uuid,
         _account_id: uuid::Uuid,
     ) -> Result<bool, backbone_payment::application::service::payment_write_service::PaymentError>
     {

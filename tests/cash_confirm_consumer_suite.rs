@@ -42,7 +42,6 @@ impl BankReconcilablePort for AlwaysReconcilable {
     async fn bank_reconcilable(
         &self,
         _pool: &sqlx::PgPool,
-        _company_id: uuid::Uuid,
         _account_id: uuid::Uuid,
     ) -> Result<bool, PaymentError> {
         Ok(true)
@@ -164,7 +163,7 @@ async fn first_delivery_drifts_and_redelivery_no_ops() {
 
     let event = Uuid::new_v4();
     let drifted = w
-        .confirm_cash_once(event, CONSUMER, company, id)
+        .confirm_cash_once(event, CONSUMER, id)
         .await
         .unwrap();
     assert!(drifted, "the first delivery performs the drift");
@@ -172,7 +171,7 @@ async fn first_delivery_drifts_and_redelivery_no_ops() {
 
     // Redelivery of the SAME event: consumed already, no-op, no error.
     let again = w
-        .confirm_cash_once(event, CONSUMER, company, id)
+        .confirm_cash_once(event, CONSUMER, id)
         .await
         .unwrap();
     assert!(!again, "a redelivered event is a no-op");
@@ -225,7 +224,7 @@ async fn non_applicable_state_consumes_without_drift() {
 
     let event = Uuid::new_v4();
     let drifted = w
-        .confirm_cash_once(event, CONSUMER, company, id)
+        .confirm_cash_once(event, CONSUMER, id)
         .await
         .unwrap();
     assert!(!drifted, "a draft payment is not driftable");
@@ -279,7 +278,7 @@ async fn lost_event_strands_the_label_not_the_money() {
 
     // Recovery: the re-drift is the SAME consumer under a new event id — it drifts exactly once.
     let redrift = w
-        .confirm_cash_once(Uuid::new_v4(), CONSUMER, company, id)
+        .confirm_cash_once(Uuid::new_v4(), CONSUMER, id)
         .await
         .unwrap();
     assert!(redrift, "the re-drift command performs the drift");
@@ -298,7 +297,7 @@ async fn drift_is_scoped_to_the_named_payment() {
     let b = new_in_flight_payment(&pool, company, &w).await;
 
     let drifted = w
-        .confirm_cash_once(Uuid::new_v4(), CONSUMER, company, a)
+        .confirm_cash_once(Uuid::new_v4(), CONSUMER, a)
         .await
         .unwrap();
     assert!(drifted);
