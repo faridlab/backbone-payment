@@ -257,7 +257,7 @@ impl PaymentWriteService {
                 (r.discount_amount, r.discount_account_id, false)
             } else if let Some(d) = self
                 .discount
-                .resolve(company_id, r.invoice_ref, &r.invoice_kind, p.posting_date)
+                .resolve(r.invoice_ref, &r.invoice_kind, p.posting_date)
                 .await?
             {
                 // The basis clamp: an allocation may exceed the invoice's outstanding (payment

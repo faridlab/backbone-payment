@@ -62,7 +62,6 @@ struct FixedDiscount {
 impl SettlementDiscountPort for FixedDiscount {
     async fn resolve(
         &self,
-        _company_id: Uuid,
         invoice_ref: Uuid,
         _invoice_kind: &str,
         _on_date: chrono::NaiveDate,

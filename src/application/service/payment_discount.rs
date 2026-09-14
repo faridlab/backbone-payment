@@ -36,7 +36,6 @@ pub struct EarlyPayDecision {
 pub trait SettlementDiscountPort: Send + Sync {
     async fn resolve(
         &self,
-        company_id: Uuid,
         invoice_ref: Uuid,
         invoice_kind: &str,
         on_date: chrono::NaiveDate,
@@ -52,7 +51,6 @@ pub struct NoDiscount;
 impl SettlementDiscountPort for NoDiscount {
     async fn resolve(
         &self,
-        _company_id: Uuid,
         _invoice_ref: Uuid,
         _invoice_kind: &str,
         _on_date: chrono::NaiveDate,
