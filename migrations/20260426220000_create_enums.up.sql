@@ -100,6 +100,26 @@ BEGIN
 END
 $$;
 
+-- `gl_posting_state` is a SHARED enum: several modules post to the GL and each
+-- creates this type. Modules never depend on one another, so none of them can
+-- own it — whichever migration reaches the database first creates it, and every
+-- other one finds it present and does nothing. That is the whole defect: a
+-- module that needs a value the first creator did not declare silently gets a
+-- narrower type, and fails later when a column default names the missing value.
+--
+-- So the guard above creates the type when absent, and the statements below
+-- guarantee the values THIS module depends on, whoever created it. The result
+-- is order-independent: the type ends up as the union of what every module
+-- needs, regardless of which one ran first.
+--
+-- These stay top-level statements on purpose. A new enum value cannot be USED
+-- in the transaction that added it, so widening must never share a transaction
+-- with a column default that names the new value. This file creates types and
+-- nothing else, which is what makes the widening safe here.
+ALTER TYPE gl_posting_state ADD VALUE IF NOT EXISTS 'pending';
+ALTER TYPE gl_posting_state ADD VALUE IF NOT EXISTS 'posted';
+ALTER TYPE gl_posting_state ADD VALUE IF NOT EXISTS 'failed';
+
 -- Create settlement_kind enum type
 DO $$
 BEGIN

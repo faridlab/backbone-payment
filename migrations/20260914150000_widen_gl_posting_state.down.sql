@@ -1,0 +1,5 @@
+-- No rollback.
+--
+-- Postgres cannot remove a value from an enum, and narrowing the type would
+-- break every module that depends on the wider set. Reverting this migration
+-- is a no-op by design rather than by omission.
