@@ -7,7 +7,7 @@ info:
     This API provides 11 standard CRUD endpoints for each model.
 
 servers:
-  - url: http://localhost:3000
+  - url: /
     description: Development server
 
 tags:
@@ -27,7 +27,7 @@ tags:
     description: PaymentAllocation management endpoints
 
 paths:
-  /api/v1/aging_snapshots:
+  /api/v1/payment/aging_snapshots:
     get:
       tags:
         - AgingSnapshots
@@ -73,7 +73,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/aging_snapshots/{id}:
+  /api/v1/payment/aging_snapshots/{id}:
     parameters:
       - $ref: '#/components/parameters/IdParam'
 
@@ -145,7 +145,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/aging_snapshots/bulk:
+  /api/v1/payment/aging_snapshots/bulk:
     post:
       tags:
         - AgingSnapshots
@@ -237,7 +237,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/aging_snapshots/upsert:
+  /api/v1/payment/aging_snapshots/upsert:
     post:
       tags:
         - AgingSnapshots
@@ -267,7 +267,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/AgingSnapshot'
 
-  /api/v1/aging_snapshots/trash:
+  /api/v1/payment/aging_snapshots/trash:
     get:
       tags:
         - AgingSnapshots
@@ -284,7 +284,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/AgingSnapshotList'
 
-  /api/v1/aging_snapshots/{id}/restore:
+  /api/v1/payment/aging_snapshots/{id}/restore:
     parameters:
       - $ref: '#/components/parameters/IdParam'
     post:
@@ -302,7 +302,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/aging_snapshots/empty:
+  /api/v1/payment/aging_snapshots/empty:
     delete:
       tags:
         - AgingSnapshots
@@ -319,7 +319,7 @@ paths:
                   deleted_count:
                     type: integer
 
-  /api/v1/aging_snapshots/delete/bulk:
+  /api/v1/payment/aging_snapshots/delete/bulk:
     post:
       tags:
         - AgingSnapshots
@@ -339,7 +339,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/aging_snapshots/restore/bulk:
+  /api/v1/payment/aging_snapshots/restore/bulk:
     post:
       tags:
         - AgingSnapshots
@@ -357,7 +357,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/aging_snapshots/restore/all:
+  /api/v1/payment/aging_snapshots/restore/all:
     post:
       tags:
         - AgingSnapshots
@@ -373,7 +373,7 @@ paths:
                 properties:
                   restored: { type: integer }
 
-  /api/v1/aging_snapshots/trash/bulk:
+  /api/v1/payment/aging_snapshots/trash/bulk:
     delete:
       tags:
         - AgingSnapshots
@@ -393,7 +393,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/aging_buckets:
+  /api/v1/payment/aging_buckets:
     get:
       tags:
         - AgingBuckets
@@ -439,7 +439,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/aging_buckets/{id}:
+  /api/v1/payment/aging_buckets/{id}:
     parameters:
       - $ref: '#/components/parameters/IdParam'
 
@@ -511,7 +511,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/aging_buckets/bulk:
+  /api/v1/payment/aging_buckets/bulk:
     post:
       tags:
         - AgingBuckets
@@ -603,7 +603,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/aging_buckets/upsert:
+  /api/v1/payment/aging_buckets/upsert:
     post:
       tags:
         - AgingBuckets
@@ -633,7 +633,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/AgingBucket'
 
-  /api/v1/aging_buckets/trash:
+  /api/v1/payment/aging_buckets/trash:
     get:
       tags:
         - AgingBuckets
@@ -650,7 +650,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/AgingBucketList'
 
-  /api/v1/aging_buckets/{id}/restore:
+  /api/v1/payment/aging_buckets/{id}/restore:
     parameters:
       - $ref: '#/components/parameters/IdParam'
     post:
@@ -668,7 +668,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/aging_buckets/empty:
+  /api/v1/payment/aging_buckets/empty:
     delete:
       tags:
         - AgingBuckets
@@ -685,7 +685,7 @@ paths:
                   deleted_count:
                     type: integer
 
-  /api/v1/aging_buckets/delete/bulk:
+  /api/v1/payment/aging_buckets/delete/bulk:
     post:
       tags:
         - AgingBuckets
@@ -705,7 +705,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/aging_buckets/restore/bulk:
+  /api/v1/payment/aging_buckets/restore/bulk:
     post:
       tags:
         - AgingBuckets
@@ -723,7 +723,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/aging_buckets/restore/all:
+  /api/v1/payment/aging_buckets/restore/all:
     post:
       tags:
         - AgingBuckets
@@ -739,7 +739,7 @@ paths:
                 properties:
                   restored: { type: integer }
 
-  /api/v1/aging_buckets/trash/bulk:
+  /api/v1/payment/aging_buckets/trash/bulk:
     delete:
       tags:
         - AgingBuckets
@@ -759,7 +759,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/dunning_runs:
+  /api/v1/payment/dunning_runs:
     get:
       tags:
         - DunningRuns
@@ -805,7 +805,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/dunning_runs/{id}:
+  /api/v1/payment/dunning_runs/{id}:
     parameters:
       - $ref: '#/components/parameters/IdParam'
 
@@ -877,7 +877,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/dunning_runs/bulk:
+  /api/v1/payment/dunning_runs/bulk:
     post:
       tags:
         - DunningRuns
@@ -969,7 +969,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/dunning_runs/upsert:
+  /api/v1/payment/dunning_runs/upsert:
     post:
       tags:
         - DunningRuns
@@ -999,7 +999,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/DunningRun'
 
-  /api/v1/dunning_runs/trash:
+  /api/v1/payment/dunning_runs/trash:
     get:
       tags:
         - DunningRuns
@@ -1016,7 +1016,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/DunningRunList'
 
-  /api/v1/dunning_runs/{id}/restore:
+  /api/v1/payment/dunning_runs/{id}/restore:
     parameters:
       - $ref: '#/components/parameters/IdParam'
     post:
@@ -1034,7 +1034,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/dunning_runs/empty:
+  /api/v1/payment/dunning_runs/empty:
     delete:
       tags:
         - DunningRuns
@@ -1051,7 +1051,7 @@ paths:
                   deleted_count:
                     type: integer
 
-  /api/v1/dunning_runs/delete/bulk:
+  /api/v1/payment/dunning_runs/delete/bulk:
     post:
       tags:
         - DunningRuns
@@ -1071,7 +1071,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/dunning_runs/restore/bulk:
+  /api/v1/payment/dunning_runs/restore/bulk:
     post:
       tags:
         - DunningRuns
@@ -1089,7 +1089,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/dunning_runs/restore/all:
+  /api/v1/payment/dunning_runs/restore/all:
     post:
       tags:
         - DunningRuns
@@ -1105,7 +1105,7 @@ paths:
                 properties:
                   restored: { type: integer }
 
-  /api/v1/dunning_runs/trash/bulk:
+  /api/v1/payment/dunning_runs/trash/bulk:
     delete:
       tags:
         - DunningRuns
@@ -1125,7 +1125,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/dunning_actions:
+  /api/v1/payment/dunning_actions:
     get:
       tags:
         - DunningActions
@@ -1171,7 +1171,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/dunning_actions/{id}:
+  /api/v1/payment/dunning_actions/{id}:
     parameters:
       - $ref: '#/components/parameters/IdParam'
 
@@ -1243,7 +1243,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/dunning_actions/bulk:
+  /api/v1/payment/dunning_actions/bulk:
     post:
       tags:
         - DunningActions
@@ -1335,7 +1335,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/dunning_actions/upsert:
+  /api/v1/payment/dunning_actions/upsert:
     post:
       tags:
         - DunningActions
@@ -1365,7 +1365,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/DunningAction'
 
-  /api/v1/dunning_actions/trash:
+  /api/v1/payment/dunning_actions/trash:
     get:
       tags:
         - DunningActions
@@ -1382,7 +1382,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/DunningActionList'
 
-  /api/v1/dunning_actions/{id}/restore:
+  /api/v1/payment/dunning_actions/{id}/restore:
     parameters:
       - $ref: '#/components/parameters/IdParam'
     post:
@@ -1400,7 +1400,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/dunning_actions/empty:
+  /api/v1/payment/dunning_actions/empty:
     delete:
       tags:
         - DunningActions
@@ -1417,7 +1417,7 @@ paths:
                   deleted_count:
                     type: integer
 
-  /api/v1/dunning_actions/delete/bulk:
+  /api/v1/payment/dunning_actions/delete/bulk:
     post:
       tags:
         - DunningActions
@@ -1437,7 +1437,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/dunning_actions/restore/bulk:
+  /api/v1/payment/dunning_actions/restore/bulk:
     post:
       tags:
         - DunningActions
@@ -1455,7 +1455,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/dunning_actions/restore/all:
+  /api/v1/payment/dunning_actions/restore/all:
     post:
       tags:
         - DunningActions
@@ -1471,7 +1471,7 @@ paths:
                 properties:
                   restored: { type: integer }
 
-  /api/v1/dunning_actions/trash/bulk:
+  /api/v1/payment/dunning_actions/trash/bulk:
     delete:
       tags:
         - DunningActions
@@ -1491,7 +1491,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/mode_of_payments:
+  /api/v1/payment/mode_of_payments:
     get:
       tags:
         - ModeOfPayments
@@ -1537,7 +1537,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/mode_of_payments/{id}:
+  /api/v1/payment/mode_of_payments/{id}:
     parameters:
       - $ref: '#/components/parameters/IdParam'
 
@@ -1609,7 +1609,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/mode_of_payments/bulk:
+  /api/v1/payment/mode_of_payments/bulk:
     post:
       tags:
         - ModeOfPayments
@@ -1701,7 +1701,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/mode_of_payments/upsert:
+  /api/v1/payment/mode_of_payments/upsert:
     post:
       tags:
         - ModeOfPayments
@@ -1731,7 +1731,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ModeOfPayment'
 
-  /api/v1/mode_of_payments/trash:
+  /api/v1/payment/mode_of_payments/trash:
     get:
       tags:
         - ModeOfPayments
@@ -1748,7 +1748,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ModeOfPaymentList'
 
-  /api/v1/mode_of_payments/{id}/restore:
+  /api/v1/payment/mode_of_payments/{id}/restore:
     parameters:
       - $ref: '#/components/parameters/IdParam'
     post:
@@ -1766,7 +1766,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/mode_of_payments/empty:
+  /api/v1/payment/mode_of_payments/empty:
     delete:
       tags:
         - ModeOfPayments
@@ -1783,7 +1783,7 @@ paths:
                   deleted_count:
                     type: integer
 
-  /api/v1/mode_of_payments/delete/bulk:
+  /api/v1/payment/mode_of_payments/delete/bulk:
     post:
       tags:
         - ModeOfPayments
@@ -1803,7 +1803,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/mode_of_payments/restore/bulk:
+  /api/v1/payment/mode_of_payments/restore/bulk:
     post:
       tags:
         - ModeOfPayments
@@ -1821,7 +1821,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/mode_of_payments/restore/all:
+  /api/v1/payment/mode_of_payments/restore/all:
     post:
       tags:
         - ModeOfPayments
@@ -1837,7 +1837,7 @@ paths:
                 properties:
                   restored: { type: integer }
 
-  /api/v1/mode_of_payments/trash/bulk:
+  /api/v1/payment/mode_of_payments/trash/bulk:
     delete:
       tags:
         - ModeOfPayments
@@ -1857,7 +1857,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/payment_entries:
+  /api/v1/payment/payment_entries:
     get:
       tags:
         - PaymentEntries
@@ -1903,7 +1903,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/payment_entries/{id}:
+  /api/v1/payment/payment_entries/{id}:
     parameters:
       - $ref: '#/components/parameters/IdParam'
 
@@ -1975,7 +1975,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/payment_entries/bulk:
+  /api/v1/payment/payment_entries/bulk:
     post:
       tags:
         - PaymentEntries
@@ -2067,7 +2067,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/payment_entries/upsert:
+  /api/v1/payment/payment_entries/upsert:
     post:
       tags:
         - PaymentEntries
@@ -2097,7 +2097,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaymentEntry'
 
-  /api/v1/payment_entries/trash:
+  /api/v1/payment/payment_entries/trash:
     get:
       tags:
         - PaymentEntries
@@ -2114,7 +2114,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaymentEntryList'
 
-  /api/v1/payment_entries/{id}/restore:
+  /api/v1/payment/payment_entries/{id}/restore:
     parameters:
       - $ref: '#/components/parameters/IdParam'
     post:
@@ -2132,7 +2132,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/payment_entries/empty:
+  /api/v1/payment/payment_entries/empty:
     delete:
       tags:
         - PaymentEntries
@@ -2149,7 +2149,7 @@ paths:
                   deleted_count:
                     type: integer
 
-  /api/v1/payment_entries/delete/bulk:
+  /api/v1/payment/payment_entries/delete/bulk:
     post:
       tags:
         - PaymentEntries
@@ -2169,7 +2169,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/payment_entries/restore/bulk:
+  /api/v1/payment/payment_entries/restore/bulk:
     post:
       tags:
         - PaymentEntries
@@ -2187,7 +2187,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/payment_entries/restore/all:
+  /api/v1/payment/payment_entries/restore/all:
     post:
       tags:
         - PaymentEntries
@@ -2203,7 +2203,7 @@ paths:
                 properties:
                   restored: { type: integer }
 
-  /api/v1/payment_entries/trash/bulk:
+  /api/v1/payment/payment_entries/trash/bulk:
     delete:
       tags:
         - PaymentEntries
@@ -2223,7 +2223,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/payment_allocations:
+  /api/v1/payment/payment_allocations:
     get:
       tags:
         - PaymentAllocations
@@ -2269,7 +2269,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/payment_allocations/{id}:
+  /api/v1/payment/payment_allocations/{id}:
     parameters:
       - $ref: '#/components/parameters/IdParam'
 
@@ -2341,7 +2341,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/payment_allocations/bulk:
+  /api/v1/payment/payment_allocations/bulk:
     post:
       tags:
         - PaymentAllocations
@@ -2433,7 +2433,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/payment_allocations/upsert:
+  /api/v1/payment/payment_allocations/upsert:
     post:
       tags:
         - PaymentAllocations
@@ -2463,7 +2463,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaymentAllocation'
 
-  /api/v1/payment_allocations/trash:
+  /api/v1/payment/payment_allocations/trash:
     get:
       tags:
         - PaymentAllocations
@@ -2480,7 +2480,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaymentAllocationList'
 
-  /api/v1/payment_allocations/{id}/restore:
+  /api/v1/payment/payment_allocations/{id}/restore:
     parameters:
       - $ref: '#/components/parameters/IdParam'
     post:
@@ -2498,7 +2498,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/payment_allocations/empty:
+  /api/v1/payment/payment_allocations/empty:
     delete:
       tags:
         - PaymentAllocations
@@ -2515,7 +2515,7 @@ paths:
                   deleted_count:
                     type: integer
 
-  /api/v1/payment_allocations/delete/bulk:
+  /api/v1/payment/payment_allocations/delete/bulk:
     post:
       tags:
         - PaymentAllocations
@@ -2535,7 +2535,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/payment_allocations/restore/bulk:
+  /api/v1/payment/payment_allocations/restore/bulk:
     post:
       tags:
         - PaymentAllocations
@@ -2553,7 +2553,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/payment_allocations/restore/all:
+  /api/v1/payment/payment_allocations/restore/all:
     post:
       tags:
         - PaymentAllocations
@@ -2569,7 +2569,7 @@ paths:
                 properties:
                   restored: { type: integer }
 
-  /api/v1/payment_allocations/trash/bulk:
+  /api/v1/payment/payment_allocations/trash/bulk:
     delete:
       tags:
         - PaymentAllocations
