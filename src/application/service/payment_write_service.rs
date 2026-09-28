@@ -232,6 +232,12 @@ pub struct PaymentWriteService {
 }
 
 impl PaymentWriteService {
+    /// The database this verb runs on: the composer's request pool when the
+    /// tenant router installed one, else the composed pool (ADR-0029).
+    pub(super) fn rpool(&self) -> PgPool {
+        crate::request_pool::current().unwrap_or_else(|| self.db_pool.clone())
+    }
+
     pub fn new(db_pool: PgPool) -> Self {
         Self::with_sink(db_pool, Arc::new(LoggingSink))
     }

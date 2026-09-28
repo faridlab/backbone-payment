@@ -188,7 +188,7 @@ impl PaymentWriteService {
         // ID-only read: fenced by the ambient org scope the composing service bound.
         let p = self
             .entries
-            .fetch_post_source(&self.db_pool, payment_id)
+            .fetch_post_source(&self.rpool(), payment_id)
             .await?
             .ok_or(PaymentError::PaymentNotFound(payment_id))?;
         if p.currency != "IDR" {
@@ -196,7 +196,7 @@ impl PaymentWriteService {
         }
         let rows = self
             .allocations
-            .fetch_for_payment(&self.db_pool, payment_id)
+            .fetch_for_payment(&self.rpool(), payment_id)
             .await?;
         let allocs: Vec<AllocForPost> = rows
             .into_iter()
@@ -229,7 +229,7 @@ impl PaymentWriteService {
         // this same fetched state.
         let p = self
             .entries
-            .fetch_post_source(&self.db_pool, payment_id)
+            .fetch_post_source(&self.rpool(), payment_id)
             .await?
             .ok_or(PaymentError::PaymentNotFound(payment_id))?;
         if p.currency != "IDR" {
@@ -244,7 +244,7 @@ impl PaymentWriteService {
         }
         let rows = self
             .allocations
-            .fetch_for_payment(&self.db_pool, payment_id)
+            .fetch_for_payment(&self.rpool(), payment_id)
             .await?;
 
         // Decide the discounts: a prior attempt's stamp is REUSED (idempotent retry after a GL
@@ -290,7 +290,7 @@ impl PaymentWriteService {
         // The landing: reconcilability of the bank account × the channel dimension.
         let reconcilable = self
             .reconcilable
-            .bank_reconcilable(&self.db_pool, p.bank_account_id)
+            .bank_reconcilable(&self.rpool(), p.bank_account_id)
             .await?;
         let landing = landing_state(reconcilable, &p.method).to_string();
 
@@ -302,7 +302,7 @@ impl PaymentWriteService {
                 // commit in ONE tx — a crash after the GL post cannot split the discount decision
                 // from its journal, nor lose the `PaymentSettled` event. Tenancy posture
                 // (ADR-0029): relay the AMBIENT request scope when the caller bound one.
-                let mut tx = self.db_pool.begin().await?;
+                let mut tx = self.rpool().begin().await?;
                 if let Some(scope) = org_scope::current_org_scope() {
                     org_scope::bind_org_scope_on(&mut tx, &scope).await?;
                 }
@@ -339,7 +339,7 @@ impl PaymentWriteService {
             Err(rej) => {
                 // Deliberately ignored: the GL rejection below is the error being reported, and a
                 // failure to mark the state must not mask it.
-                let _ = self.entries.mark_failed(&self.db_pool, payment_id).await;
+                let _ = self.entries.mark_failed(&self.rpool(), payment_id).await;
                 Err(PaymentError::GlRejected {
                     code: rej.code,
                     message: rej.message,
@@ -416,7 +416,7 @@ impl PaymentWriteService {
     ) -> Result<(), PaymentError> {
         let hdr = self
             .entries
-            .fetch_settled_header(&self.db_pool, payment_id)
+            .fetch_settled_header(&self.rpool(), payment_id)
             .await?;
         let payment_type: String = hdr.payment_type;
         let paid_amount: Decimal = hdr.paid_amount;
@@ -465,7 +465,7 @@ impl PaymentWriteService {
     ) -> Result<Option<SettleOutcome>, PaymentError> {
         let row = self
             .entries
-            .fetch_posted_state(&self.db_pool, payment_id)
+            .fetch_posted_state(&self.rpool(), payment_id)
             .await?
             .ok_or(PaymentError::PaymentNotFound(payment_id))?;
         if row.posting_state == "posted" {

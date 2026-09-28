@@ -52,7 +52,7 @@ impl PaymentWriteService {
         // transaction when the caller bound one: the fence accepts the writes as the app
         // role and new rows land on the acting unit. An undecorated deployment has no
         // ambient scope and skips this entirely (unfenced by design).
-        let mut tx = self.db_pool.begin().await?;
+        let mut tx = self.rpool().begin().await?;
         if let Some(scope) = org_scope::current_org_scope() {
             org_scope::bind_org_scope_on(&mut tx, &scope).await?;
         }

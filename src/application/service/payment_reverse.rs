@@ -29,7 +29,7 @@ impl PaymentWriteService {
         let orig = self.build_settlement_post(payment_id).await?;
         let reverses_post_id: Option<Uuid> = self
             .entries
-            .fetch_accounting_post_id(&self.db_pool, payment_id)
+            .fetch_accounting_post_id(&self.rpool(), payment_id)
             .await?;
         let lines = orig
             .lines
@@ -73,7 +73,7 @@ impl PaymentWriteService {
         // ID-only read: fenced by the ambient org scope the composing service bound.
         let (status, posting_state): (String, String) = self
             .entries
-            .fetch_status(&self.db_pool, payment_id)
+            .fetch_status(&self.rpool(), payment_id)
             .await?
             .ok_or(PaymentError::PaymentNotFound(payment_id))?;
         // The fused lifecycle: a landed payment (in_flight or paid — both mean the GL post
@@ -93,7 +93,7 @@ impl PaymentWriteService {
             Ok(ack) => {
                 let rows_affected = self
                     .entries
-                    .mark_cancelled(&self.db_pool, payment_id)
+                    .mark_cancelled(&self.rpool(), payment_id)
                     .await?;
                 // Only the invocation that flipped posted→cancelled emits — so the reverse-seam restores
                 // each invoice exactly once even under a repeat/concurrent reverse.
@@ -122,13 +122,13 @@ impl PaymentWriteService {
     ) -> Result<(), PaymentError> {
         let hdr = self
             .entries
-            .fetch_type_and_amount(&self.db_pool, payment_id)
+            .fetch_type_and_amount(&self.rpool(), payment_id)
             .await?;
         let payment_type: String = hdr.payment_type;
         let paid_amount: Decimal = hdr.paid_amount;
         let alloc_rows = self
             .allocations
-            .fetch_for_payment(&self.db_pool, payment_id)
+            .fetch_for_payment(&self.rpool(), payment_id)
             .await?;
         let allocations: Vec<SettledInvoice> = alloc_rows
             .into_iter()

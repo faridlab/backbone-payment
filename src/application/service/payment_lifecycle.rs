@@ -124,7 +124,7 @@ impl PaymentWriteService {
     pub async fn submit_payment(&self, payment_id: Uuid) -> Result<(), PaymentError> {
         let affected = self
             .entries
-            .mark_submitted(&self.db_pool, payment_id)
+            .mark_submitted(&self.rpool(), payment_id)
             .await?;
         if affected == 0 {
             // Distinguish "not yours / not there" from "refused in a non-draft state" — the operator
@@ -144,7 +144,7 @@ impl PaymentWriteService {
     pub async fn reject_payment(&self, payment_id: Uuid) -> Result<(), PaymentError> {
         let affected = self
             .entries
-            .mark_rejected(&self.db_pool, payment_id)
+            .mark_rejected(&self.rpool(), payment_id)
             .await?;
         if affected == 0 {
             let status = self.fetch_status_scoped(payment_id).await?;
@@ -169,7 +169,7 @@ impl PaymentWriteService {
         consumer: &str,
         payment_id: Uuid,
     ) -> Result<bool, PaymentError> {
-        let mut tx = self.db_pool.begin().await?;
+        let mut tx = self.rpool().begin().await?;
         org_scope::bind_org_scope_on(&mut tx, &OrgScope::for_company_unit(ambient_company())).await?;
         let first = backbone_outbox::inbox::once(&mut *tx, "payment", consumer, event_id)
             .await
@@ -186,7 +186,7 @@ impl PaymentWriteService {
     /// Status read under the ambient org scope (the verbs' refusal diagnostics).
     async fn fetch_status_scoped(&self, payment_id: Uuid) -> Result<String, PaymentError> {
         self.entries
-            .fetch_status(&self.db_pool, payment_id)
+            .fetch_status(&self.rpool(), payment_id)
             .await?
             .map(|(status, _posting_state)| status)
             .ok_or(PaymentError::PaymentNotFound(payment_id))

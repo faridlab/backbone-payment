@@ -57,6 +57,12 @@ pub struct PaymentDunningService {
 }
 
 impl PaymentDunningService {
+    /// The database this verb runs on: the composer's request pool when the
+    /// tenant router installed one, else the composed pool (ADR-0029).
+    fn rpool(&self) -> PgPool {
+        crate::request_pool::current().unwrap_or_else(|| self.db_pool.clone())
+    }
+
     pub fn new(db_pool: PgPool, receivables: Arc<dyn BillingReceivablesPort>) -> Self {
         Self {
             db_pool,
@@ -82,13 +88,13 @@ impl PaymentDunningService {
         // service's tenancy decorator does. Relay the AMBIENT request scope onto this
         // transaction when the caller bound one; an undecorated deployment has no ambient
         // scope and skips this entirely (unfenced by design).
-        let mut tx = self.db_pool.begin().await?;
+        let mut tx = self.rpool().begin().await?;
         if let Some(scope) = org_scope::current_org_scope() {
             org_scope::bind_org_scope_on(&mut tx, &scope).await?;
         }
 
-        let snapshots = AgingSnapshotRepository::new(self.db_pool.clone());
-        let buckets = AgingBucketRepository::new(self.db_pool.clone());
+        let snapshots = AgingSnapshotRepository::new(self.rpool().clone());
+        let buckets = AgingBucketRepository::new(self.rpool().clone());
 
         // Idempotent snapshot upsert (fence-scoped as_of + direction).
         let snapshot_id = snapshots
@@ -155,13 +161,13 @@ impl PaymentDunningService {
 
         // Tenancy posture (ADR-0029): relay the AMBIENT request scope when the caller bound one
         // (see `run_aging_snapshot`).
-        let mut tx = self.db_pool.begin().await?;
+        let mut tx = self.rpool().begin().await?;
         if let Some(scope) = org_scope::current_org_scope() {
             org_scope::bind_org_scope_on(&mut tx, &scope).await?;
         }
 
-        let runs = DunningRunRepository::new(self.db_pool.clone());
-        let actions = DunningActionRepository::new(self.db_pool.clone());
+        let runs = DunningRunRepository::new(self.rpool().clone());
+        let actions = DunningActionRepository::new(self.rpool().clone());
 
         let run_id = runs
             .insert_run(&mut *tx, Uuid::new_v4(), as_of, direction)
