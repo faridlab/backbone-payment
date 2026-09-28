@@ -305,6 +305,7 @@ impl PaymentWriteService {
                 let mut tx = self.rpool().begin().await?;
                 if let Some(scope) = org_scope::current_org_scope() {
                     org_scope::bind_org_scope_on(&mut tx, &scope).await?;
+                    backbone_orm::audit_context::relay_ambient_audit_on(&mut tx).await?;
                 }
                 for (allocation_id, discount, account) in &fresh {
                     self.allocations

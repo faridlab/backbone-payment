@@ -171,6 +171,7 @@ impl PaymentWriteService {
     ) -> Result<bool, PaymentError> {
         let mut tx = self.rpool().begin().await?;
         org_scope::bind_org_scope_on(&mut tx, &OrgScope::for_company_unit(ambient_company())).await?;
+        backbone_orm::audit_context::relay_ambient_audit_on(&mut tx).await?;
         let first = backbone_outbox::inbox::once(&mut *tx, "payment", consumer, event_id)
             .await
             .map_err(|e| PaymentError::Db(sqlx::Error::Protocol(e.to_string())))?;
