@@ -272,6 +272,7 @@ impl backbone_orm::EntityRepoMeta for DunningAction {
         m.insert("level".to_string(), "dunning_level".to_string());
         m.insert("action_type".to_string(), "dunning_action_type".to_string());
         m.insert("status".to_string(), "dunning_action_status".to_string());
+        m.insert("processed_at".to_string(), "timestamptz".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {

@@ -234,6 +234,7 @@ impl backbone_orm::EntityRepoMeta for AgingSnapshot {
         let mut m = std::collections::HashMap::new();
         m.insert("id".to_string(), "uuid".to_string());
         m.insert("status".to_string(), "snapshot_status".to_string());
+        m.insert("as_of_date".to_string(), "date".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {

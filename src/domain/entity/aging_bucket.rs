@@ -236,6 +236,7 @@ impl backbone_orm::EntityRepoMeta for AgingBucket {
         m.insert("snapshot_id".to_string(), "uuid".to_string());
         m.insert("party_id".to_string(), "uuid".to_string());
         m.insert("bucket".to_string(), "aging_bucket_name".to_string());
+        m.insert("due_date".to_string(), "date".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {

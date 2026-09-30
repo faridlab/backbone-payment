@@ -15,7 +15,6 @@ pub mod payment_entry_api_test;
 pub mod payment_allocation_api_test;
 
 // Re-exports for convenience
-pub use crud_test_base::*;
 pub use aging_snapshot_api_test::*;
 pub use aging_bucket_api_test::*;
 pub use dunning_run_api_test::*;
