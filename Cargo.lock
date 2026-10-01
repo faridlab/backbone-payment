@@ -197,15 +197,17 @@ dependencies = [
 
 [[package]]
 name = "backbone-accounting"
-version = "0.9.25"
+version = "0.9.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b348caf2689173d32b0d3c2ae916dc30d9233630ce5f28600a60bd7da3e51ff"
 dependencies = [
  "anyhow",
  "async-trait",
  "axum",
- "backbone-auth 2.0.0 (git+https://github.com/faridlab/backbone-framework?tag=v2.7.34)",
- "backbone-core 2.0.0 (git+https://github.com/faridlab/backbone-framework?tag=v2.7.34)",
- "backbone-messaging 2.0.0 (git+https://github.com/faridlab/backbone-framework?tag=v2.7.34)",
- "backbone-orm 2.0.0 (git+https://github.com/faridlab/backbone-framework?tag=v2.7.34)",
+ "backbone-auth",
+ "backbone-core",
+ "backbone-messaging",
+ "backbone-orm",
  "chrono",
  "config",
  "pbjson",
@@ -232,14 +234,15 @@ dependencies = [
 
 [[package]]
 name = "backbone-auth"
-version = "2.0.0"
-source = "git+https://github.com/faridlab/backbone-framework?tag=v2.7.33#797fe0c5176626ebb590bb9560216aa31ef9fb5b"
+version = "2.7.35"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "877969dfe37a56603e33a6bd6049728d9429691868232be4e46f49c51d719a6f"
 dependencies = [
  "anyhow",
  "argon2",
  "async-trait",
  "axum",
- "backbone-orm 2.0.0 (git+https://github.com/faridlab/backbone-framework?tag=v2.7.33)",
+ "backbone-orm",
  "chrono",
  "email_address",
  "jsonwebtoken",
@@ -258,41 +261,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "backbone-auth"
-version = "2.0.0"
-source = "git+https://github.com/faridlab/backbone-framework?tag=v2.7.34#38a4bacb3f186f47d2ce68bd2b03cab650b85c36"
-dependencies = [
- "anyhow",
- "argon2",
- "async-trait",
- "chrono",
- "email_address",
- "jsonwebtoken",
- "rand 0.8.8",
- "regex",
- "ring",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "uuid",
- "zeroize",
-]
-
-[[package]]
 name = "backbone-billing"
-version = "0.8.21"
+version = "0.8.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5af6466a4fe0fa415165567a7029c003fd37b55ff844d586cdcafd5a6b026f3"
 dependencies = [
  "anyhow",
  "async-trait",
  "axum",
- "backbone-auth 2.0.0 (git+https://github.com/faridlab/backbone-framework?tag=v2.7.33)",
- "backbone-core 2.0.0 (git+https://github.com/faridlab/backbone-framework?tag=v2.7.33)",
+ "backbone-auth",
+ "backbone-core",
  "backbone-gl-posting",
- "backbone-messaging 2.0.0 (git+https://github.com/faridlab/backbone-framework?tag=v2.7.33)",
- "backbone-orm 2.0.0 (git+https://github.com/faridlab/backbone-framework?tag=v2.7.33)",
+ "backbone-messaging",
+ "backbone-orm",
  "backbone-outbox",
  "backbone-tax",
  "chrono",
@@ -319,41 +300,15 @@ dependencies = [
 
 [[package]]
 name = "backbone-core"
-version = "2.0.0"
-source = "git+https://github.com/faridlab/backbone-framework?tag=v2.7.33#797fe0c5176626ebb590bb9560216aa31ef9fb5b"
+version = "2.7.35"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f857421832c0f767bee979eede388331ba7c9ca27a24cf087b5a5b4186f35c14"
 dependencies = [
  "anyhow",
  "async-trait",
  "axum",
- "backbone-messaging 2.0.0 (git+https://github.com/faridlab/backbone-framework?tag=v2.7.33)",
- "backbone-orm 2.0.0 (git+https://github.com/faridlab/backbone-framework?tag=v2.7.33)",
- "chrono",
- "prost",
- "regex",
- "serde",
- "serde_json",
- "serde_yaml",
- "sqlx",
- "thiserror 1.0.69",
- "tokio",
- "toml",
- "tonic",
- "tower 0.4.13",
- "tower-http 0.5.2",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "backbone-core"
-version = "2.0.0"
-source = "git+https://github.com/faridlab/backbone-framework?tag=v2.7.34#38a4bacb3f186f47d2ce68bd2b03cab650b85c36"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "backbone-messaging 2.0.0 (git+https://github.com/faridlab/backbone-framework?tag=v2.7.34)",
- "backbone-orm 2.0.0 (git+https://github.com/faridlab/backbone-framework?tag=v2.7.34)",
+ "backbone-messaging",
+ "backbone-orm",
  "chrono",
  "prost",
  "regex",
@@ -373,7 +328,9 @@ dependencies = [
 
 [[package]]
 name = "backbone-gl-posting"
-version = "0.1.0"
+version = "2.7.35"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc673d2f4c557e481a066d98f84c945076cdff5bf750c2012c3654380a783f30"
 dependencies = [
  "async-trait",
  "chrono",
@@ -385,23 +342,9 @@ dependencies = [
 
 [[package]]
 name = "backbone-messaging"
-version = "2.0.0"
-source = "git+https://github.com/faridlab/backbone-framework?tag=v2.7.33#797fe0c5176626ebb590bb9560216aa31ef9fb5b"
-dependencies = [
- "async-trait",
- "chrono",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "backbone-messaging"
-version = "2.0.0"
-source = "git+https://github.com/faridlab/backbone-framework?tag=v2.7.34#38a4bacb3f186f47d2ce68bd2b03cab650b85c36"
+version = "2.7.35"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c07431b7f32283593d4f717a6776b9cbb6f6977584e4009ce9fd0db7be0ca7f"
 dependencies = [
  "async-trait",
  "chrono",
@@ -415,27 +358,9 @@ dependencies = [
 
 [[package]]
 name = "backbone-orm"
-version = "2.0.0"
-source = "git+https://github.com/faridlab/backbone-framework?tag=v2.7.33#797fe0c5176626ebb590bb9560216aa31ef9fb5b"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "colored",
- "regex",
- "serde",
- "serde_json",
- "sqlx",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "backbone-orm"
-version = "2.0.0"
-source = "git+https://github.com/faridlab/backbone-framework?tag=v2.7.34#38a4bacb3f186f47d2ce68bd2b03cab650b85c36"
+version = "2.7.35"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57d1ef6ea3c7d7778050efd0132273e35ea4adffa8576d988ce3c3a52aa8551b"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -453,8 +378,9 @@ dependencies = [
 
 [[package]]
 name = "backbone-outbox"
-version = "0.2.0"
-source = "git+https://github.com/faridlab/backbone-framework?tag=v2.7.33#797fe0c5176626ebb590bb9560216aa31ef9fb5b"
+version = "2.7.35"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94e8080a8c01f22e98b8040901cec3f61288fdb1b69baa0a75fdb39763d325bb"
 dependencies = [
  "chrono",
  "serde",
@@ -466,18 +392,18 @@ dependencies = [
 
 [[package]]
 name = "backbone-payment"
-version = "0.11.27"
+version = "0.11.29"
 dependencies = [
  "anyhow",
  "async-trait",
  "axum",
  "backbone-accounting",
- "backbone-auth 2.0.0 (git+https://github.com/faridlab/backbone-framework?tag=v2.7.33)",
+ "backbone-auth",
  "backbone-billing",
- "backbone-core 2.0.0 (git+https://github.com/faridlab/backbone-framework?tag=v2.7.33)",
+ "backbone-core",
  "backbone-gl-posting",
- "backbone-messaging 2.0.0 (git+https://github.com/faridlab/backbone-framework?tag=v2.7.33)",
- "backbone-orm 2.0.0 (git+https://github.com/faridlab/backbone-framework?tag=v2.7.33)",
+ "backbone-messaging",
+ "backbone-orm",
  "backbone-outbox",
  "chrono",
  "config",
@@ -510,15 +436,17 @@ dependencies = [
 
 [[package]]
 name = "backbone-tax"
-version = "0.6.17"
+version = "0.6.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f5cfd9179dba35132c927f0e250e320ad87343b3444e4573ac76b71b1b0bc0a1"
 dependencies = [
  "anyhow",
  "async-trait",
  "axum",
- "backbone-auth 2.0.0 (git+https://github.com/faridlab/backbone-framework?tag=v2.7.33)",
- "backbone-core 2.0.0 (git+https://github.com/faridlab/backbone-framework?tag=v2.7.33)",
- "backbone-messaging 2.0.0 (git+https://github.com/faridlab/backbone-framework?tag=v2.7.33)",
- "backbone-orm 2.0.0 (git+https://github.com/faridlab/backbone-framework?tag=v2.7.33)",
+ "backbone-auth",
+ "backbone-core",
+ "backbone-messaging",
+ "backbone-orm",
  "backbone-outbox",
  "chrono",
  "config",
