@@ -13,13 +13,12 @@ use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 use backbone_orm::org_scope;
-// The multi-row and scalar read twins live only in the legacy `company_scope` module. Their
-// connection discipline is what this repository needs — request-dedicated connection when the
-// composing service bound one, plain pool otherwise. The helper's legacy task-local branch is
-// never taken: this module sets no legacy scope of its own (ADR-0029).
-use backbone_orm::company_scope::{
-    fetch_one_row_scoped, fetch_one_scalar_scoped, fetch_optional_scoped,
-};
+// The row read twin rides the `org_scope` module: request-dedicated connection when the
+// composer bound one, plain pool otherwise, no scope invented. The scalar and tuple read
+// twins still live only in the legacy `company_scope` module; its legacy task-local branch
+// is never taken: this module sets no legacy scope of its own (ADR-0029).
+use backbone_orm::company_scope::{fetch_one_scalar_scoped, fetch_optional_scoped};
+use backbone_orm::org_scope::fetch_one_row_scoped;
 
 use crate::domain::entity::PaymentEntry;
 
