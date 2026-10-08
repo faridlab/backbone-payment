@@ -149,6 +149,8 @@ impl PaymentModule {
 /// Builder for PaymentModule
 pub struct PaymentModuleBuilder {
     db_pool: Option<PgPool>,
+    // <<< CUSTOM BUILDER FIELDS
+    // END CUSTOM
 }
 
 impl PaymentModuleBuilder {
@@ -156,6 +158,8 @@ impl PaymentModuleBuilder {
     pub fn new() -> Self {
         Self {
             db_pool: None,
+            // <<< CUSTOM BUILDER DEFAULTS
+            // END CUSTOM
         }
     }
 

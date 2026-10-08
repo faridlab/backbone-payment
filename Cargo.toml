@@ -1,6 +1,6 @@
 [package]
 name = "backbone-payment"
-version = "0.11.30"
+version = "0.12.0"
 edition = "2021"
 description = "Settlement & reconciliation — payment entries, allocation, modes of payment; 4th GL producer (Dr Bank·Cr A/R / Dr A/P·Cr Bank)"
 license = "MIT OR Apache-2.0"
@@ -20,19 +20,19 @@ path = "src/lib.rs"
 # or `rev = "<commit-sha>"`. Cargo dedupes the git fetch — the repo is only
 # cloned once even though four crates reference it.
 # -----------------------------------------------------------------------------
-backbone-core = { version = "2.7.35", features = ["postgres"] }
-backbone-orm = { version = "2.7.35" }
-backbone-auth = { version = "2.7.35", features = ["axum"] }
-backbone-messaging = { version = "2.7.35" }
+backbone-core = { version = "3.0.0", features = ["postgres"] }
+backbone-orm = { version = "3.0.0" }
+backbone-auth = { version = "3.0.0", features = ["axum"] }
+backbone-messaging = { version = "3.0.0" }
 # The GL-posting wire contract (envelope + sink port) — shared across producers (ADR-0011 §6 / phase 1).
 # backbone-gl-posting 0.1.0 shipped on backbone-framework v2.7.5; payment_gl.rs re-exports it. Standalone
 # crate (serde + primitives), so it never conflicts with the git-pinned v2.7.1 framework crates.
-backbone-gl-posting = { version = "2.7.35" }
+backbone-gl-posting = { version = "3.0.0" }
 # Go-live durable bus: the producer stages `PaymentSettled` into its outbox in the posted-transition tx
 # (crash-safe emission). multi_tenant (the company-RLS fence + relay bypass, ADR-0011) shipped on
 # backbone-framework v2.7.4 (backbone-outbox 0.2.0). Standalone crate, so it never conflicts with the
 # git-pinned v2.7.1 framework crates.
-backbone-outbox = { version = "2.7.35", features = ["multi_tenant"] }
+backbone-outbox = { version = "3.0.0", features = ["multi_tenant"] }
 
 # Core async runtime and serialization
 tokio = { version = "1.0", features = ["full"] }
@@ -115,5 +115,5 @@ rand = "0.8"
 # place (cargo still resolves the original source first), so between a sibling's release commit and
 # its pushed tag these pins stay on the last-existing tags and local runs ride the patch. Flip them
 # to the new tags in the same push that announces the sibling release.
-backbone-accounting = { version = "0.9.27" }
-backbone-billing = { version = "0.8.25" }
+backbone-accounting = { version = "0.10.0" }
+backbone-billing = { version = "0.9.0" }
