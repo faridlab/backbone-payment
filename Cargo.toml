@@ -1,6 +1,6 @@
 [package]
 name = "backbone-payment"
-version = "0.12.0"
+version = "0.12.1"
 edition = "2021"
 description = "Settlement & reconciliation — payment entries, allocation, modes of payment; 4th GL producer (Dr Bank·Cr A/R / Dr A/P·Cr Bank)"
 license = "MIT OR Apache-2.0"
@@ -115,5 +115,5 @@ rand = "0.8"
 # place (cargo still resolves the original source first), so between a sibling's release commit and
 # its pushed tag these pins stay on the last-existing tags and local runs ride the patch. Flip them
 # to the new tags in the same push that announces the sibling release.
-backbone-accounting = { version = "0.10.0" }
+backbone-accounting = { version = "0.11.0" }
 backbone-billing = { version = "0.9.0" }
