@@ -25,7 +25,6 @@ pub mod presentation;
 pub mod seeders;
 pub mod exports;
 // <<< CUSTOM MODULES
-pub mod request_pool;
 // END CUSTOM
 
 // Re-exports for convenience - Domain entities
@@ -227,3 +226,6 @@ impl Default for PaymentModuleBuilder {
         Self::new()
     }
 }
+
+// This directory's extension (hand-written; ADR-0031).
+include!("mod.ext.rs");
