@@ -18,5 +18,3 @@ use crate::domain::entity::DunningAction;
 /// service. `PermitAllPolicy` is the safe default until then.
 pub type DunningActionDomainPolicy = PermitAllPolicy<DunningAction>;
 
-// <<< CUSTOM
-// END CUSTOM

@@ -188,3 +188,4 @@ pub fn create_protected_payment_entry_routes<A: AuthMiddleware + Send + Sync + '
             }
         }))
 }
+

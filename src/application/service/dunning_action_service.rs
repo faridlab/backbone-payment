@@ -32,5 +32,3 @@ pub type DunningActionService = GenericCrudService<
     DunningActionRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

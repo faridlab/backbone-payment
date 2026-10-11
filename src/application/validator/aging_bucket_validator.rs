@@ -16,9 +16,5 @@ pub type AgingBucketValidator = EntityValidator<AgingBucket>;
 pub fn aging_bucket_validator() -> AgingBucketValidator {
     EntityValidator::new()
         .rule(RequiredString::new("invoice_kind", |e: &AgingBucket| &e.invoice_kind))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

@@ -32,5 +32,3 @@ pub type PaymentAllocationService = GenericCrudService<
     PaymentAllocationRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

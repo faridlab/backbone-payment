@@ -187,3 +187,4 @@ pub fn create_protected_payment_allocation_routes<A: AuthMiddleware + Send + Syn
             }
         }))
 }
+

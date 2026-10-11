@@ -17,9 +17,5 @@ pub fn mode_of_payment_validator() -> ModeOfPaymentValidator {
     EntityValidator::new()
         .rule(RequiredString::new("code", |e: &ModeOfPayment| &e.code))
         .rule(RequiredString::new("name", |e: &ModeOfPayment| &e.name))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

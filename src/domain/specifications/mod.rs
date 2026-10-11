@@ -14,5 +14,3 @@ pub mod mode_of_payment_specification;
 pub mod payment_entry_specification;
 pub mod payment_allocation_specification;
 
-// <<< CUSTOM
-// END CUSTOM

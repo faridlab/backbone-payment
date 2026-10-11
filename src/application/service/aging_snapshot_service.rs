@@ -32,5 +32,3 @@ pub type AgingSnapshotService = GenericCrudService<
     AgingSnapshotRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

@@ -319,7 +319,7 @@ impl backbone_core::ApplyUpdateDto<UpdateAgingBucketDto> for AgingBucket {
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to AgingBucket here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

@@ -106,6 +106,4 @@ mod tests {
 // CUSTOM TESTS
 // ============================================================================
 
-// <<< CUSTOM TESTS START >>>
 // Add DunningRun specific tests here
-// <<< CUSTOM TESTS END >>>

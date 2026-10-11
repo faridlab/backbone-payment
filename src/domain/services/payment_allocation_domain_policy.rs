@@ -18,5 +18,3 @@ use crate::domain::entity::PaymentAllocation;
 /// service. `PermitAllPolicy` is the safe default until then.
 pub type PaymentAllocationDomainPolicy = PermitAllPolicy<PaymentAllocation>;
 
-// <<< CUSTOM
-// END CUSTOM

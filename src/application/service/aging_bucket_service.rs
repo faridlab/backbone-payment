@@ -32,5 +32,3 @@ pub type AgingBucketService = GenericCrudService<
     AgingBucketRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

@@ -18,5 +18,3 @@ use crate::domain::entity::ModeOfPayment;
 /// service. `PermitAllPolicy` is the safe default until then.
 pub type ModeOfPaymentDomainPolicy = PermitAllPolicy<ModeOfPayment>;
 
-// <<< CUSTOM
-// END CUSTOM

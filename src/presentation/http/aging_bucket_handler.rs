@@ -188,3 +188,4 @@ pub fn create_protected_aging_bucket_routes<A: AuthMiddleware + Send + Sync + 's
             }
         }))
 }
+

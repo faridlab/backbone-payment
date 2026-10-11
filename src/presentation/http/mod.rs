@@ -13,8 +13,6 @@ pub mod mode_of_payment_handler;
 pub mod payment_entry_handler;
 pub mod payment_allocation_handler;
 
-// <<< CUSTOM
-// END CUSTOM
 
 // Re-exports
 pub use aging_snapshot_handler::{create_aging_snapshot_routes, create_aging_snapshot_read_routes, create_aging_snapshot_write_routes};
@@ -24,8 +22,6 @@ pub use dunning_action_handler::{create_dunning_action_routes, create_dunning_ac
 pub use mode_of_payment_handler::{create_mode_of_payment_routes, create_mode_of_payment_read_routes, create_mode_of_payment_write_routes};
 pub use payment_entry_handler::{create_payment_entry_routes, create_payment_entry_read_routes, create_payment_entry_write_routes};
 pub use payment_allocation_handler::{create_payment_allocation_routes, create_payment_allocation_read_routes, create_payment_allocation_write_routes};
-// <<< CUSTOM
-// END CUSTOM
 
 // This directory's extension (hand-written; ADR-0031).
 include!("mod.ext.rs");

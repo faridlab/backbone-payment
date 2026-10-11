@@ -11,8 +11,6 @@ use crate::domain::entity::AgingBucket;
 /// enum containing a `Crud(CrudEvent<AgingBucket>)` variant.
 pub type AgingBucketEvent = CrudEvent<AgingBucket>;
 
-// <<< CUSTOM
-// END CUSTOM
 
 use backbone_messaging::{CrudEventPublisher, NoOpCrudEventPublisher};
 use std::sync::Arc;

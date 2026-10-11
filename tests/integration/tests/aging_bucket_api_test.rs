@@ -121,6 +121,4 @@ mod tests {
 // CUSTOM TESTS
 // ============================================================================
 
-// <<< CUSTOM TESTS START >>>
 // Add AgingBucket specific tests here
-// <<< CUSTOM TESTS END >>>

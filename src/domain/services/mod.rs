@@ -18,5 +18,3 @@ pub use mode_of_payment_domain_policy::ModeOfPaymentDomainPolicy;
 pub use payment_entry_domain_policy::PaymentEntryDomainPolicy;
 pub use payment_allocation_domain_policy::PaymentAllocationDomainPolicy;
 
-// <<< CUSTOM
-// END CUSTOM

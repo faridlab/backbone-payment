@@ -21,5 +21,3 @@ pub use mode_of_payment_validator::{ModeOfPaymentValidator, mode_of_payment_vali
 pub use payment_entry_validator::{PaymentEntryValidator, payment_entry_validator};
 pub use payment_allocation_validator::{PaymentAllocationValidator, payment_allocation_validator};
 
-// <<< CUSTOM
-// END CUSTOM

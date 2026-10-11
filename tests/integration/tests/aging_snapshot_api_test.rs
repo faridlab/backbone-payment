@@ -114,6 +114,4 @@ mod tests {
 // CUSTOM TESTS
 // ============================================================================
 
-// <<< CUSTOM TESTS START >>>
 // Add AgingSnapshot specific tests here
-// <<< CUSTOM TESTS END >>>

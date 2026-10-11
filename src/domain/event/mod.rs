@@ -32,5 +32,3 @@ pub use payment_entry_event_handlers::PaymentEntryEventHandler;
 pub use payment_allocation_events::{PaymentAllocationEvent, PaymentAllocationEventPublisher, NoopPaymentAllocationEventPublisher};
 pub use payment_allocation_event_handlers::PaymentAllocationEventHandler;
 
-// <<< CUSTOM
-// END CUSTOM

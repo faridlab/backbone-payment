@@ -32,5 +32,3 @@ pub type ModeOfPaymentService = GenericCrudService<
     ModeOfPaymentRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

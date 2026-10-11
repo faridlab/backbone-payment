@@ -24,8 +24,6 @@ pub mod application;
 pub mod presentation;
 pub mod seeders;
 pub mod exports;
-// <<< CUSTOM MODULES
-// END CUSTOM
 
 // Re-exports for convenience - Domain entities
 pub use domain::entity::*;
@@ -69,8 +67,6 @@ pub struct PaymentModule {
     pub(crate) mode_of_payment_service: Arc<ModeOfPaymentService>,
     pub(crate) payment_entry_service: Arc<PaymentEntryService>,
     pub(crate) payment_allocation_service: Arc<PaymentAllocationService>,
-    // <<< CUSTOM FIELDS
-    // END CUSTOM
 }
 
 impl PaymentModule {
@@ -141,15 +137,11 @@ impl PaymentModule {
             .merge(create_payment_allocation_read_routes(self.payment_allocation_service.clone()))
     }
 
-    // <<< CUSTOM METHODS
-    // END CUSTOM
 }
 
 /// Builder for PaymentModule
 pub struct PaymentModuleBuilder {
     db_pool: Option<PgPool>,
-    // <<< CUSTOM BUILDER FIELDS
-    // END CUSTOM
 }
 
 impl PaymentModuleBuilder {
@@ -157,8 +149,6 @@ impl PaymentModuleBuilder {
     pub fn new() -> Self {
         Self {
             db_pool: None,
-            // <<< CUSTOM BUILDER DEFAULTS
-            // END CUSTOM
         }
     }
 
@@ -168,8 +158,6 @@ impl PaymentModuleBuilder {
         self
     }
 
-    // <<< CUSTOM - custom builder methods
-    // END CUSTOM
 
     /// Build the module with configured dependencies
     pub fn build(self) -> anyhow::Result<PaymentModule> {
@@ -204,8 +192,6 @@ impl PaymentModuleBuilder {
         let payment_allocation_repository = Arc::new(PaymentAllocationRepository::new(db_pool.clone()));
         let payment_allocation_service = Arc::new(PaymentAllocationService::with_repository(payment_allocation_repository.clone()));
 
-        // <<< CUSTOM
-        // END CUSTOM
 
         Ok(PaymentModule {
             aging_snapshot_service,
@@ -215,8 +201,6 @@ impl PaymentModuleBuilder {
             mode_of_payment_service,
             payment_entry_service,
             payment_allocation_service,
-            // <<< CUSTOM
-            // END CUSTOM
         })
     }
 }

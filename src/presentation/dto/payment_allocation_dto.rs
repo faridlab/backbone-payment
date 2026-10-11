@@ -284,7 +284,7 @@ impl backbone_core::ApplyUpdateDto<UpdatePaymentAllocationDto> for PaymentAlloca
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to PaymentAllocation here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

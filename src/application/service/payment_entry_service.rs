@@ -32,5 +32,3 @@ pub type PaymentEntryService = GenericCrudService<
     PaymentEntryRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

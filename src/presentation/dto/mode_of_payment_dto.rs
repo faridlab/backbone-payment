@@ -273,7 +273,7 @@ impl backbone_core::ApplyUpdateDto<UpdateModeOfPaymentDto> for ModeOfPayment {
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to ModeOfPayment here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

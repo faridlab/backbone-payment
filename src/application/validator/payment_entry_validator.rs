@@ -19,9 +19,5 @@ pub fn payment_entry_validator() -> PaymentEntryValidator {
         .rule(RequiredString::new("currency", |e: &PaymentEntry| &e.currency))
         .rule(OptionalNotBlank::new("reference_no", |e: &PaymentEntry| e.reference_no.as_deref()))
         .rule(OptionalNotBlank::new("notes", |e: &PaymentEntry| e.notes.as_deref()))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

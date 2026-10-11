@@ -105,6 +105,4 @@ mod tests {
 // CUSTOM TESTS
 // ============================================================================
 
-// <<< CUSTOM TESTS START >>>
 // Add ModeOfPayment specific tests here
-// <<< CUSTOM TESTS END >>>

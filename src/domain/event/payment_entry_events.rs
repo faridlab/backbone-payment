@@ -11,8 +11,6 @@ use crate::domain::entity::PaymentEntry;
 /// enum containing a `Crud(CrudEvent<PaymentEntry>)` variant.
 pub type PaymentEntryEvent = CrudEvent<PaymentEntry>;
 
-// <<< CUSTOM
-// END CUSTOM
 
 use backbone_messaging::{CrudEventPublisher, NoOpCrudEventPublisher};
 use std::sync::Arc;

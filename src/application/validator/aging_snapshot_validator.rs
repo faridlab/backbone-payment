@@ -16,9 +16,5 @@ pub type AgingSnapshotValidator = EntityValidator<AgingSnapshot>;
 pub fn aging_snapshot_validator() -> AgingSnapshotValidator {
     EntityValidator::new()
         .rule(RequiredString::new("direction", |e: &AgingSnapshot| &e.direction))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

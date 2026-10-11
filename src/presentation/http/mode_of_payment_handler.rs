@@ -186,3 +186,4 @@ pub fn create_protected_mode_of_payment_routes<A: AuthMiddleware + Send + Sync +
             }
         }))
 }
+

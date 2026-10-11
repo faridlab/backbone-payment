@@ -16,9 +16,5 @@ pub type DunningRunValidator = EntityValidator<DunningRun>;
 pub fn dunning_run_validator() -> DunningRunValidator {
     EntityValidator::new()
         .rule(RequiredString::new("direction", |e: &DunningRun| &e.direction))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

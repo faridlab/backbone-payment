@@ -316,7 +316,7 @@ impl backbone_core::ApplyUpdateDto<UpdateAgingSnapshotDto> for AgingSnapshot {
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to AgingSnapshot here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

@@ -32,5 +32,3 @@ pub type DunningRunService = GenericCrudService<
     DunningRunRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

@@ -275,7 +275,7 @@ impl backbone_core::ApplyUpdateDto<UpdateDunningRunDto> for DunningRun {
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to DunningRun here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

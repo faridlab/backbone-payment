@@ -18,5 +18,3 @@ use crate::domain::entity::AgingSnapshot;
 /// service. `PermitAllPolicy` is the safe default until then.
 pub type AgingSnapshotDomainPolicy = PermitAllPolicy<AgingSnapshot>;
 
-// <<< CUSTOM
-// END CUSTOM

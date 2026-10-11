@@ -11,8 +11,6 @@ use crate::domain::entity::AgingSnapshot;
 /// enum containing a `Crud(CrudEvent<AgingSnapshot>)` variant.
 pub type AgingSnapshotEvent = CrudEvent<AgingSnapshot>;
 
-// <<< CUSTOM
-// END CUSTOM
 
 use backbone_messaging::{CrudEventPublisher, NoOpCrudEventPublisher};
 use std::sync::Arc;

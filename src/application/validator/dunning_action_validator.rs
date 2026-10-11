@@ -17,9 +17,5 @@ pub fn dunning_action_validator() -> DunningActionValidator {
     EntityValidator::new()
         .rule(RequiredString::new("invoice_kind", |e: &DunningAction| &e.invoice_kind))
         .rule(OptionalNotBlank::new("result_ref", |e: &DunningAction| e.result_ref.as_deref()))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

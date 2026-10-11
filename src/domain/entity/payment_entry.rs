@@ -339,8 +339,6 @@ impl PaymentEntry {
         }
     }
 
-    // <<< CUSTOM METHODS START >>>
-    // <<< CUSTOM METHODS END >>>
 }
 
 impl super::Entity for PaymentEntry {

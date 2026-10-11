@@ -15,8 +15,6 @@ pub mod mode_of_payment_service;
 pub mod payment_entry_service;
 pub mod payment_allocation_service;
 
-// <<< CUSTOM
-// END CUSTOM
 
 pub use aging_snapshot_service::AgingSnapshotService;
 pub use aging_bucket_service::AgingBucketService;
@@ -25,8 +23,6 @@ pub use dunning_action_service::DunningActionService;
 pub use mode_of_payment_service::ModeOfPaymentService;
 pub use payment_entry_service::PaymentEntryService;
 pub use payment_allocation_service::PaymentAllocationService;
-// <<< CUSTOM
-// END CUSTOM
 
 // This directory's extension (hand-written; ADR-0031).
 include!("mod.ext.rs");

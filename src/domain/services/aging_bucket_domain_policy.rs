@@ -18,5 +18,3 @@ use crate::domain::entity::AgingBucket;
 /// service. `PermitAllPolicy` is the safe default until then.
 pub type AgingBucketDomainPolicy = PermitAllPolicy<AgingBucket>;
 
-// <<< CUSTOM
-// END CUSTOM
