@@ -22,17 +22,33 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- Split each posted row: paid when a live clearance names it, else in_flight.
+-- The clearance probe runs as dynamic SQL, and only when the table exists:
+-- Postgres resolves every table a plain statement names before running it, so a
+-- to_regclass test inside the same statement cannot keep a database without the
+-- banking schema from failing on it.
 ALTER TABLE payment.payment_entries ADD COLUMN status_new payment_status_v2;
-UPDATE payment.payment_entries SET status_new = CASE
-    WHEN status::text <> 'posted' THEN status::text::payment_status_v2
-    WHEN to_regclass('banking.bank_clearances') IS NOT NULL AND EXISTS (
-        SELECT 1 FROM banking.bank_clearances bc
-        WHERE bc.matched_source_type = 'payment'
-          AND bc.matched_source_id = payment.payment_entries.id
-          AND (bc.metadata->>'deleted_at') IS NULL
-    ) THEN 'paid'::payment_status_v2
-    ELSE 'in_flight'::payment_status_v2
-END;
+DO $$
+BEGIN
+    IF to_regclass('banking.bank_clearances') IS NOT NULL THEN
+        EXECUTE $sql$
+            UPDATE payment.payment_entries SET status_new = CASE
+                WHEN status::text <> 'posted' THEN status::text::payment_status_v2
+                WHEN EXISTS (
+                    SELECT 1 FROM banking.bank_clearances bc
+                    WHERE bc.matched_source_type = 'payment'
+                      AND bc.matched_source_id = payment.payment_entries.id
+                      AND (bc.metadata->>'deleted_at') IS NULL
+                ) THEN 'paid'::payment_status_v2
+                ELSE 'in_flight'::payment_status_v2
+            END
+        $sql$;
+    ELSE
+        UPDATE payment.payment_entries SET status_new = CASE
+            WHEN status::text <> 'posted' THEN status::text::payment_status_v2
+            ELSE 'in_flight'::payment_status_v2
+        END;
+    END IF;
+END $$;
 
 ALTER TABLE payment.payment_entries DROP COLUMN status;
 ALTER TABLE payment.payment_entries RENAME COLUMN status_new TO status;
