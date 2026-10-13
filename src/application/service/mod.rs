@@ -23,6 +23,13 @@ pub use dunning_action_service::DunningActionService;
 pub use mode_of_payment_service::ModeOfPaymentService;
 pub use payment_entry_service::PaymentEntryService;
 pub use payment_allocation_service::PaymentAllocationService;
+pub use aging_snapshot_service::AgingSnapshotRowRules;
+pub use aging_bucket_service::AgingBucketRowRules;
+pub use dunning_run_service::DunningRunRowRules;
+pub use dunning_action_service::DunningActionRowRules;
+pub use mode_of_payment_service::ModeOfPaymentRowRules;
+pub use payment_entry_service::PaymentEntryRowRules;
+pub use payment_allocation_service::PaymentAllocationRowRules;
 
 // This directory's extension (hand-written; ADR-0031).
 include!("mod.ext.rs");

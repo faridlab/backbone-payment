@@ -32,3 +32,53 @@ pub type AgingBucketService = GenericCrudService<
     AgingBucketRepository,
 >;
 
+/// The rules the schema declares for AgingBucket, checked against the row a create or update
+/// would store. The generated build attaches it to [`AgingBucketService`]. A refusing rule's
+/// break answers 422; a rule in shadow is logged under `backbone::write_guard` and the
+/// write goes ahead.
+pub struct AgingBucketRowRules;
+
+#[async_trait::async_trait]
+impl backbone_core::write_guard::WriteGuard<AgingBucket> for AgingBucketRowRules {
+    async fn check(
+        &self,
+        ctx: &backbone_core::write_guard::WriteCtx<'_, AgingBucket>,
+    ) -> backbone_core::write_guard::GuardOutcome {
+        use backbone_core::row_rule as r;
+        use backbone_core::violation::Violation;
+        use backbone_core::write_guard::{GuardOutcome, WriteKind};
+        let (create, update) = (ctx.kind == WriteKind::Create, ctx.kind == WriteKind::Update);
+        let Some(after) = ctx.after.filter(|_| create || update) else {
+            return GuardOutcome::allow();
+        };
+        let Ok(row) = serde_json::to_value(after) else {
+            return GuardOutcome::allow();
+        };
+        let row = &row;
+        let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
+        let mut shadow = Vec::new();
+        let mut refuse = Vec::new();
+        // `snapshot_id_required` (@required on AgingBucket.snapshot_id)
+        if (create || (update && r::changed(old.as_ref(), row, &["snapshot_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "snapshot_id")), r::not(r::is_empty(r::trim(r::field(row, "snapshot_id")))))) {
+            refuse.push(Violation::new("snapshot_id", "required", "snapshot_id is required"));
+        }
+        // `invoice_ref_required` (@required on AgingBucket.invoice_ref)
+        if (create || (update && r::changed(old.as_ref(), row, &["invoice_ref"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "invoice_ref")), r::not(r::is_empty(r::trim(r::field(row, "invoice_ref")))))) {
+            refuse.push(Violation::new("invoice_ref", "required", "invoice_ref is required"));
+        }
+        // `invoice_kind_required` (@required on AgingBucket.invoice_kind)
+        if (create || (update && r::changed(old.as_ref(), row, &["invoice_kind"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "invoice_kind")), r::not(r::is_empty(r::trim(r::field(row, "invoice_kind")))))) {
+            refuse.push(Violation::new("invoice_kind", "required", "invoice_kind is required"));
+        }
+        // `invoice_kind_max_length` (@max(10) on AgingBucket.invoice_kind)
+        if (create || (update && r::changed(old.as_ref(), row, &["invoice_kind"]))) && !r::holds(&r::le(r::length(r::field(row, "invoice_kind")), r::Val::Num(10.0_f64))) {
+            shadow.push(Violation::new("invoice_kind", "max_length", "invoice_kind must be at most 10 characters").with_param("max", 10_i64));
+        }
+        // `outstanding_amount_non_negative` (@non_negative on AgingBucket.outstanding_amount)
+        if (create || (update && r::changed(old.as_ref(), row, &["outstanding_amount"]))) && !r::holds(&r::ge(r::field(row, "outstanding_amount"), r::Val::Num(0.0_f64))) {
+            shadow.push(Violation::new("outstanding_amount", "non_negative", "outstanding_amount must not be negative"));
+        }
+        GuardOutcome { refuse, shadow }
+    }
+}
+

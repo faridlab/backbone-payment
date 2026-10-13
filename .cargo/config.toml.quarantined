@@ -1,0 +1,26 @@
+# LOCAL DEV ONLY — gitignored (see .gitignore). Recreate from .cargo/config.toml.example.
+#
+# Redirects the backbone-billing + backbone-accounting git dev-deps (declared in Cargo.toml) to their
+# local ../backbone-* checkouts for local workspace dev. Cargo forbids `path` + `git` on one line, and
+# a committed [patch] to a missing path hard-errors in a standalone clone (it is NOT a no-op), so the
+# override lives here (local-only) rather than in committed Cargo.toml. A standalone clone has no
+# .cargo/config.toml and builds the siblings from their pinned git tags.
+#
+# The backbone-gl-posting patch redirects the shared contract crate to the local framework checkout —
+# needed whenever a contract change (e.g. the ReconcileSink port) ships there before the framework
+# tag carrying it is pushed. The other framework crates stay on their pinned git tags.
+
+[patch."https://github.com/faridlab/backbone-framework"]
+backbone-gl-posting = { path = "../backbone-framework/backbone-gl-posting" }
+
+[patch."https://github.com/faridlab/backbone-accounting"]
+backbone-accounting = { path = "../backbone-accounting" }
+
+[patch."https://github.com/faridlab/backbone-billing"]
+backbone-billing = { path = "../backbone-billing" }
+
+# backbone-tax joins the local set: billing (already patched here) builds against it, so leaving
+# tax on its pinned tag while billing comes from a local checkout puts two shapes of the same
+# contract in one graph.
+[patch."https://github.com/faridlab/backbone-tax"]
+backbone-tax = { path = "../backbone-tax" }
