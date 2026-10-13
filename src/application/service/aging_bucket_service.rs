@@ -56,7 +56,7 @@ impl backbone_core::write_guard::WriteGuard<AgingBucket> for AgingBucketRowRules
         };
         let row = &row;
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
-        let mut shadow = Vec::new();
+        let shadow = Vec::new();
         let mut refuse = Vec::new();
         // `snapshot_id_required` (@required on AgingBucket.snapshot_id)
         if (create || (update && r::changed(old.as_ref(), row, &["snapshot_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "snapshot_id")), r::not(r::is_empty(r::trim(r::field(row, "snapshot_id")))))) {
@@ -72,11 +72,11 @@ impl backbone_core::write_guard::WriteGuard<AgingBucket> for AgingBucketRowRules
         }
         // `invoice_kind_max_length` (@max(10) on AgingBucket.invoice_kind)
         if (create || (update && r::changed(old.as_ref(), row, &["invoice_kind"]))) && !r::holds(&r::le(r::length(r::field(row, "invoice_kind")), r::Val::Num(10.0_f64))) {
-            shadow.push(Violation::new("invoice_kind", "max_length", "invoice_kind must be at most 10 characters").with_param("max", 10_i64));
+            refuse.push(Violation::new("invoice_kind", "max_length", "invoice_kind must be at most 10 characters").with_param("max", 10_i64));
         }
         // `outstanding_amount_non_negative` (@non_negative on AgingBucket.outstanding_amount)
         if (create || (update && r::changed(old.as_ref(), row, &["outstanding_amount"]))) && !r::holds(&r::ge(r::field(row, "outstanding_amount"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("outstanding_amount", "non_negative", "outstanding_amount must not be negative"));
+            refuse.push(Violation::new("outstanding_amount", "non_negative", "outstanding_amount must not be negative"));
         }
         GuardOutcome { refuse, shadow }
     }

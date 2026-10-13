@@ -56,7 +56,7 @@ impl backbone_core::write_guard::WriteGuard<AgingSnapshot> for AgingSnapshotRowR
         };
         let row = &row;
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
-        let mut shadow = Vec::new();
+        let shadow = Vec::new();
         let mut refuse = Vec::new();
         // `direction_required` (@required on AgingSnapshot.direction)
         if (create || (update && r::changed(old.as_ref(), row, &["direction"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "direction")), r::not(r::is_empty(r::trim(r::field(row, "direction")))))) {
@@ -64,31 +64,31 @@ impl backbone_core::write_guard::WriteGuard<AgingSnapshot> for AgingSnapshotRowR
         }
         // `direction_max_length` (@max(10) on AgingSnapshot.direction)
         if (create || (update && r::changed(old.as_ref(), row, &["direction"]))) && !r::holds(&r::le(r::length(r::field(row, "direction")), r::Val::Num(10.0_f64))) {
-            shadow.push(Violation::new("direction", "max_length", "direction must be at most 10 characters").with_param("max", 10_i64));
+            refuse.push(Violation::new("direction", "max_length", "direction must be at most 10 characters").with_param("max", 10_i64));
         }
         // `total_outstanding_non_negative` (@non_negative on AgingSnapshot.total_outstanding)
         if (create || (update && r::changed(old.as_ref(), row, &["total_outstanding"]))) && !r::holds(&r::ge(r::field(row, "total_outstanding"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("total_outstanding", "non_negative", "total_outstanding must not be negative"));
+            refuse.push(Violation::new("total_outstanding", "non_negative", "total_outstanding must not be negative"));
         }
         // `bucket_current_non_negative` (@non_negative on AgingSnapshot.bucket_current)
         if (create || (update && r::changed(old.as_ref(), row, &["bucket_current"]))) && !r::holds(&r::ge(r::field(row, "bucket_current"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("bucket_current", "non_negative", "bucket_current must not be negative"));
+            refuse.push(Violation::new("bucket_current", "non_negative", "bucket_current must not be negative"));
         }
         // `bucket_1_30_non_negative` (@non_negative on AgingSnapshot.bucket_1_30)
         if (create || (update && r::changed(old.as_ref(), row, &["bucket_1_30"]))) && !r::holds(&r::ge(r::field(row, "bucket_1_30"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("bucket_1_30", "non_negative", "bucket_1_30 must not be negative"));
+            refuse.push(Violation::new("bucket_1_30", "non_negative", "bucket_1_30 must not be negative"));
         }
         // `bucket_31_60_non_negative` (@non_negative on AgingSnapshot.bucket_31_60)
         if (create || (update && r::changed(old.as_ref(), row, &["bucket_31_60"]))) && !r::holds(&r::ge(r::field(row, "bucket_31_60"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("bucket_31_60", "non_negative", "bucket_31_60 must not be negative"));
+            refuse.push(Violation::new("bucket_31_60", "non_negative", "bucket_31_60 must not be negative"));
         }
         // `bucket_61_90_non_negative` (@non_negative on AgingSnapshot.bucket_61_90)
         if (create || (update && r::changed(old.as_ref(), row, &["bucket_61_90"]))) && !r::holds(&r::ge(r::field(row, "bucket_61_90"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("bucket_61_90", "non_negative", "bucket_61_90 must not be negative"));
+            refuse.push(Violation::new("bucket_61_90", "non_negative", "bucket_61_90 must not be negative"));
         }
         // `bucket_90p_non_negative` (@non_negative on AgingSnapshot.bucket_90p)
         if (create || (update && r::changed(old.as_ref(), row, &["bucket_90p"]))) && !r::holds(&r::ge(r::field(row, "bucket_90p"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("bucket_90p", "non_negative", "bucket_90p must not be negative"));
+            refuse.push(Violation::new("bucket_90p", "non_negative", "bucket_90p must not be negative"));
         }
         GuardOutcome { refuse, shadow }
     }

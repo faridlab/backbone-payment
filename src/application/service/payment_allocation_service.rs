@@ -56,7 +56,7 @@ impl backbone_core::write_guard::WriteGuard<PaymentAllocation> for PaymentAlloca
         };
         let row = &row;
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
-        let mut shadow = Vec::new();
+        let shadow = Vec::new();
         let mut refuse = Vec::new();
         // `payment_id_required` (@required on PaymentAllocation.payment_id)
         if (create || (update && r::changed(old.as_ref(), row, &["payment_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "payment_id")), r::not(r::is_empty(r::trim(r::field(row, "payment_id")))))) {
@@ -68,11 +68,11 @@ impl backbone_core::write_guard::WriteGuard<PaymentAllocation> for PaymentAlloca
         }
         // `allocated_amount_non_negative` (@non_negative on PaymentAllocation.allocated_amount)
         if (create || (update && r::changed(old.as_ref(), row, &["allocated_amount"]))) && !r::holds(&r::ge(r::field(row, "allocated_amount"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("allocated_amount", "non_negative", "allocated_amount must not be negative"));
+            refuse.push(Violation::new("allocated_amount", "non_negative", "allocated_amount must not be negative"));
         }
         // `discount_amount_non_negative` (@non_negative on PaymentAllocation.discount_amount)
         if (create || (update && r::changed(old.as_ref(), row, &["discount_amount"]))) && !r::holds(&r::ge(r::field(row, "discount_amount"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("discount_amount", "non_negative", "discount_amount must not be negative"));
+            refuse.push(Violation::new("discount_amount", "non_negative", "discount_amount must not be negative"));
         }
         GuardOutcome { refuse, shadow }
     }

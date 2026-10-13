@@ -56,7 +56,7 @@ impl backbone_core::write_guard::WriteGuard<DunningRun> for DunningRunRowRules {
         };
         let row = &row;
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
-        let mut shadow = Vec::new();
+        let shadow = Vec::new();
         let mut refuse = Vec::new();
         // `direction_required` (@required on DunningRun.direction)
         if (create || (update && r::changed(old.as_ref(), row, &["direction"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "direction")), r::not(r::is_empty(r::trim(r::field(row, "direction")))))) {
@@ -64,7 +64,7 @@ impl backbone_core::write_guard::WriteGuard<DunningRun> for DunningRunRowRules {
         }
         // `direction_max_length` (@max(10) on DunningRun.direction)
         if (create || (update && r::changed(old.as_ref(), row, &["direction"]))) && !r::holds(&r::le(r::length(r::field(row, "direction")), r::Val::Num(10.0_f64))) {
-            shadow.push(Violation::new("direction", "max_length", "direction must be at most 10 characters").with_param("max", 10_i64));
+            refuse.push(Violation::new("direction", "max_length", "direction must be at most 10 characters").with_param("max", 10_i64));
         }
         GuardOutcome { refuse, shadow }
     }
