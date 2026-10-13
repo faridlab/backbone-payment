@@ -3413,7 +3413,7 @@ components:
           format: uuid
         payment_number:
           type: string
-          maxLength: 40
+          maxLength: 160
         branch_id:
           nullable: true
           type: string
@@ -3524,7 +3524,7 @@ components:
       properties:
         payment_number:
           type: string
-          maxLength: 40
+          maxLength: 160
         branch_id:
           nullable: true
           type: string
@@ -3622,7 +3622,7 @@ components:
       properties:
         payment_number:
           type: string
-          maxLength: 40
+          maxLength: 160
         branch_id:
           nullable: true
           type: string
@@ -3704,7 +3704,7 @@ components:
       properties:
         payment_number:
           type: string
-          maxLength: 40
+          maxLength: 160
         branch_id:
           nullable: true
           type: string

@@ -23,7 +23,7 @@ models:
 
       payment_number:
         type: string
-        attributes: ["@required", "@max(40)"]
+        attributes: ["@required", "@max(160)"]
         description: "Human reference (the post's source_reference)"
 
       branch_id:
