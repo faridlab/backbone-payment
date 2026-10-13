@@ -40,9 +40,6 @@ pub use application::service::ModeOfPaymentService;
 pub use application::service::PaymentEntryService;
 pub use application::service::PaymentAllocationService;
 
-// Re-exports - Workflows
-pub use application::workflows::*;
-
 use std::sync::Arc;
 use axum::Router;
 use sqlx::PgPool;
