@@ -276,6 +276,9 @@ impl backbone_orm::EntityRepoMeta for DunningAction {
     fn search_fields() -> &'static [&'static str] {
         &["invoice_kind"]
     }
+    fn relations() -> &'static [(&'static str, &'static str, &'static str)] {
+        &[("run", "dunning_runs", "runId")]
+    }
 }
 
 /// Builder for DunningAction entity

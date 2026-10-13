@@ -240,6 +240,9 @@ impl backbone_orm::EntityRepoMeta for AgingBucket {
     fn search_fields() -> &'static [&'static str] {
         &["invoice_kind"]
     }
+    fn relations() -> &'static [(&'static str, &'static str, &'static str)] {
+        &[("snapshot", "aging_snapshots", "snapshotId")]
+    }
 }
 
 /// Builder for AgingBucket entity
