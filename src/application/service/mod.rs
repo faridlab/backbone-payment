@@ -31,5 +31,61 @@ pub use mode_of_payment_service::ModeOfPaymentRowRules;
 pub use payment_entry_service::PaymentEntryRowRules;
 pub use payment_allocation_service::PaymentAllocationRowRules;
 
+/// A `AgingSnapshotService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_aging_snapshot_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::AgingSnapshotRepository>,
+) -> AgingSnapshotService {
+    AgingSnapshotService::with_repository(repository).with_guard(std::sync::Arc::new(AgingSnapshotRowRules))
+}
+
+/// A `AgingBucketService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_aging_bucket_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::AgingBucketRepository>,
+) -> AgingBucketService {
+    AgingBucketService::with_repository(repository).with_guard(std::sync::Arc::new(AgingBucketRowRules))
+}
+
+/// A `DunningRunService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_dunning_run_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::DunningRunRepository>,
+) -> DunningRunService {
+    DunningRunService::with_repository(repository).with_guard(std::sync::Arc::new(DunningRunRowRules))
+}
+
+/// A `DunningActionService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_dunning_action_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::DunningActionRepository>,
+) -> DunningActionService {
+    DunningActionService::with_repository(repository).with_guard(std::sync::Arc::new(DunningActionRowRules))
+}
+
+/// A `ModeOfPaymentService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_mode_of_payment_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::ModeOfPaymentRepository>,
+) -> ModeOfPaymentService {
+    ModeOfPaymentService::with_repository(repository).with_guard(std::sync::Arc::new(ModeOfPaymentRowRules))
+}
+
+/// A `PaymentEntryService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_payment_entry_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::PaymentEntryRepository>,
+) -> PaymentEntryService {
+    PaymentEntryService::with_repository(repository).with_guard(std::sync::Arc::new(PaymentEntryRowRules))
+}
+
+/// A `PaymentAllocationService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_payment_allocation_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::PaymentAllocationRepository>,
+) -> PaymentAllocationService {
+    PaymentAllocationService::with_repository(repository).with_guard(std::sync::Arc::new(PaymentAllocationRowRules))
+}
+
 // This directory's extension (hand-written; ADR-0031).
 include!("mod.ext.rs");

@@ -163,31 +163,31 @@ impl PaymentModuleBuilder {
 
         // AgingSnapshot service
         let aging_snapshot_repository = Arc::new(AgingSnapshotRepository::new(db_pool.clone()));
-        let aging_snapshot_service = Arc::new(AgingSnapshotService::with_repository(aging_snapshot_repository.clone()).with_guard(Arc::new(crate::application::service::AgingSnapshotRowRules)));
+        let aging_snapshot_service = Arc::new(crate::application::service::build_aging_snapshot_service(aging_snapshot_repository.clone()));
 
         // AgingBucket service
         let aging_bucket_repository = Arc::new(AgingBucketRepository::new(db_pool.clone()));
-        let aging_bucket_service = Arc::new(AgingBucketService::with_repository(aging_bucket_repository.clone()).with_guard(Arc::new(crate::application::service::AgingBucketRowRules)));
+        let aging_bucket_service = Arc::new(crate::application::service::build_aging_bucket_service(aging_bucket_repository.clone()));
 
         // DunningRun service
         let dunning_run_repository = Arc::new(DunningRunRepository::new(db_pool.clone()));
-        let dunning_run_service = Arc::new(DunningRunService::with_repository(dunning_run_repository.clone()).with_guard(Arc::new(crate::application::service::DunningRunRowRules)));
+        let dunning_run_service = Arc::new(crate::application::service::build_dunning_run_service(dunning_run_repository.clone()));
 
         // DunningAction service
         let dunning_action_repository = Arc::new(DunningActionRepository::new(db_pool.clone()));
-        let dunning_action_service = Arc::new(DunningActionService::with_repository(dunning_action_repository.clone()).with_guard(Arc::new(crate::application::service::DunningActionRowRules)));
+        let dunning_action_service = Arc::new(crate::application::service::build_dunning_action_service(dunning_action_repository.clone()));
 
         // ModeOfPayment service
         let mode_of_payment_repository = Arc::new(ModeOfPaymentRepository::new(db_pool.clone()));
-        let mode_of_payment_service = Arc::new(ModeOfPaymentService::with_repository(mode_of_payment_repository.clone()).with_guard(Arc::new(crate::application::service::ModeOfPaymentRowRules)));
+        let mode_of_payment_service = Arc::new(crate::application::service::build_mode_of_payment_service(mode_of_payment_repository.clone()));
 
         // PaymentEntry service
         let payment_entry_repository = Arc::new(PaymentEntryRepository::new(db_pool.clone()));
-        let payment_entry_service = Arc::new(PaymentEntryService::with_repository(payment_entry_repository.clone()).with_guard(Arc::new(crate::application::service::PaymentEntryRowRules)));
+        let payment_entry_service = Arc::new(crate::application::service::build_payment_entry_service(payment_entry_repository.clone()));
 
         // PaymentAllocation service
         let payment_allocation_repository = Arc::new(PaymentAllocationRepository::new(db_pool.clone()));
-        let payment_allocation_service = Arc::new(PaymentAllocationService::with_repository(payment_allocation_repository.clone()).with_guard(Arc::new(crate::application::service::PaymentAllocationRowRules)));
+        let payment_allocation_service = Arc::new(crate::application::service::build_payment_allocation_service(payment_allocation_repository.clone()));
 
 
         Ok(PaymentModule {
