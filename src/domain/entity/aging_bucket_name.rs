@@ -10,9 +10,17 @@ use utoipa::ToSchema;
 #[sqlx(type_name = "aging_bucket_name", rename_all = "snake_case")]
 pub enum AgingBucketName {
     Current,
+    #[serde(rename = "bucket_1_30")]
+    #[sqlx(rename = "bucket_1_30")]
     Bucket130,
+    #[serde(rename = "bucket_31_60")]
+    #[sqlx(rename = "bucket_31_60")]
     Bucket3160,
+    #[serde(rename = "bucket_61_90")]
+    #[sqlx(rename = "bucket_61_90")]
     Bucket6190,
+    #[serde(rename = "bucket_90p")]
+    #[sqlx(rename = "bucket_90p")]
     Bucket90p,
 }
 

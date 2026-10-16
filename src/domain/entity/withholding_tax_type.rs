@@ -10,8 +10,14 @@ use utoipa::ToSchema;
 #[sqlx(type_name = "withholding_tax_type", rename_all = "snake_case")]
 pub enum WithholdingTaxType {
     None,
+    #[serde(rename = "pph_22")]
+    #[sqlx(rename = "pph_22")]
     Pph22,
+    #[serde(rename = "pph_23")]
+    #[sqlx(rename = "pph_23")]
     Pph23,
+    #[serde(rename = "pph_26")]
+    #[sqlx(rename = "pph_26")]
     Pph26,
 }
 
