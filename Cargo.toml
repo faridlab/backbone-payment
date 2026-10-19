@@ -1,6 +1,6 @@
 [package]
 name = "backbone-payment"
-version = "0.18.0"
+version = "0.18.1"
 edition = "2021"
 description = "Settlement & reconciliation — payment entries, allocation, modes of payment; 4th GL producer (Dr Bank·Cr A/R / Dr A/P·Cr Bank)"
 license = "MIT OR Apache-2.0"
@@ -20,8 +20,8 @@ path = "src/lib.rs"
 # or `rev = "<commit-sha>"`. Cargo dedupes the git fetch — the repo is only
 # cloned once even though four crates reference it.
 # -----------------------------------------------------------------------------
-backbone-core = { version = "3.7.0", features = ["postgres"] }
-backbone-orm = { version = "3.0.0" }
+backbone-core = { version = " 3.18.0", features = ["postgres"] }
+backbone-orm = { version = " 3.18.0" }
 backbone-auth = { version = "3.0.0", features = ["axum"] }
 backbone-messaging = { version = "3.0.0" }
 # The GL-posting wire contract (envelope + sink port) — shared across producers (ADR-0011 §6 / phase 1).
@@ -32,7 +32,7 @@ backbone-gl-posting = { version = "3.0.0" }
 # (crash-safe emission). multi_tenant (the company-RLS fence + relay bypass, ADR-0011) shipped on
 # backbone-framework v2.7.4 (backbone-outbox 0.2.0). Standalone crate, so it never conflicts with the
 # git-pinned v2.7.1 framework crates.
-backbone-outbox = { version = "3.0.0", features = ["multi_tenant"] }
+backbone-outbox = { version = " 3.18.0", features = ["multi_tenant"] }
 
 # Core async runtime and serialization
 tokio = { version = "1.0", features = ["full"] }
