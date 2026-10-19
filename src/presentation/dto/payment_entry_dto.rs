@@ -50,17 +50,19 @@ pub struct CreatePaymentEntryDto {
     #[serde(alias = "posting_date")]
     pub posting_date: NaiveDate,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(default = "default_create_payment_entry_currency")]
     pub currency: String,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "mode_of_payment_id")]
     pub mode_of_payment_id: Option<Uuid>,
+    #[serde(default = "default_create_payment_entry_method")]
     pub method: PaymentMethod,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "provider_txn_id")]
     pub provider_txn_id: Option<Uuid>,
     #[serde(alias = "paid_amount")]
     pub paid_amount: Decimal,
-    #[serde(alias = "allocated_amount")]
+    #[serde(default, alias = "allocated_amount")]
     pub allocated_amount: Decimal,
-    #[serde(alias = "unallocated_amount")]
+    #[serde(default, alias = "unallocated_amount")]
     pub unallocated_amount: Decimal,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "bank_account_id")]
@@ -68,14 +70,15 @@ pub struct CreatePaymentEntryDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "party_account_id")]
     pub party_account_id: Uuid,
-    #[serde(alias = "withholding_amount")]
+    #[serde(default, alias = "withholding_amount")]
     pub withholding_amount: Decimal,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "withholding_account_id")]
     pub withholding_account_id: Option<Uuid>,
-    #[serde(alias = "withholding_tax_type")]
+    #[serde(default = "default_create_payment_entry_withholding_tax_type", alias = "withholding_tax_type")]
     pub withholding_tax_type: WithholdingTaxType,
+    #[serde(default = "default_create_payment_entry_status")]
     pub status: PaymentStatus,
-    #[serde(alias = "posting_state")]
+    #[serde(default = "default_create_payment_entry_posting_state", alias = "posting_state")]
     pub posting_state: GlPostingState,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "journal_id")]
     pub journal_id: Option<Uuid>,
@@ -87,6 +90,26 @@ pub struct CreatePaymentEntryDto {
     pub reference_no: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
+}
+
+fn default_create_payment_entry_currency() -> String {
+    "IDR".to_string()
+}
+
+fn default_create_payment_entry_method() -> PaymentMethod {
+    PaymentMethod::Manual
+}
+
+fn default_create_payment_entry_withholding_tax_type() -> WithholdingTaxType {
+    WithholdingTaxType::None
+}
+
+fn default_create_payment_entry_status() -> PaymentStatus {
+    PaymentStatus::Draft
+}
+
+fn default_create_payment_entry_posting_state() -> GlPostingState {
+    GlPostingState::Pending
 }
 
 // =============================================================================
@@ -170,26 +193,26 @@ pub struct PatchPaymentEntryDto {
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "payment_number")]
     pub payment_number: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "branch_id")]
-    pub branch_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "branch_id")]
+    pub branch_id: Option<Option<Uuid>>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "payment_type")]
     pub payment_type: Option<PaymentType>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "party_type")]
-    pub party_type: Option<PaymentPartyType>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "party_id")]
-    pub party_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "party_type")]
+    pub party_type: Option<Option<PaymentPartyType>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "party_id")]
+    pub party_id: Option<Option<Uuid>>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "posting_date")]
     pub posting_date: Option<NaiveDate>,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "mode_of_payment_id")]
-    pub mode_of_payment_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "mode_of_payment_id")]
+    pub mode_of_payment_id: Option<Option<Uuid>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub method: Option<PaymentMethod>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "provider_txn_id")]
-    pub provider_txn_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "provider_txn_id")]
+    pub provider_txn_id: Option<Option<Uuid>>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "paid_amount")]
     pub paid_amount: Option<Decimal>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "allocated_amount")]
@@ -204,24 +227,24 @@ pub struct PatchPaymentEntryDto {
     pub party_account_id: Option<Uuid>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "withholding_amount")]
     pub withholding_amount: Option<Decimal>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "withholding_account_id")]
-    pub withholding_account_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "withholding_account_id")]
+    pub withholding_account_id: Option<Option<Uuid>>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "withholding_tax_type")]
     pub withholding_tax_type: Option<WithholdingTaxType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<PaymentStatus>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "posting_state")]
     pub posting_state: Option<GlPostingState>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "journal_id")]
-    pub journal_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "accounting_post_id")]
-    pub accounting_post_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "posted_at")]
-    pub posted_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "reference_no")]
-    pub reference_no: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub notes: Option<String>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "journal_id")]
+    pub journal_id: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "accounting_post_id")]
+    pub accounting_post_id: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "posted_at")]
+    pub posted_at: Option<Option<DateTime<Utc>>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "reference_no")]
+    pub reference_no: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option")]
+    pub notes: Option<Option<String>>,
 }
 
 impl PatchPaymentEntryDto {
@@ -493,12 +516,4 @@ impl backbone_core::ApplyUpdateDto<UpdatePaymentEntryDto> for PaymentEntry {
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to PaymentEntry here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

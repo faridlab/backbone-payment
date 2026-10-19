@@ -51,11 +51,16 @@ pub struct CreateDunningActionDto {
     pub days_past_due: i32,
     #[serde(alias = "outstanding_amount")]
     pub outstanding_amount: Decimal,
+    #[serde(default = "default_create_dunning_action_status")]
     pub status: DunningActionStatus,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "processed_at")]
     pub processed_at: Option<DateTime<Utc>>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "result_ref")]
     pub result_ref: Option<String>,
+}
+
+fn default_create_dunning_action_status() -> DunningActionStatus {
+    DunningActionStatus::Pending
 }
 
 // =============================================================================
@@ -117,8 +122,8 @@ pub struct PatchDunningActionDto {
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "invoice_kind")]
     pub invoice_kind: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "party_id")]
-    pub party_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "party_id")]
+    pub party_id: Option<Option<Uuid>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub level: Option<DunningLevel>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "action_type")]
@@ -130,10 +135,10 @@ pub struct PatchDunningActionDto {
     pub outstanding_amount: Option<Decimal>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<DunningActionStatus>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "processed_at")]
-    pub processed_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "result_ref")]
-    pub result_ref: Option<String>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "processed_at")]
+    pub processed_at: Option<Option<DateTime<Utc>>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "result_ref")]
+    pub result_ref: Option<Option<String>>,
 }
 
 impl PatchDunningActionDto {
@@ -334,12 +339,4 @@ impl backbone_core::ApplyUpdateDto<UpdateDunningActionDto> for DunningAction {
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to DunningAction here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

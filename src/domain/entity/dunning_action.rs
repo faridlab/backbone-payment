@@ -233,6 +233,12 @@ impl super::Entity for DunningAction {
 }
 
 impl backbone_core::PersistentEntity for DunningAction {
+    fn references() -> &'static [backbone_core::Reference] {
+        const REFERENCES: &[backbone_core::Reference] = &[
+            backbone_core::Reference::new("run_id", "payment.dunning_runs", "id"),
+        ];
+        REFERENCES
+    }
     fn entity_id(&self) -> String {
         self.id.to_string()
     }

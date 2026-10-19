@@ -107,8 +107,8 @@ pub struct PatchAgingBucketDto {
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "invoice_kind")]
     pub invoice_kind: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "party_id")]
-    pub party_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "party_id")]
+    pub party_id: Option<Option<Uuid>>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "due_date")]
     pub due_date: Option<NaiveDate>,
@@ -305,12 +305,4 @@ impl backbone_core::ApplyUpdateDto<UpdateAgingBucketDto> for AgingBucket {
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to AgingBucket here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

@@ -40,7 +40,7 @@ pub struct CreatePaymentAllocationDto {
     pub invoice_kind: SettlementKind,
     #[serde(alias = "allocated_amount")]
     pub allocated_amount: Decimal,
-    #[serde(alias = "discount_amount")]
+    #[serde(default, alias = "discount_amount")]
     pub discount_amount: Decimal,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "discount_account_id")]
     pub discount_account_id: Option<Uuid>,
@@ -98,8 +98,8 @@ pub struct PatchPaymentAllocationDto {
     pub allocated_amount: Option<Decimal>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "discount_amount")]
     pub discount_amount: Option<Decimal>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "discount_account_id")]
-    pub discount_account_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "discount_account_id")]
+    pub discount_account_id: Option<Option<Uuid>>,
 }
 
 impl PatchPaymentAllocationDto {
@@ -273,12 +273,4 @@ impl backbone_core::ApplyUpdateDto<UpdatePaymentAllocationDto> for PaymentAlloca
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to PaymentAllocation here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

@@ -15,13 +15,13 @@ pub mod payment_allocation_handler;
 
 
 // Re-exports
-pub use aging_snapshot_handler::{create_aging_snapshot_routes, create_aging_snapshot_read_routes, create_aging_snapshot_write_routes};
-pub use aging_bucket_handler::{create_aging_bucket_routes, create_aging_bucket_read_routes, create_aging_bucket_write_routes};
-pub use dunning_run_handler::{create_dunning_run_routes, create_dunning_run_read_routes, create_dunning_run_write_routes};
-pub use dunning_action_handler::{create_dunning_action_routes, create_dunning_action_read_routes, create_dunning_action_write_routes};
-pub use mode_of_payment_handler::{create_mode_of_payment_routes, create_mode_of_payment_read_routes, create_mode_of_payment_write_routes};
-pub use payment_entry_handler::{create_payment_entry_routes, create_payment_entry_read_routes, create_payment_entry_write_routes};
-pub use payment_allocation_handler::{create_payment_allocation_routes, create_payment_allocation_read_routes, create_payment_allocation_write_routes};
+pub use aging_snapshot_handler::{create_aging_snapshot_routes, create_aging_snapshot_read_routes, create_aging_snapshot_write_routes, aging_snapshot_permissions};
+pub use aging_bucket_handler::{create_aging_bucket_routes, create_aging_bucket_read_routes, create_aging_bucket_write_routes, aging_bucket_permissions};
+pub use dunning_run_handler::{create_dunning_run_routes, create_dunning_run_read_routes, create_dunning_run_write_routes, dunning_run_permissions};
+pub use dunning_action_handler::{create_dunning_action_routes, create_dunning_action_read_routes, create_dunning_action_write_routes, dunning_action_permissions};
+pub use mode_of_payment_handler::{create_mode_of_payment_routes, create_mode_of_payment_read_routes, create_mode_of_payment_write_routes, mode_of_payment_permissions};
+pub use payment_entry_handler::{create_payment_entry_routes, create_payment_entry_read_routes, create_payment_entry_write_routes, payment_entry_permissions};
+pub use payment_allocation_handler::{create_payment_allocation_routes, create_payment_allocation_read_routes, create_payment_allocation_write_routes, payment_allocation_permissions};
 
 // This directory's extension (hand-written; ADR-0031).
 include!("mod.ext.rs");

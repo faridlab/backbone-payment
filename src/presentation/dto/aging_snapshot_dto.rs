@@ -35,19 +35,24 @@ pub struct CreateAgingSnapshotDto {
     pub as_of_date: NaiveDate,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub direction: String,
-    #[serde(alias = "total_outstanding")]
+    #[serde(default, alias = "total_outstanding")]
     pub total_outstanding: Decimal,
-    #[serde(alias = "bucket_current")]
+    #[serde(default, alias = "bucket_current")]
     pub bucket_current: Decimal,
-    #[serde(alias = "bucket_1_30")]
+    #[serde(default, alias = "bucket_1_30")]
     pub bucket_1_30: Decimal,
-    #[serde(alias = "bucket_31_60")]
+    #[serde(default, alias = "bucket_31_60")]
     pub bucket_31_60: Decimal,
-    #[serde(alias = "bucket_61_90")]
+    #[serde(default, alias = "bucket_61_90")]
     pub bucket_61_90: Decimal,
-    #[serde(alias = "bucket_90p")]
+    #[serde(default, alias = "bucket_90p")]
     pub bucket_90p: Decimal,
+    #[serde(default = "default_create_aging_snapshot_status")]
     pub status: SnapshotStatus,
+}
+
+fn default_create_aging_snapshot_status() -> SnapshotStatus {
+    SnapshotStatus::Building
 }
 
 // =============================================================================
@@ -302,12 +307,4 @@ impl backbone_core::ApplyUpdateDto<UpdateAgingSnapshotDto> for AgingSnapshot {
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to AgingSnapshot here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

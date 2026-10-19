@@ -37,9 +37,14 @@ pub struct CreateDunningRunDto {
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "snapshot_id")]
     pub snapshot_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
-    #[serde(alias = "actions_emitted")]
+    #[serde(default, alias = "actions_emitted")]
     pub actions_emitted: i32,
+    #[serde(default = "default_create_dunning_run_status")]
     pub status: DunningRunStatus,
+}
+
+fn default_create_dunning_run_status() -> DunningRunStatus {
+    DunningRunStatus::Building
 }
 
 // =============================================================================
@@ -85,8 +90,8 @@ pub struct PatchDunningRunDto {
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub direction: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "snapshot_id")]
-    pub snapshot_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "snapshot_id")]
+    pub snapshot_id: Option<Option<Uuid>>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "actions_emitted")]
     pub actions_emitted: Option<i32>,
@@ -261,12 +266,4 @@ impl backbone_core::ApplyUpdateDto<UpdateDunningRunDto> for DunningRun {
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to DunningRun here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

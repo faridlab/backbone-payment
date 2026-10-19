@@ -2650,14 +2650,6 @@ components:
       required:
         - as_of_date
         - direction
-        - total_outstanding
-        - bucket_current
-        - bucket_1_30
-        - bucket_31_60
-        - bucket_61_90
-        - bucket_90p
-        - status
-        - metadata
       properties:
         as_of_date:
           type: string
@@ -2679,8 +2671,6 @@ components:
           type: string
         status:
           type: string
-        metadata:
-          type: object
 
     UpdateAgingSnapshotRequest:
       type: object
@@ -2694,7 +2684,6 @@ components:
         - bucket_61_90
         - bucket_90p
         - status
-        - metadata
       properties:
         as_of_date:
           type: string
@@ -2716,8 +2705,6 @@ components:
           type: string
         status:
           type: string
-        metadata:
-          type: object
 
     PatchAgingSnapshotRequest:
       type: object
@@ -2742,8 +2729,6 @@ components:
           type: string
         status:
           type: string
-        metadata:
-          type: object
 
     AgingSnapshotList:
       type: object
@@ -2820,7 +2805,6 @@ components:
         - days_past_due
         - outstanding_amount
         - bucket
-        - metadata
       properties:
         snapshot_id:
           type: string
@@ -2845,8 +2829,6 @@ components:
           type: string
         bucket:
           type: string
-        metadata:
-          type: object
 
     UpdateAgingBucketRequest:
       type: object
@@ -2858,7 +2840,6 @@ components:
         - days_past_due
         - outstanding_amount
         - bucket
-        - metadata
       properties:
         snapshot_id:
           type: string
@@ -2883,8 +2864,6 @@ components:
           type: string
         bucket:
           type: string
-        metadata:
-          type: object
 
     PatchAgingBucketRequest:
       type: object
@@ -2912,8 +2891,6 @@ components:
           type: string
         bucket:
           type: string
-        metadata:
-          type: object
 
     AgingBucketList:
       type: object
@@ -2974,9 +2951,6 @@ components:
       required:
         - as_of_date
         - direction
-        - actions_emitted
-        - status
-        - metadata
       properties:
         as_of_date:
           type: string
@@ -2993,8 +2967,6 @@ components:
           format: int32
         status:
           type: string
-        metadata:
-          type: object
 
     UpdateDunningRunRequest:
       type: object
@@ -3003,7 +2975,6 @@ components:
         - direction
         - actions_emitted
         - status
-        - metadata
       properties:
         as_of_date:
           type: string
@@ -3020,8 +2991,6 @@ components:
           format: int32
         status:
           type: string
-        metadata:
-          type: object
 
     PatchDunningRunRequest:
       type: object
@@ -3041,8 +3010,6 @@ components:
           format: int32
         status:
           type: string
-        metadata:
-          type: object
 
     DunningRunList:
       type: object
@@ -3129,8 +3096,6 @@ components:
         - action_type
         - days_past_due
         - outstanding_amount
-        - status
-        - metadata
       properties:
         run_id:
           type: string
@@ -3164,8 +3129,6 @@ components:
           nullable: true
           type: string
           maxLength: 140
-        metadata:
-          type: object
 
     UpdateDunningActionRequest:
       type: object
@@ -3178,7 +3141,6 @@ components:
         - days_past_due
         - outstanding_amount
         - status
-        - metadata
       properties:
         run_id:
           type: string
@@ -3212,8 +3174,6 @@ components:
           nullable: true
           type: string
           maxLength: 140
-        metadata:
-          type: object
 
     PatchDunningActionRequest:
       type: object
@@ -3250,8 +3210,6 @@ components:
           nullable: true
           type: string
           maxLength: 140
-        metadata:
-          type: object
 
     DunningActionList:
       type: object
@@ -3312,8 +3270,6 @@ components:
         - code
         - name
         - mode_type
-        - status
-        - metadata
       properties:
         code:
           type: string
@@ -3329,8 +3285,6 @@ components:
           format: uuid
         status:
           type: string
-        metadata:
-          type: object
 
     UpdateModeOfPaymentRequest:
       type: object
@@ -3339,7 +3293,6 @@ components:
         - name
         - mode_type
         - status
-        - metadata
       properties:
         code:
           type: string
@@ -3355,8 +3308,6 @@ components:
           format: uuid
         status:
           type: string
-        metadata:
-          type: object
 
     PatchModeOfPaymentRequest:
       type: object
@@ -3375,8 +3326,6 @@ components:
           format: uuid
         status:
           type: string
-        metadata:
-          type: object
 
     ModeOfPaymentList:
       type: object
@@ -3509,18 +3458,9 @@ components:
         - payment_number
         - payment_type
         - posting_date
-        - currency
-        - method
         - paid_amount
-        - allocated_amount
-        - unallocated_amount
         - bank_account_id
         - party_account_id
-        - withholding_amount
-        - withholding_tax_type
-        - status
-        - posting_state
-        - metadata
       properties:
         payment_number:
           type: string
@@ -3598,8 +3538,6 @@ components:
           nullable: true
           type: string
           maxLength: 1000
-        metadata:
-          type: object
 
     UpdatePaymentEntryRequest:
       type: object
@@ -3618,7 +3556,6 @@ components:
         - withholding_tax_type
         - status
         - posting_state
-        - metadata
       properties:
         payment_number:
           type: string
@@ -3696,8 +3633,6 @@ components:
           nullable: true
           type: string
           maxLength: 1000
-        metadata:
-          type: object
 
     PatchPaymentEntryRequest:
       type: object
@@ -3778,8 +3713,6 @@ components:
           nullable: true
           type: string
           maxLength: 1000
-        metadata:
-          type: object
 
     PaymentEntryList:
       type: object
@@ -3844,8 +3777,6 @@ components:
         - invoice_ref
         - invoice_kind
         - allocated_amount
-        - discount_amount
-        - metadata
       properties:
         payment_id:
           type: string
@@ -3863,8 +3794,6 @@ components:
           nullable: true
           type: string
           format: uuid
-        metadata:
-          type: object
 
     UpdatePaymentAllocationRequest:
       type: object
@@ -3874,7 +3803,6 @@ components:
         - invoice_kind
         - allocated_amount
         - discount_amount
-        - metadata
       properties:
         payment_id:
           type: string
@@ -3892,8 +3820,6 @@ components:
           nullable: true
           type: string
           format: uuid
-        metadata:
-          type: object
 
     PatchPaymentAllocationRequest:
       type: object
@@ -3914,8 +3840,6 @@ components:
           nullable: true
           type: string
           format: uuid
-        metadata:
-          type: object
 
     PaymentAllocationList:
       type: object

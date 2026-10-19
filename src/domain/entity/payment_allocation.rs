@@ -189,6 +189,12 @@ impl super::Entity for PaymentAllocation {
 }
 
 impl backbone_core::PersistentEntity for PaymentAllocation {
+    fn references() -> &'static [backbone_core::Reference] {
+        const REFERENCES: &[backbone_core::Reference] = &[
+            backbone_core::Reference::new("payment_id", "payment.payment_entries", "id"),
+        ];
+        REFERENCES
+    }
     fn entity_id(&self) -> String {
         self.id.to_string()
     }

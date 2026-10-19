@@ -38,7 +38,12 @@ pub struct CreateModeOfPaymentDto {
     pub mode_type: ModeType,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "default_account_id")]
     pub default_account_id: Option<Uuid>,
+    #[serde(default = "default_create_mode_of_payment_status")]
     pub status: ModeOfPaymentStatus,
+}
+
+fn default_create_mode_of_payment_status() -> ModeOfPaymentStatus {
+    ModeOfPaymentStatus::Active
 }
 
 // =============================================================================
@@ -84,8 +89,8 @@ pub struct PatchModeOfPaymentDto {
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "mode_type")]
     pub mode_type: Option<ModeType>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "default_account_id")]
-    pub default_account_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "default_account_id")]
+    pub default_account_id: Option<Option<Uuid>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<ModeOfPaymentStatus>,
 }
@@ -256,12 +261,4 @@ impl backbone_core::ApplyUpdateDto<UpdateModeOfPaymentDto> for ModeOfPayment {
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to ModeOfPayment here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

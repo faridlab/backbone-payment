@@ -82,6 +82,13 @@ impl axum::response::IntoResponse for AgingSnapshotError {
 // Route Configuration
 // =============================================================================
 
+/// The permissions this entity's generic routes require: `aging_snapshot:<action>` for `read`, `create`,
+/// `update`, `delete`, `restore` and `purge`, with any rename the schema's `requires:` declares.
+pub fn aging_snapshot_permissions() -> backbone_core::http::CrudPermissions {
+    backbone_core::http::CrudPermissions::new("aging_snapshot")
+        .in_module("payment")
+}
+
 /// Create Axum router with all 16 Backbone endpoints for AgingSnapshot.
 ///
 /// # Routes
@@ -111,21 +118,23 @@ impl axum::response::IntoResponse for AgingSnapshotError {
 /// let router = create_aging_snapshot_routes(service);
 /// ```
 pub fn create_aging_snapshot_routes(service: Arc<AgingSnapshotService>) -> Router {
-    BackboneCrudHandler::<AgingSnapshotService, AgingSnapshot, CreateAgingSnapshotDto, UpdateAgingSnapshotDto, AgingSnapshotResponseDto>::routes(
+    BackboneCrudHandler::<AgingSnapshotService, AgingSnapshot, CreateAgingSnapshotDto, UpdateAgingSnapshotDto, AgingSnapshotResponseDto>::routes_guarded(
         service,
         "/aging_snapshots",
+        aging_snapshot_permissions(),
     )
 }
 
 /// Create Axum router with only the read (GET) endpoints for AgingSnapshot.
 ///
-/// Safe for public, unauthenticated exposure (e.g., reference data).
+/// Each route requires the entity's `read` permission, so it needs an authenticated caller.
 /// Mutations must be served separately via `create_aging_snapshot_write_routes`,
 /// typically wrapped in an auth middleware layer.
 pub fn create_aging_snapshot_read_routes(service: Arc<AgingSnapshotService>) -> Router {
-    BackboneCrudHandler::<AgingSnapshotService, AgingSnapshot, CreateAgingSnapshotDto, UpdateAgingSnapshotDto, AgingSnapshotResponseDto>::read_routes(
+    BackboneCrudHandler::<AgingSnapshotService, AgingSnapshot, CreateAgingSnapshotDto, UpdateAgingSnapshotDto, AgingSnapshotResponseDto>::read_routes_guarded(
         service,
         "/aging_snapshots",
+        aging_snapshot_permissions(),
     )
 }
 
@@ -141,9 +150,10 @@ pub fn create_aging_snapshot_read_routes(service: Arc<AgingSnapshotService>) -> 
 /// service (e.g. a command router over its domain engine), serve THAT instead
 /// for any mutation that must respect domain rules.
 pub fn create_aging_snapshot_write_routes(service: Arc<AgingSnapshotService>) -> Router {
-    BackboneCrudHandler::<AgingSnapshotService, AgingSnapshot, CreateAgingSnapshotDto, UpdateAgingSnapshotDto, AgingSnapshotResponseDto>::write_routes(
+    BackboneCrudHandler::<AgingSnapshotService, AgingSnapshot, CreateAgingSnapshotDto, UpdateAgingSnapshotDto, AgingSnapshotResponseDto>::write_routes_guarded(
         service,
         "/aging_snapshots",
+        aging_snapshot_permissions(),
     )
 }
 

@@ -82,6 +82,13 @@ impl axum::response::IntoResponse for AgingBucketError {
 // Route Configuration
 // =============================================================================
 
+/// The permissions this entity's generic routes require: `aging_bucket:<action>` for `read`, `create`,
+/// `update`, `delete`, `restore` and `purge`, with any rename the schema's `requires:` declares.
+pub fn aging_bucket_permissions() -> backbone_core::http::CrudPermissions {
+    backbone_core::http::CrudPermissions::new("aging_bucket")
+        .in_module("payment")
+}
+
 /// Create Axum router with all 16 Backbone endpoints for AgingBucket.
 ///
 /// # Routes
@@ -111,21 +118,23 @@ impl axum::response::IntoResponse for AgingBucketError {
 /// let router = create_aging_bucket_routes(service);
 /// ```
 pub fn create_aging_bucket_routes(service: Arc<AgingBucketService>) -> Router {
-    BackboneCrudHandler::<AgingBucketService, AgingBucket, CreateAgingBucketDto, UpdateAgingBucketDto, AgingBucketResponseDto>::routes(
+    BackboneCrudHandler::<AgingBucketService, AgingBucket, CreateAgingBucketDto, UpdateAgingBucketDto, AgingBucketResponseDto>::routes_guarded(
         service,
         "/aging_buckets",
+        aging_bucket_permissions(),
     )
 }
 
 /// Create Axum router with only the read (GET) endpoints for AgingBucket.
 ///
-/// Safe for public, unauthenticated exposure (e.g., reference data).
+/// Each route requires the entity's `read` permission, so it needs an authenticated caller.
 /// Mutations must be served separately via `create_aging_bucket_write_routes`,
 /// typically wrapped in an auth middleware layer.
 pub fn create_aging_bucket_read_routes(service: Arc<AgingBucketService>) -> Router {
-    BackboneCrudHandler::<AgingBucketService, AgingBucket, CreateAgingBucketDto, UpdateAgingBucketDto, AgingBucketResponseDto>::read_routes(
+    BackboneCrudHandler::<AgingBucketService, AgingBucket, CreateAgingBucketDto, UpdateAgingBucketDto, AgingBucketResponseDto>::read_routes_guarded(
         service,
         "/aging_buckets",
+        aging_bucket_permissions(),
     )
 }
 
@@ -141,9 +150,10 @@ pub fn create_aging_bucket_read_routes(service: Arc<AgingBucketService>) -> Rout
 /// service (e.g. a command router over its domain engine), serve THAT instead
 /// for any mutation that must respect domain rules.
 pub fn create_aging_bucket_write_routes(service: Arc<AgingBucketService>) -> Router {
-    BackboneCrudHandler::<AgingBucketService, AgingBucket, CreateAgingBucketDto, UpdateAgingBucketDto, AgingBucketResponseDto>::write_routes(
+    BackboneCrudHandler::<AgingBucketService, AgingBucket, CreateAgingBucketDto, UpdateAgingBucketDto, AgingBucketResponseDto>::write_routes_guarded(
         service,
         "/aging_buckets",
+        aging_bucket_permissions(),
     )
 }
 

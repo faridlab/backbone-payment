@@ -81,6 +81,13 @@ impl axum::response::IntoResponse for DunningRunError {
 // Route Configuration
 // =============================================================================
 
+/// The permissions this entity's generic routes require: `dunning_run:<action>` for `read`, `create`,
+/// `update`, `delete`, `restore` and `purge`, with any rename the schema's `requires:` declares.
+pub fn dunning_run_permissions() -> backbone_core::http::CrudPermissions {
+    backbone_core::http::CrudPermissions::new("dunning_run")
+        .in_module("payment")
+}
+
 /// Create Axum router with all 16 Backbone endpoints for DunningRun.
 ///
 /// # Routes
@@ -110,21 +117,23 @@ impl axum::response::IntoResponse for DunningRunError {
 /// let router = create_dunning_run_routes(service);
 /// ```
 pub fn create_dunning_run_routes(service: Arc<DunningRunService>) -> Router {
-    BackboneCrudHandler::<DunningRunService, DunningRun, CreateDunningRunDto, UpdateDunningRunDto, DunningRunResponseDto>::routes(
+    BackboneCrudHandler::<DunningRunService, DunningRun, CreateDunningRunDto, UpdateDunningRunDto, DunningRunResponseDto>::routes_guarded(
         service,
         "/dunning_runs",
+        dunning_run_permissions(),
     )
 }
 
 /// Create Axum router with only the read (GET) endpoints for DunningRun.
 ///
-/// Safe for public, unauthenticated exposure (e.g., reference data).
+/// Each route requires the entity's `read` permission, so it needs an authenticated caller.
 /// Mutations must be served separately via `create_dunning_run_write_routes`,
 /// typically wrapped in an auth middleware layer.
 pub fn create_dunning_run_read_routes(service: Arc<DunningRunService>) -> Router {
-    BackboneCrudHandler::<DunningRunService, DunningRun, CreateDunningRunDto, UpdateDunningRunDto, DunningRunResponseDto>::read_routes(
+    BackboneCrudHandler::<DunningRunService, DunningRun, CreateDunningRunDto, UpdateDunningRunDto, DunningRunResponseDto>::read_routes_guarded(
         service,
         "/dunning_runs",
+        dunning_run_permissions(),
     )
 }
 
@@ -140,9 +149,10 @@ pub fn create_dunning_run_read_routes(service: Arc<DunningRunService>) -> Router
 /// service (e.g. a command router over its domain engine), serve THAT instead
 /// for any mutation that must respect domain rules.
 pub fn create_dunning_run_write_routes(service: Arc<DunningRunService>) -> Router {
-    BackboneCrudHandler::<DunningRunService, DunningRun, CreateDunningRunDto, UpdateDunningRunDto, DunningRunResponseDto>::write_routes(
+    BackboneCrudHandler::<DunningRunService, DunningRun, CreateDunningRunDto, UpdateDunningRunDto, DunningRunResponseDto>::write_routes_guarded(
         service,
         "/dunning_runs",
+        dunning_run_permissions(),
     )
 }
 
